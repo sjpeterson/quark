@@ -76,5 +76,5 @@ addEditToHistory
     | otherwise = (k + 1, x0:x1:xs, [])
   where
     p0 = k /= 0 && sel0 == 0 && ix0 == ix1 - n1 + (min 0 sel1) + (length s1)
-    p1 = n0 == 0 || length s1 == 0
+    p1 = length s0 == 1 && (n0 == 0 || length s1 == 0)
 addEditToHistory x _ = (1, [x], [])

@@ -31,6 +31,11 @@ distance :: Cursor -> Cursor -> String -> Int
 distance crs0 crs1 s = (cursorToIx crs1 s) - (cursorToIx crs0 s)
 
 -- Order two cursors
+minCursor :: Cursor -> Cursor -> Cursor
+minCursor x y = case compare x y of
+    GT -> y
+    _  -> x
+
 orderTwo :: Cursor -> Cursor -> (Cursor, Cursor)
 orderTwo x y = case compare x y of
     GT -> (y, x)
