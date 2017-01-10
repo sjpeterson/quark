@@ -18,7 +18,7 @@ module Quark.Buffer ( Buffer
                     , editHistory
                     , cursor
                     , input
-                    , insert
+                    , paste
                     , delete
                     , backspace
                     , selection
@@ -57,14 +57,17 @@ data Buffer = Buffer { editHistory :: EditHistory
 
 -- Input single character
 input :: Char -> Buffer -> Buffer
-input c = insert [c]
+input c = insert [c] True
+
+paste :: String -> Buffer -> Buffer
+paste s = insert s False
 
 -- Generic insert string at current selection
-insert :: String -> Buffer -> Buffer
-insert s (Buffer h crs sel) = Buffer newH newCrs newCrs
+insert :: String -> Bool -> Buffer -> Buffer
+insert s fusible (Buffer h crs sel) = Buffer newH newCrs newCrs
   where
     newH = addEditToHistory edit h
-    edit = Edit (0, 0) s (cursorToIx crs s0) (distance crs sel s0)
+    edit = Edit (0, 0) s (cursorToIx crs s0) (distance crs sel s0) fusible
     s0 = toString h
     newCrs = ixToCursor newIx newS
     newIx = (cursorToIx (minCursor crs sel) newS) + (length s)
@@ -84,7 +87,7 @@ genericDelete d (Buffer h crs sel) = Buffer newH newCrs newCrs
   where
     newH = addEditToHistory edit h
     (newCrs, _) = orderTwo crs sel
-    edit = Edit deletion "" (cursorToIx crs s0) (distance crs sel s0)
+    edit = Edit deletion "" (cursorToIx crs s0) (distance crs sel s0) True
     deletion = if (distance crs sel s0) == 0 then (d, 1 - d) else (0, 0)
     s0 = toString h
 
@@ -109,7 +112,7 @@ selection (Buffer h crs sel) = take l $ drop k s
 -- Perform undo on buffer, moving cursor to the beginning of the undone edit
 undo :: Buffer -> Buffer
 undo buffer@(Buffer h@(_, past, _) crs sel') = case past of
-    x0@(Edit (n, m) s ix sel):x1:xs -> Buffer newH newCrs newSel
+    x0@(Edit (n, m) s ix sel _):x1:xs -> Buffer newH newCrs newSel
                                          where
         newH = undoEdit h
         (newCrs, newSel) = case (cursorToIx crs s0) == postIx && crs == sel' of
@@ -126,7 +129,7 @@ undo buffer@(Buffer h@(_, past, _) crs sel') = case past of
 -- Perform redo on buffer, moving cursor to the end of the redone edit
 redo :: Buffer -> Buffer
 redo buffer@(Buffer h@(_, _, future) crs sel') = case future of
-    x@(Edit _ s ix sel):xs -> Buffer newH newSel newCrs
+    x@(Edit _ s ix sel _):xs -> Buffer newH newSel newCrs
                                 where
         newH = redoEdit h
         (newCrs, newSel) = case (cursorToIx crs s0) == ix && d == sel of

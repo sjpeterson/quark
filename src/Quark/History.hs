@@ -24,7 +24,7 @@ import Quark.Types
 
 -- (Edit n s ix) means to delete n characters at index ix, replacing them with
 -- string s.
-data Edit = Edit Deletion String Index Selection deriving (Show, Eq)
+data Edit = Edit Deletion String Index Selection Bool deriving (Show, Eq)
 
 -- EditHistory consists of lists of present and future edits and an integer
 -- indicating the number of edits since last save.
@@ -32,11 +32,11 @@ type EditHistory = (Int, [Edit], [Edit])
 
 -- Initialize an edit history from a string
 fromString :: String -> EditHistory
-fromString s = (0, [Edit (0, 0) s 0 0], [])
+fromString s = (0, [Edit (0, 0) s 0 0 False], [])
 
 -- An empty edit history (actually just 'fromString ""')
 emptyEditHistory :: EditHistory
-emptyEditHistory = (0, [Edit (0, 0) "" 0 0], [])
+emptyEditHistory = (0, [Edit (0, 0) "" 0 0 False], [])
 
 -- Construct a string from the edit history
 toString :: EditHistory -> String
@@ -45,7 +45,7 @@ toString (_, x:xs, _) = doEdit x (toString (0, xs, []))
 
 -- Apply an edit to a string
 doEdit :: Edit -> String -> String
-doEdit (Edit (n, m) sx ix sel) s = (take p s0) ++ sx ++ (drop q s1)
+doEdit (Edit (n, m) sx ix sel _) s = (take p s0) ++ sx ++ (drop q s1)
   where
     p = (length s0) - n + (min 0 sel)
     q = m + (max 0 sel)
@@ -71,10 +71,14 @@ newEdit x (k, present, _) = (k + 1, x:present, [])
 -- if appropriate
 addEditToHistory :: Edit -> EditHistory -> EditHistory
 addEditToHistory
-  x0@(Edit (n0, m0) s0 ix0 sel0) (k, x1@(Edit (n1, m1) s1 ix1 sel1):xs, _)
-    | p0 && p1  = (k, (Edit (n1 + n0, m1 + m0) (s1 ++ s0) (ix1) sel1):xs, [])
+  x0@(Edit (n0, m0) s0 ix0 sel0 f0) (k, x1@(Edit (n1, m1) s1 ix1 sel1 f1):xs, _)
+    | p0 && p1  = (k, (Edit (n1 + n0, m1 + m0) (s1 ++ s0) (ix1) sel1 f0):xs, [])
     | otherwise = (k + 1, x0:x1:xs, [])
   where
     p0 = k /= 0 && sel0 == 0 && ix0 == ix1 - n1 + (min 0 sel1) + (length s1)
-    p1 = length s0 == 1 && (n0 == 0 || length s1 == 0)
+    p1 = f0 && f1 && (n0 == 0 || length s1 == 0)
 addEditToHistory x _ = (1, [x], [])
+
+-- TODO:
+-- do not fuse with a recent paste (how to distinguish from fused inserts?
+-- do not fuse paste of length 1
