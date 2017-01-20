@@ -34,4 +34,3 @@ type PrintRange = (Size, Offset)
 
 -- Algebraic data types
 data Direction = Backward | Forward | Up | Down deriving Eq
-

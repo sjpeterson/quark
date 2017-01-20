@@ -6,7 +6,7 @@ import Data.List
 
 import Quark.Types
 import Quark.Helpers
-import Quark.Cursors
+import Quark.Cursor
 import Quark.History
 import Quark.Buffer
 

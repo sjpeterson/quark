@@ -1,4 +1,4 @@
-module Quark.Cursors where
+module Quark.Cursor where
 
 import Quark.Types ( Cursor
                    , Index

@@ -1,3 +1,5 @@
+The main file
+
 \begin{code}
 -- import Control.Exception (bracket_)
 -- import qualified UI.HSCurses.Curses as Curses
