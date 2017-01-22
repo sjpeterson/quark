@@ -41,6 +41,10 @@ helpersUnitTests = testGroup "Unit tests for Helpers.hs"
       assertEqual "" 6 $ strWidth "test\nstring"
   , testCase "Size of string" $
       assertEqual "" (3, 6) $ strSize "test\nstring\n"
+  , testCase "Line numbers width, test 1" $
+      assertEqual "" 2 $ lnWidth "test\nstring"
+  , testCase "Line numbers width, test 2" $
+      assertEqual "" 4 $ lnWidth $ unlines $ replicate 145 "test"
   ]
 
 {- Unit tests for the Cursors.hs

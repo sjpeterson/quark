@@ -25,6 +25,7 @@ library
                  , Quark.Buffer
                  , Quark.Window
                  , Quark.Layout
+                 , Quark.Flipper
   other-modules: Paths_quark
   build-depends: base >= 4.9 && < 4.10
                , hscurses >=1.4 && < 1.5

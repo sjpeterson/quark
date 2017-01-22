@@ -34,9 +34,9 @@ type EditHistory = (Int, [Edit], [Edit])
 fromString :: String -> EditHistory
 fromString s = (0, [Edit (0, 0) s 0 0 False], [])
 
--- An empty edit history (actually just 'fromString ""')
+-- An empty edit history
 emptyEditHistory :: EditHistory
-emptyEditHistory = (0, [Edit (0, 0) "" 0 0 False], [])
+emptyEditHistory = fromString "" 
 
 -- Construct a string from the edit history
 toString :: EditHistory -> String

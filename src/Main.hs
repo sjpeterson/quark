@@ -4,12 +4,16 @@ import System.Environment ( getArgs )
 import System.Directory ( doesFileExist )
 
 import qualified UI.HSCurses.Curses as Curses
+-- import qualified UI.HSCurses.CursesHelper as CursesH
+-- import Control.Exception (bracket_)
 
 import Quark.Window
 import Quark.Layout
-
--- import qualified UI.HSCurses.CursesHelper as CursesH
--- import Control.Exception (bracket_)
+import Quark.Buffer
+import Quark.Flipper
+import Quark.History
+import Quark.Types
+import Quark.Helpers
 
 -- neat shorthand for initializing foreground color f and background color b
 -- as color pair n
@@ -63,15 +67,20 @@ initLayout path = do
     fillBackground (titleBar layout) 17
     setTitle (titleBar layout) path
     fileExists <- doesFileExist path
-    text <- if fileExists then readFile path else return "Nothing here"
-    printText (primaryPane layout) text
+    -- text <- if fileExists then readFile path else return "Nothing here"
+    -- printText (primaryPane layout) text
     return layout
+
+refresh :: Window -> IO ()
+refresh (TextView w _ _)  = Curses.wRefresh w
+
+updateCursor :: Window -> Offset -> Cursor -> IO ()
+updateCursor (TextView w _ _) (x0, y0) (x, y) =
+    Curses.wMove w (x0 + x) (y0 + y)
 
 printText :: Window -> String -> IO ()
 printText t@(TextView w (r, _) (rr, _)) text = do
     mapM_ (\(k, l, s) -> printLine k l s t) $ zip3 [1..r] lineNumbers textLines
-    Curses.wMove w 1 lnc
-    Curses.wRefresh w
   where
     n =  length $ lines text
     lnc = (length $ show n) + 1
@@ -112,29 +121,44 @@ padMidToLen k a0 a1
   | k == (length a0 + length a1) = a0 ++ a1
   | otherwise                    = padMidToLen k (a0 ++ " ") a1
 
+-- TODO: rewrite for style
+initBuffer :: String -> IO (ExtendedBuffer)
+initBuffer path = do
+    fileExists <- doesFileExist path
+    contents <- if fileExists then readFile path else return ""
+    let title = if fileExists then path else "Untitled"
+    return ((Buffer (fromString contents) (0, 0) (0, 0)), title, False)
+
+initFlipper :: String -> IO (Flipper ExtendedBuffer)
+initFlipper path = do
+    extendedBuffer <- initBuffer path
+    return (extendedBuffer, [], [])
+
 -- Start Curses and initialize colors
 start :: String -> IO ()
 start path = do
-  Curses.initScr
-  hasColors <- Curses.hasColors
-  if hasColors
-    then do
-      Curses.startColor
-      Curses.useDefaultColors
-      defineColors
-      return ()
-    else
-      return ()
-  Curses.echo False
-  Curses.wclear Curses.stdScr
-  Curses.refresh
-  layout <- initLayout path
-  mainLoop layout
+    Curses.initScr
+    hasColors <- Curses.hasColors
+    if hasColors then do Curses.startColor
+                         Curses.useDefaultColors
+                         defineColors
+                 else return ()
+    Curses.echo False
+    Curses.wclear Curses.stdScr
+    Curses.refresh
+    layout <- initLayout path
+    buffers <- initFlipper path
+    mainLoop layout buffers
 
-mainLoop layout = do
+mainLoop :: Layout -> Flipper ExtendedBuffer -> IO ()
+mainLoop layout buffers = do
+    printText (primaryPane layout) (ebToString $ active buffers)
+    let lnOffset = lnWidth $ ebToString $ active buffers
+    updateCursor (primaryPane layout) (1, lnOffset) (cursor $ (\(x, _, _) -> x ) $ active buffers)
+    refresh (primaryPane layout)
     c <- Curses.getch
     if Curses.decodeKey c == Curses.KeyChar 'q' then end
-                                                else mainLoop layout
+                                                else mainLoop layout buffers
 end :: IO ()
 end = Curses.endWin
 
@@ -143,4 +167,4 @@ main = do
     args <- getArgs
     let path = (\x -> if (length x) == 0 then "None" else head x) args
     start path
-  -- or bracket pattern?
+    -- or bracket pattern?

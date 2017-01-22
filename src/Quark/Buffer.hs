@@ -14,7 +14,10 @@
 --
 --------
 
-module Quark.Buffer ( Buffer
+module Quark.Buffer ( Buffer ( Buffer
+                             , LockedBuffer )
+                    , ExtendedBuffer
+                    , ebToString
                     , editHistory
                     , cursor
                     , input
@@ -59,6 +62,11 @@ data Buffer = LockedBuffer String
 -- It might be neat to have a type of buffer that mirrors and updates with
 -- another buffer, but is non-editable. The low-tech version of this would be
 -- to clone a Buffer to a LockedBuffer
+
+type ExtendedBuffer = (Buffer, String, Bool)
+
+ebToString :: ExtendedBuffer -> String
+ebToString ((Buffer h _ _), _, _) = toString h
 
 -- Input single character
 input :: Char -> Buffer -> Buffer
