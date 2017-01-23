@@ -4,7 +4,7 @@ import System.Environment ( getArgs )
 import System.Directory ( doesFileExist )
 
 import qualified UI.HSCurses.Curses as Curses
--- import qualified UI.HSCurses.CursesHelper as CursesH
+import qualified UI.HSCurses.CursesHelper as CursesH
 -- import Control.Exception (bracket_)
 
 import Quark.Window
@@ -134,7 +134,58 @@ initFlipper path = do
     extendedBuffer <- initBuffer path
     return (extendedBuffer, [], [])
 
+-- TODO: consider moving to separate file
+handleKey :: Curses.Key -> Layout -> Flipper ExtendedBuffer -> IO ()
+handleKey k layout buffers
+    | k == Curses.KeyLeft = mainLoop layout $ mapF (mapXB $ moveCursor Backward) buffers
+    | k == Curses.KeyRight = mainLoop layout $ mapF (mapXB $ moveCursor Forward) buffers
+    | k == Curses.KeyDown = mainLoop layout $ mapF (mapXB $ moveCursor Down) buffers
+    | k == Curses.KeyUp = mainLoop layout $ mapF (mapXB $ moveCursor Up) buffers
+    | k == Curses.KeyChar '\DC1' = end
+    | otherwise = do
+                     setTitle (titleBar layout) $ show k
+                     mainLoop layout buffers
+
 -- Start Curses and initialize colors
+cursesMode :: IO ()
+cursesMode = do
+    Curses.echo False
+    Curses.raw True     -- disable flow control characters
+    Curses.nl False     -- maps Enter to C-m rather than C-j
+
+{-
+resetParams :: IO ()
+resetParams = do
+    raw True    -- raw mode please
+    echo False
+    nl False
+    intrFlush True
+    leaveOk False
+    keypad stdScr True
+
+{-# LINE 242 "UI/HSCurses/Curses.hsc" #-}
+    defineKey (259) "\x1b[1;2A"
+{-# LINE 243 "UI/HSCurses/Curses.hsc" #-}
+    defineKey (258) "\x1b[1;2B"
+{-# LINE 244 "UI/HSCurses/Curses.hsc" #-}
+    defineKey (393) "\x1b[1;2D"
+{-# LINE 245 "UI/HSCurses/Curses.hsc" #-}
+    defineKey (402) "\x1b[1;2C"
+{-# LINE 246 "UI/HSCurses/Curses.hsc" #-}
+    defineKey (350) "\x1b[E"  -- xterm seems to emit B2, not BEG
+{-# LINE 247 "UI/HSCurses/Curses.hsc" #-}
+    defineKey (360) "\x1b[F"
+{-# LINE 248 "UI/HSCurses/Curses.hsc" #-}
+    defineKey (360) "\x1b[4~"
+{-# LINE 249 "UI/HSCurses/Curses.hsc" #-}
+    defineKey (262) "\x1b[H"
+{-# LINE 250 "UI/HSCurses/Curses.hsc" #-}
+    defineKey (262) "\x1b[1~"
+{-# LINE 251 "UI/HSCurses/Curses.hsc" #-}
+
+{-# LINE 252 "UI/HSCurses/Curses.hsc" #-}
+-}
+
 start :: String -> IO ()
 start path = do
     Curses.initScr
@@ -143,7 +194,8 @@ start path = do
                          Curses.useDefaultColors
                          defineColors
                  else return ()
-    Curses.echo False
+    --cursesMode
+    Curses.resetParams
     Curses.wclear Curses.stdScr
     Curses.refresh
     layout <- initLayout path
@@ -154,11 +206,13 @@ mainLoop :: Layout -> Flipper ExtendedBuffer -> IO ()
 mainLoop layout buffers = do
     printText (primaryPane layout) (ebToString $ active buffers)
     let lnOffset = lnWidth $ ebToString $ active buffers
-    updateCursor (primaryPane layout) (1, lnOffset) (cursor $ (\(x, _, _) -> x ) $ active buffers)
+    let crs = cursor $ (\(x, _, _) -> x ) $ active buffers
+    updateCursor (primaryPane layout) (1, lnOffset) crs
+    setTitle (titleBar layout) $ show crs
     refresh (primaryPane layout)
-    c <- Curses.getch
-    if Curses.decodeKey c == Curses.KeyChar 'q' then end
-                                                else mainLoop layout buffers
+    c <- Curses.getCh
+    handleKey c layout buffers
+
 end :: IO ()
 end = Curses.endWin
 

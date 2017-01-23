@@ -18,6 +18,7 @@ module Quark.Buffer ( Buffer ( Buffer
                              , LockedBuffer )
                     , ExtendedBuffer
                     , ebToString
+                    , mapXB
                     , editHistory
                     , cursor
                     , input
@@ -67,6 +68,10 @@ type ExtendedBuffer = (Buffer, String, Bool)
 
 ebToString :: ExtendedBuffer -> String
 ebToString ((Buffer h _ _), _, _) = toString h
+
+-- TODO: monad/functor/whatever
+mapXB :: (Buffer -> Buffer) -> ExtendedBuffer -> ExtendedBuffer
+mapXB f (buffer, s, b) = (f buffer, s, b)
 
 -- Input single character
 input :: Char -> Buffer -> Buffer
@@ -157,25 +162,25 @@ redo buffer@(Buffer h@(_, _, future) crs sel') = case future of
 
 -- Move the cursor, set selection cursor to same
 moveCursor :: Direction -> Buffer -> Buffer
-moveCursor = genericMoveCursor True
+moveCursor = genericMoveCursor False
 
 -- Move the cursor, keeping selection cursor in place
 selectMoveCursor :: Direction -> Buffer -> Buffer
-selectMoveCursor = genericMoveCursor False
+selectMoveCursor = genericMoveCursor True
 
 -- Generic move cursor (not exported)
 genericMoveCursor :: Bool -> Direction -> Buffer -> Buffer
 genericMoveCursor moveSel d (Buffer h crs sel) =
     Buffer h newCrs newSel
   where
-    newCrs
+    newSel
         | moveSel == False = move d s crs
         | d == Backward    = minCrs
         | d == Forward     = maxCrs
         | otherwise        = move d s crs
-    newSel = case moveSel of
-        True -> newCrs
-        _    -> sel
+    newCrs = case moveSel of
+        False -> newSel
+        _     -> crs
     s = toString h
     (minCrs, maxCrs) = orderTwo crs sel
 
