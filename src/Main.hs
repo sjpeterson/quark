@@ -53,13 +53,19 @@ defineColors = do
   defineColor 18 3 (-1)
 
 setTitle :: Window -> String -> IO ()
-setTitle (TitleBar w (r, c)) title = do
+setTitle (TitleBar w (_, c)) title = do
     Curses.attrSet Curses.attr0 (Curses.Pair 17)
     Curses.mvWAddStr w 0 0 (padMidToLen c leftText rightText)
     Curses.wRefresh w
   where
     leftText = " quark - " ++ title
     rightText = "0.0.1a "
+
+debug :: Window -> String -> IO ()
+debug u@(UtilityBar w (_, c)) text = do
+    Curses.attrSet Curses.attr0 (Curses.Pair 4)
+    Curses.mvWAddStr w 1 1 $ padToLen (c - 2) text
+    Curses.wRefresh w
 
 initLayout :: String -> IO (Layout)
 initLayout path = do
@@ -107,15 +113,6 @@ padToLen k a
   | k <= length a = a
   | otherwise     = padToLen k $ a ++ " "
 
-updateTitleBar :: Curses.Window -> Int -> String -> IO ()
-updateTitleBar win maxCols path = do
-    Curses.attrSet Curses.attr0 (Curses.Pair 17)
-    Curses.mvWAddStr win 0 0 (padMidToLen maxCols leftText rightText)
-    Curses.wRefresh win
-  where
-    leftText = " quark - " ++ path
-    rightText = "0.0.1a "
-
 padMidToLen :: Int -> [Char] -> [Char] -> [Char]
 padMidToLen k a0 a1
   | k == (length a0 + length a1) = a0 ++ a1
@@ -136,15 +133,16 @@ initFlipper path = do
 
 -- TODO: consider moving to separate file
 handleKey :: Curses.Key -> Layout -> Flipper ExtendedBuffer -> IO ()
+handleKey (Curses.KeyChar c) layout buffers
+    | c == '\DC1' = end
+    | c == '\r'   = mainLoop layout $ mapF (mapXB $ input '\n') buffers
+    | otherwise   = mainLoop layout $ mapF (mapXB $ input c) buffers
 handleKey k layout buffers
     | k == Curses.KeyLeft = mainLoop layout $ mapF (mapXB $ moveCursor Backward) buffers
     | k == Curses.KeyRight = mainLoop layout $ mapF (mapXB $ moveCursor Forward) buffers
     | k == Curses.KeyDown = mainLoop layout $ mapF (mapXB $ moveCursor Down) buffers
     | k == Curses.KeyUp = mainLoop layout $ mapF (mapXB $ moveCursor Up) buffers
-    | k == Curses.KeyChar '\DC1' = end
-    | otherwise = do
-                     setTitle (titleBar layout) $ show k
-                     mainLoop layout buffers
+    | otherwise = mainLoop layout buffers
 
 -- Start Curses and initialize colors
 cursesMode :: IO ()
@@ -211,6 +209,7 @@ mainLoop layout buffers = do
     setTitle (titleBar layout) $ show crs
     refresh (primaryPane layout)
     c <- Curses.getCh
+    debug (utilityBar layout) $ show c
     handleKey c layout buffers
 
 end :: IO ()
