@@ -150,7 +150,7 @@ initBuffer path = do
     fileExists <- doesFileExist path
     contents <- if fileExists then readFile path else return ""
     let title = if fileExists then path else "Untitled"
-    return ((Buffer (fromString contents) (0, 3) (0, 3)), title, False)
+    return ((Buffer (fromString contents) (0, 0) (0, 0)), title, False)
 
 initFlipper :: String -> IO (Flipper ExtendedBuffer)
 initFlipper path = do
