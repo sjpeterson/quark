@@ -1,1 +1,17 @@
-- Move from default strings to Data.Text
+Functionality:
+  - Home and End
+  - PgUp and PgDown
+  - Save
+  - Prompts
+    - Confirm Quit
+    - Save as
+  - Select
+    - Left/Right
+    - PgUp/PgDown (stand in for lack of up/down capability?)
+    - Home/End
+    - Line
+    - Everything
+  - Show overflow hints (~?)
+
+Potential future optimizations:
+  - Move from prelude Strings to Data.Text
