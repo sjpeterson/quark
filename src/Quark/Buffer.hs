@@ -104,10 +104,12 @@ genericDelete :: Int -> Buffer -> Buffer
 genericDelete d (Buffer h crs sel) = Buffer newH newCrs newCrs
   where
     newH = addEditToHistory edit h
-    (newCrs, _) = orderTwo crs sel
+    newCrs = if c0 && d == 1 then move Backward s0 crs
+                             else (\(x, y) -> x) $ orderTwo crs sel
     edit = Edit deletion "" (cursorToIx crs s0) (distance crs sel s0) True
-    deletion = if (distance crs sel s0) == 0 then (d, 1 - d) else (0, 0)
+    deletion = if c0 then (d, 1 - d) else (0, 0)
     s0 = toString h
+    c0 = (distance crs sel s0) == 0
 
 -- Cut selection
 -- cut :: Buffer -> Buffer

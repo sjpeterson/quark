@@ -7,6 +7,8 @@ import qualified UI.HSCurses.Curses as Curses
 import qualified UI.HSCurses.CursesHelper as CursesH
 -- import Control.Exception (bracket_)
 
+import Data.Char ( isAscii ) -- not good enough
+
 import Quark.Window
 import Quark.Layout
 import Quark.Buffer
@@ -63,7 +65,7 @@ setTitle (TitleBar w (_, c)) title = do
 
 debug :: Window -> String -> IO ()
 debug u@(UtilityBar w (_, c)) text = do
-    Curses.attrSet Curses.attr0 (Curses.Pair 4)
+    Curses.wAttrSet w (Curses.attr0, Curses.Pair 1)
     Curses.mvWAddStr w 1 1 $ padToLen (c - 2) text
     Curses.wRefresh w
 
@@ -82,16 +84,40 @@ refresh (TextView w _ _)  = Curses.wRefresh w
 
 updateCursor :: Window -> Offset -> Cursor -> IO ()
 updateCursor (TextView w _ _) (x0, y0) (x, y) =
-    Curses.wMove w (x0 + x) (y0 + y)
+    Curses.wMove w (x - x0) (y - y0)
 
+cursorDirection :: Cursor -> Int -> Window -> Maybe Direction
+cursorDirection (x, y) y0 (TextView _ (r, c) (rr, cc))
+    | x < rr               = Just Up
+    | x >= rr + r - 1      = Just Down
+    | y < (cc - y0)        = Just Backward
+    | y >= cc + c - y0 - 1 = Just Forward
+    | otherwise            = Nothing
+
+changeOffset' :: Cursor -> Int -> Window -> Window
+changeOffset' crs ccOffset t = case cursorDirection crs ccOffset t of
+    Nothing -> t
+    Just d  -> changeOffset' crs ccOffset (changeOffset d t)
+
+changeOffset :: Direction -> Window -> Window
+changeOffset d (TextView w size (rr, cc))
+    | d == Up       = TextView w size (max 0 (rr - rrStep), cc)
+    | d == Down     = TextView w size (rr + rrStep, cc)
+    | d == Backward = TextView w size (rr, max 0 (cc - ccStep))
+    | d == Forward  = TextView w size (rr, cc + ccStep)
+  where
+    rrStep = 3
+    ccStep = 5
+
+-- TODO: show hints of overflow
 printText :: Window -> String -> IO ()
-printText t@(TextView w (r, _) (rr, _)) text = do
-    mapM_ (\(k, l, s) -> printLine k l s t) $ zip3 [1..r] lineNumbers textLines
+printText t@(TextView w (r, c) (rr, cc)) text = do
+    mapM_ (\(k, l, s) -> printLine k l s t) $ zip3 [0..(r - 2)] lineNumbers textLines
   where
     n =  length $ lines text
     lnc = (length $ show n) + 1
     lineNumbers = map (padToLen lnc) (map show $ drop rr [1..n]) ++ repeat ""
-    textLines = drop rr (lines text) ++ repeat ""
+    textLines = map ((padToLen (c - lnc)). drop cc) $ drop rr (lines text) ++ repeat ""
 
 printLine :: Int -> String -> String -> Window -> IO ()
 printLine k lineNumber text (TextView w (_, c) _) = do
@@ -124,7 +150,7 @@ initBuffer path = do
     fileExists <- doesFileExist path
     contents <- if fileExists then readFile path else return ""
     let title = if fileExists then path else "Untitled"
-    return ((Buffer (fromString contents) (0, 0) (0, 0)), title, False)
+    return ((Buffer (fromString contents) (0, 3) (0, 3)), title, False)
 
 initFlipper :: String -> IO (Flipper ExtendedBuffer)
 initFlipper path = do
@@ -132,16 +158,22 @@ initFlipper path = do
     return (extendedBuffer, [], [])
 
 -- TODO: consider moving to separate file
+action :: (Buffer -> Buffer) -> Layout -> Flipper ExtendedBuffer -> IO ()
+action a layout buffers = mainLoop layout $ mapF (mapXB a) buffers
+
 handleKey :: Curses.Key -> Layout -> Flipper ExtendedBuffer -> IO ()
 handleKey (Curses.KeyChar c) layout buffers
     | c == '\DC1' = end
-    | c == '\r'   = mainLoop layout $ mapF (mapXB $ input '\n') buffers
-    | otherwise   = mainLoop layout $ mapF (mapXB $ input c) buffers
+    | c == '\DEL' = action backspace layout buffers
+    | c == '\r'   = action (input '\n') layout buffers
+    | isAscii c   = action (input c) layout buffers
+    | otherwise   = mainLoop layout buffers
 handleKey k layout buffers
-    | k == Curses.KeyLeft = mainLoop layout $ mapF (mapXB $ moveCursor Backward) buffers
-    | k == Curses.KeyRight = mainLoop layout $ mapF (mapXB $ moveCursor Forward) buffers
-    | k == Curses.KeyDown = mainLoop layout $ mapF (mapXB $ moveCursor Down) buffers
-    | k == Curses.KeyUp = mainLoop layout $ mapF (mapXB $ moveCursor Up) buffers
+    | k == Curses.KeyDC = action delete layout buffers
+    | k == Curses.KeyLeft = action (moveCursor Backward) layout buffers
+    | k == Curses.KeyRight = action (moveCursor Forward) layout buffers
+    | k == Curses.KeyDown = action (moveCursor Down) layout buffers
+    | k == Curses.KeyUp = action (moveCursor Up) layout buffers
     | otherwise = mainLoop layout buffers
 
 -- Start Curses and initialize colors
@@ -150,39 +182,6 @@ cursesMode = do
     Curses.echo False
     Curses.raw True     -- disable flow control characters
     Curses.nl False     -- maps Enter to C-m rather than C-j
-
-{-
-resetParams :: IO ()
-resetParams = do
-    raw True    -- raw mode please
-    echo False
-    nl False
-    intrFlush True
-    leaveOk False
-    keypad stdScr True
-
-{-# LINE 242 "UI/HSCurses/Curses.hsc" #-}
-    defineKey (259) "\x1b[1;2A"
-{-# LINE 243 "UI/HSCurses/Curses.hsc" #-}
-    defineKey (258) "\x1b[1;2B"
-{-# LINE 244 "UI/HSCurses/Curses.hsc" #-}
-    defineKey (393) "\x1b[1;2D"
-{-# LINE 245 "UI/HSCurses/Curses.hsc" #-}
-    defineKey (402) "\x1b[1;2C"
-{-# LINE 246 "UI/HSCurses/Curses.hsc" #-}
-    defineKey (350) "\x1b[E"  -- xterm seems to emit B2, not BEG
-{-# LINE 247 "UI/HSCurses/Curses.hsc" #-}
-    defineKey (360) "\x1b[F"
-{-# LINE 248 "UI/HSCurses/Curses.hsc" #-}
-    defineKey (360) "\x1b[4~"
-{-# LINE 249 "UI/HSCurses/Curses.hsc" #-}
-    defineKey (262) "\x1b[H"
-{-# LINE 250 "UI/HSCurses/Curses.hsc" #-}
-    defineKey (262) "\x1b[1~"
-{-# LINE 251 "UI/HSCurses/Curses.hsc" #-}
-
-{-# LINE 252 "UI/HSCurses/Curses.hsc" #-}
--}
 
 start :: String -> IO ()
 start path = do
@@ -202,15 +201,18 @@ start path = do
 
 mainLoop :: Layout -> Flipper ExtendedBuffer -> IO ()
 mainLoop layout buffers = do
-    printText (primaryPane layout) (ebToString $ active buffers)
     let lnOffset = lnWidth $ ebToString $ active buffers
     let crs = cursor $ (\(x, _, _) -> x ) $ active buffers
-    updateCursor (primaryPane layout) (1, lnOffset) crs
-    setTitle (titleBar layout) $ show crs
-    refresh (primaryPane layout)
+    let layout' = mapL (changeOffset' crs lnOffset) layout
+    let w@(TextView _ _ (rr, cc)) = primaryPane layout'
+    -- debug (utilityBar layout') $ show w
+    printText w (ebToString $ active buffers)
+    updateCursor w (rr, cc - lnOffset) crs
+    setTitle (titleBar layout') $ show crs
+    refresh w
     c <- Curses.getCh
-    debug (utilityBar layout) $ show c
-    handleKey c layout buffers
+    debug (utilityBar layout') $ show c
+    handleKey c layout' buffers
 
 end :: IO ()
 end = Curses.endWin

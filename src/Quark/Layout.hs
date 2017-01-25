@@ -18,6 +18,7 @@ module Quark.Layout ( Layout ( MinimalLayout
                              , BasicLayout
                              , VSplitLayout
                              , HSplitLayout )
+                    , mapL
                     , titleBar
                     , utilityBar
                     , directoryPane
@@ -45,7 +46,7 @@ data Layout = MinimalLayout { titleBar :: Window
                            , utilityBar :: Window
                            , directoryPane :: Window
                            , primaryPane :: Window
-                           , secondaryPane :: Window }
+                           , secondaryPane :: Window } deriving Show
 
 defaultLayout :: IO (Layout)
 defaultLayout = do
@@ -53,6 +54,10 @@ defaultLayout = do
     layout <- if c > 85 + 16 then (basicLayout r c)
                              else (minimalLayout r c)
     return layout
+
+mapL :: (Window -> Window) -> Layout -> Layout
+mapL f (MinimalLayout t u p) = MinimalLayout t u $ f p
+mapL f (BasicLayout t u d p) = BasicLayout t u d $ f p
 
 basicLayout :: Int -> Int -> IO (Layout)
 basicLayout r c = do
@@ -74,7 +79,7 @@ minimalLayout r c = do
     let mainHeight = r - 3
     cTitleBar <- Curses.newWin 2 c 0 0
     cUtilityBar <- Curses.newWin 2 c (r - 3) 0
-    cMainView <- Curses.newWin (mainHeight + 1) c 1 0
+    cMainView <- Curses.newWin (mainHeight + 1) c 2 0
     let qTitleBar = TitleBar cTitleBar (1, c)
     let qUtilityBar = UtilityBar cUtilityBar (1, c)
     let qPrimaryPane = TextView cMainView (mainHeight, c) (0, 0)

@@ -26,4 +26,4 @@ import Quark.Types
 data Window = TitleBar Curses.Window Size
             | UtilityBar Curses.Window Size
             | TextView Curses.Window Size Offset
-            | DirectoryView Curses.Window Size Int
+            | DirectoryView Curses.Window Size Int deriving Show
