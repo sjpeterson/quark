@@ -112,12 +112,14 @@ changeOffset d (TextView w size (rr, cc))
 -- TODO: show hints of overflow
 printText :: Window -> String -> IO ()
 printText t@(TextView w (r, c) (rr, cc)) text = do
-    mapM_ (\(k, l, s) -> printLine k l s t) $ zip3 [0..(r - 2)] lineNumbers textLines
+    mapM_ (\(k, l, s) ->
+        printLine k l s t) $ zip3 [0..(r - 2)] lineNumbers textLines
   where
     n =  length $ lines text
     lnc = (length $ show n) + 1
     lineNumbers = map (padToLen lnc) (map show $ drop rr [1..n]) ++ repeat ""
-    textLines = map ((padToLen (c - lnc)). drop cc) $ drop rr (lines text) ++ repeat ""
+    textLines =
+        map ((padToLen (c - lnc)). drop cc) $ drop rr (lines text) ++ repeat ""
 
 printLine :: Int -> String -> String -> Window -> IO ()
 printLine k lineNumber text (TextView w (_, c) _) = do
@@ -149,13 +151,18 @@ initBuffer :: String -> IO (ExtendedBuffer)
 initBuffer path = do
     fileExists <- doesFileExist path
     contents <- if fileExists then readFile path else return ""
-    let title = if fileExists then path else "Untitled"
-    return ((Buffer (fromString contents) (0, 0) (0, 0)), title, False)
+    -- let title = if fileExists then path else "Untitled"
+    return ((Buffer (fromString contents) (0, 0) (0, 0)), path, False)
 
 initFlipper :: String -> IO (Flipper ExtendedBuffer)
 initFlipper path = do
     extendedBuffer <- initBuffer path
     return (extendedBuffer, [], [])
+
+save :: Window -> ExtendedBuffer -> IO ()
+save u ((Buffer h _ _), path, False) = do writeFile path $ toString h
+                                          debug u $ path ++ " saved!"
+save u _ = debug u "Can't save protected buffer"
 
 -- TODO: consider moving to separate file
 action :: (Buffer -> Buffer) -> Layout -> Flipper ExtendedBuffer -> IO ()
@@ -164,17 +171,31 @@ action a layout buffers = mainLoop layout $ mapF (mapXB a) buffers
 handleKey :: Curses.Key -> Layout -> Flipper ExtendedBuffer -> IO ()
 handleKey (Curses.KeyChar c) layout buffers
     | c == '\DC1' = end
+    | c == '\DC3' = do save (utilityBar layout) $ active buffers
+                       mainLoop layout buffers
     | c == '\DEL' = action backspace layout buffers
+    | c == '\SUB' = action undo layout buffers
+    | c == '\EM'  = action redo layout buffers
     | c == '\r'   = action (input '\n') layout buffers
     | isAscii c   = action (input c) layout buffers
     | otherwise   = mainLoop layout buffers
+  where
+    ((Buffer h _ _), _, _) = active buffers
 handleKey k layout buffers
     | k == Curses.KeyDC = action delete layout buffers
     | k == Curses.KeyLeft = action (moveCursor Backward) layout buffers
     | k == Curses.KeyRight = action (moveCursor Forward) layout buffers
     | k == Curses.KeyDown = action (moveCursor Down) layout buffers
     | k == Curses.KeyUp = action (moveCursor Up) layout buffers
+    | k == Curses.KeyPPage = action (moveCursorN (r - 1) Up) layout buffers
+    | k == Curses.KeyNPage = action (moveCursorN (r - 1) Down) layout buffers
+    | k == Curses.KeyEnd = action endOfLine layout buffers
+    | k == Curses.KeyHome = action startOfLine layout buffers
+    | k == Curses.KeyUnknown 532 = action endOfFile layout buffers
+    | k == Curses.KeyUnknown 537 = action startOfFile layout buffers
     | otherwise = mainLoop layout buffers
+  where
+    (TextView _ (r, _) _) = primaryPane layout
 
 -- Start Curses and initialize colors
 cursesMode :: IO ()

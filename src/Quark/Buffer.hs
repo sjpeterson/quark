@@ -29,7 +29,12 @@ module Quark.Buffer ( Buffer ( Buffer
                     , undo
                     , redo
                     , moveCursor
-                    , selectMoveCursor) where
+                    , moveCursorN
+                    , selectMoveCursor
+                    , endOfLine
+                    , startOfLine
+                    , endOfFile
+                    , startOfFile ) where
 
 import Quark.Types ( Clipboard
                    , Cursor
@@ -64,7 +69,7 @@ data Buffer = LockedBuffer String
 -- another buffer, but is non-editable. The low-tech version of this would be
 -- to clone a Buffer to a LockedBuffer
 
-type ExtendedBuffer = (Buffer, String, Bool)
+type ExtendedBuffer = (Buffer, FilePath, Bool)
 
 ebToString :: ExtendedBuffer -> String
 ebToString ((Buffer h _ _), _, _) = toString h
@@ -88,7 +93,7 @@ insert s fusible (Buffer h crs sel) = Buffer newH newCrs newCrs
     edit = Edit (0, 0) s (cursorToIx crs s0) (distance crs sel s0) fusible
     s0 = toString h
     newCrs = ixToCursor newIx newS
-    newIx = (cursorToIx (minCursor crs sel) newS) + (length s)
+    newIx = (cursorToIx (minCursor crs sel) s0) + (length s)
     newS = toString newH
 
 -- Delete
@@ -162,18 +167,44 @@ redo buffer@(Buffer h@(_, _, future) crs sel') = case future of
         postCrs = ixToCursor (ix + length s) $ toString newH
     _                      -> buffer            -- nothing to redo
 
--- Move the cursor, set selection cursor to same
+-- End and Home functions
+endOfLine :: Buffer -> Buffer
+endOfLine (Buffer h (r, _) _) = Buffer h newCrs newCrs
+  where
+    newCrs = case drop r $ lines s of
+                   (x:xs) -> (r, length x)
+                   _      -> ixToCursor (length s - 1) s
+    s = toString h
+
+startOfLine :: Buffer -> Buffer
+startOfLine (Buffer h (r, _) _) = Buffer h (r, 0) (r, 0)
+
+endOfFile :: Buffer -> Buffer
+endOfFile (Buffer h crs _) = Buffer h newCrs newCrs
+  where
+    newCrs = ixToCursor (length s) s
+    s = toString h
+
+startOfFile :: Buffer -> Buffer
+startOfFile (Buffer h _ _) = Buffer h (0, 0) (0, 0)
+
+-- Move the cursor one step, set selection cursor to same
 moveCursor :: Direction -> Buffer -> Buffer
-moveCursor = genericMoveCursor False
+--moveCursor = genericMoveCursor False
+moveCursor = moveCursorN 1
+
+moveCursorN :: Int -> Direction -> Buffer -> Buffer
+moveCursorN n d = genericMoveCursor False n d
 
 -- Move the cursor, keeping selection cursor in place
 selectMoveCursor :: Direction -> Buffer -> Buffer
-selectMoveCursor = genericMoveCursor True
+selectMoveCursor = genericMoveCursor True 1
 
 -- Generic move cursor (not exported)
-genericMoveCursor :: Bool -> Direction -> Buffer -> Buffer
-genericMoveCursor moveSel d (Buffer h crs sel) =
-    Buffer h newCrs newSel
+genericMoveCursor :: Bool -> Int -> Direction -> Buffer -> Buffer
+genericMoveCursor moveSel n d (Buffer h crs sel)
+    | n == 1    = Buffer h newCrs newSel
+    | otherwise = genericMoveCursor moveSel (n - 1) d (Buffer h newCrs newSel)
   where
     newSel
         | moveSel == False = move d s crs

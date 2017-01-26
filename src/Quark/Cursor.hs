@@ -12,7 +12,7 @@ ixToCursor :: Index -> String -> Cursor
 ixToCursor ix s = (row, col)
   where
     row = (length $ lines $ s0 ++ " ") - 1
-    col = (length $ last $ lines $ s0 ++ " ") - 1
+    col = (length $ last $ lines $ s0 ++ " ") - 1   -- last is unsafe
     (s0, _) = splitAt ix s
 
 -- Convert a cursor on a string to a linear index
