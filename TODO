@@ -1,7 +1,4 @@
 Functionality:
-  - correctly handle trailing newlines and empty buffers
-  - what's that last %f in saved files?
-  - last is unsafe (Cursors/ixToCursor)
   - Prompts
     - Confirm Quit
     - Save as

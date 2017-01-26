@@ -115,7 +115,7 @@ printText t@(TextView w (r, c) (rr, cc)) text = do
     mapM_ (\(k, l, s) ->
         printLine k l s t) $ zip3 [0..(r - 2)] lineNumbers textLines
   where
-    n =  length $ lines text
+    n =  (length $ lines text) + if nlTail text then 1 else 0
     lnc = (length $ show n) + 1
     lineNumbers = map (padToLen lnc) (map show $ drop rr [1..n]) ++ repeat ""
     textLines =
@@ -160,8 +160,9 @@ initFlipper path = do
     return (extendedBuffer, [], [])
 
 save :: Window -> ExtendedBuffer -> IO ()
-save u ((Buffer h _ _), path, False) = do writeFile path $ toString h
+save u ((Buffer h _ _), path, False) = do writeFile path $ nlEnd $ toString h
                                           debug u $ path ++ " saved!"
+  where nlEnd s  = if nlTail s then s else s ++ "\n"
 save u _ = debug u "Can't save protected buffer"
 
 -- TODO: consider moving to separate file

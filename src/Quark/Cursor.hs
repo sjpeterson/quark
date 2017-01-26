@@ -6,13 +6,14 @@ import Quark.Types ( Cursor
                                , Forward
                                , Up
                                , Down ) )
+import Quark.Helpers ( nlTail )
 
 -- Convert a linear index of a string to a cursor
 ixToCursor :: Index -> String -> Cursor
 ixToCursor ix s = (row, col)
   where
     row = (length $ lines $ s0 ++ " ") - 1
-    col = (length $ last $ lines $ s0 ++ " ") - 1   -- last is unsafe
+    col = (length $ last $ lines $ s0 ++ " ") - 1
     (s0, _) = splitAt ix s
 
 -- Convert a cursor on a string to a linear index
@@ -46,4 +47,5 @@ move :: Direction -> String -> Cursor -> Cursor
 move Backward s crs = ixToCursor (max ((cursorToIx crs s) - 1) 0) s
 move Forward s crs = ixToCursor (min ((cursorToIx crs s) + 1) (length s)) s
 move Up _ (row, col) = (max (row - 1) 0, col)
-move Down s (row, col) = (min (row + 1) (length (lines s) - 1), col)
+move Down s (row, col) = (min (row + 1) rMax, col)
+  where rMax = length (lines s) - if nlTail s then 0 else 1
