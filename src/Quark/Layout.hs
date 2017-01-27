@@ -78,7 +78,7 @@ minimalLayout :: Int -> Int -> IO (Layout)
 minimalLayout r c = do
     let mainHeight = r - 3
     cTitleBar <- Curses.newWin 2 c 0 0
-    cUtilityBar <- Curses.newWin 2 c (r - 3) 0
+    cUtilityBar <- Curses.newWin 2 c (r - 2) 0
     cMainView <- Curses.newWin (mainHeight + 1) c 2 0
     let qTitleBar = TitleBar cTitleBar (1, c)
     let qUtilityBar = UtilityBar cUtilityBar (1, c)

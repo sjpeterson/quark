@@ -31,6 +31,7 @@ type Cursor = (Row, Col)
 type Size = (Row, Col)
 type Offset = (Row, Col)
 type PrintRange = (Size, Offset)
+type Option a = (Char, String, a)
 
 -- Algebraic data types
 data Direction = Backward | Forward | Up | Down deriving Eq

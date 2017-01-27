@@ -22,3 +22,15 @@ lnWidth s = (length $ show $ length $ lines s) + 1
 nlTail :: String -> Bool
 nlTail "" = False
 nlTail s  = if last s == '\n' then True else False
+
+-- Pad a string with spaces at the end
+padToLen :: Int -> [Char] -> [Char]
+padToLen k a
+  | k <= length a = a
+  | otherwise     = padToLen k $ a ++ " "
+
+-- Concatenate two strings, padding with spaces in the middle
+padMidToLen :: Int -> [Char] -> [Char] -> [Char]
+padMidToLen k a0 a1
+  | k == (length a0 + length a1) = a0 ++ a1
+  | otherwise                    = padMidToLen k (a0 ++ " ") a1

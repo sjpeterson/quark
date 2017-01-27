@@ -17,7 +17,8 @@
 module Quark.Window ( Window ( TitleBar
                              , UtilityBar
                              , TextView
-                             , DirectoryView ) ) where
+                             , DirectoryView )
+                             , updateCursor ) where
 
 import qualified UI.HSCurses.Curses as Curses
 
@@ -27,3 +28,9 @@ data Window = TitleBar Curses.Window Size
             | UtilityBar Curses.Window Size
             | TextView Curses.Window Size Offset
             | DirectoryView Curses.Window Size Int deriving Show
+
+updateCursor :: Window -> Offset -> Cursor -> IO ()
+updateCursor (TextView w _ _) (x0, y0) (x, y) =
+    Curses.wMove w (x - x0) (y - y0)
+updateCursor (UtilityBar w _) (r, _) (_, y) =
+    Curses.wMove w r y

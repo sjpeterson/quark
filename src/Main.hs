@@ -4,10 +4,10 @@ import System.Environment ( getArgs )
 import System.Directory ( doesFileExist )
 
 import qualified UI.HSCurses.Curses as Curses
-import qualified UI.HSCurses.CursesHelper as CursesH
+-- import qualified UI.HSCurses.CursesHelper as CursesH
 -- import Control.Exception (bracket_)
 
-import Data.Char ( isAscii ) -- not good enough
+import Data.Char ( isPrint )
 
 import Quark.Window
 import Quark.Layout
@@ -16,6 +16,7 @@ import Quark.Flipper
 import Quark.History
 import Quark.Types
 import Quark.Helpers
+import Quark.UtilityBar
 
 -- neat shorthand for initializing foreground color f and background color b
 -- as color pair n
@@ -63,12 +64,6 @@ setTitle (TitleBar w (_, c)) title = do
     leftText = " quark - " ++ title
     rightText = "0.0.1a "
 
-debug :: Window -> String -> IO ()
-debug u@(UtilityBar w (_, c)) text = do
-    Curses.wAttrSet w (Curses.attr0, Curses.Pair 1)
-    Curses.mvWAddStr w 1 1 $ padToLen (c - 2) text
-    Curses.wRefresh w
-
 initLayout :: String -> IO (Layout)
 initLayout path = do
     layout <- defaultLayout
@@ -81,10 +76,6 @@ initLayout path = do
 
 refresh :: Window -> IO ()
 refresh (TextView w _ _)  = Curses.wRefresh w
-
-updateCursor :: Window -> Offset -> Cursor -> IO ()
-updateCursor (TextView w _ _) (x0, y0) (x, y) =
-    Curses.wMove w (x - x0) (y - y0)
 
 cursorDirection :: Cursor -> Int -> Window -> Maybe Direction
 cursorDirection (x, y) y0 (TextView _ (r, c) (rr, cc))
@@ -136,16 +127,6 @@ fillBackground (TitleBar cTitleBar (h, w)) colorId = do
     Curses.wMove cTitleBar 1 0
     Curses.wRefresh cTitleBar
 
-padToLen :: Int -> [Char] -> [Char]
-padToLen k a
-  | k <= length a = a
-  | otherwise     = padToLen k $ a ++ " "
-
-padMidToLen :: Int -> [Char] -> [Char] -> [Char]
-padMidToLen k a0 a1
-  | k == (length a0 + length a1) = a0 ++ a1
-  | otherwise                    = padMidToLen k (a0 ++ " ") a1
-
 -- TODO: rewrite for style
 initBuffer :: String -> IO (ExtendedBuffer)
 initBuffer path = do
@@ -173,15 +154,25 @@ handleKey :: Curses.Key -> Layout -> Flipper ExtendedBuffer -> IO ()
 handleKey (Curses.KeyChar c) layout buffers
     | c == '\DC1' = end
     | c == '\DC3' = do save (utilityBar layout) $ active buffers
-                       mainLoop layout buffers
+                       continue
     | c == '\DEL' = action backspace layout buffers
     | c == '\SUB' = action undo layout buffers
     | c == '\EM'  = action redo layout buffers
+    | c == '\DLE' = do let u = utilityBar layout
+                       s <- promptString u "Hey man, how are you?" "default"
+                       debug u $ "You are " ++ s ++ "!"
+                       continue
+    | c == '\SI'  = do let u = utilityBar layout
+                       x <- promptChoice u "How many?" [ ('a', "a", 1)
+                                                    , ('b', "b", 2) ]
+                       debug u $ "You selected: " ++ (show x)
+                       continue
     | c == '\r'   = action (input '\n') layout buffers
-    | isAscii c   = action (input c) layout buffers
-    | otherwise   = mainLoop layout buffers
+    | isPrint c   = action (input c) layout buffers
+    | otherwise   = continue
   where
     ((Buffer h _ _), _, _) = active buffers
+    continue = mainLoop layout buffers
 handleKey k layout buffers
     | k == Curses.KeyDC = action delete layout buffers
     | k == Curses.KeyLeft = action (moveCursor Backward) layout buffers
