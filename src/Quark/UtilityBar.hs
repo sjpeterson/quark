@@ -25,7 +25,6 @@ import qualified UI.HSCurses.Curses as Curses
 import Quark.Window ( Window ( UtilityBar )
                     , updateCursor )
 import Quark.Helpers ( padToLen )
--- import Quark.IOHelpers ( cGetLine )
 import Quark.Buffer ( Buffer ( Buffer )
                     , endOfLine
                     , startOfLine
