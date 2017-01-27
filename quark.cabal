@@ -21,7 +21,6 @@ library
   hs-source-dirs:   src
   exposed-modules:  Quark.Types
                   , Quark.Helpers
-                  , Quark.IOHelpers
                   , Quark.History
                   , Quark.Cursor
                   , Quark.Buffer
