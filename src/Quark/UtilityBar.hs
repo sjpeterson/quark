@@ -18,13 +18,15 @@ module Quark.UtilityBar ( promptString
                         , promptChoice
                         , debug ) where
 
-import Data.Char ( isPrint )
+import Data.Char ( isPrint
+                 , toUpper )
 
 import qualified UI.HSCurses.Curses as Curses
 
 import Quark.Window ( Window ( UtilityBar )
                     , updateCursor )
-import Quark.Helpers ( padToLen )
+import Quark.Helpers ( padToLen
+                     , padToLen' )
 import Quark.Buffer ( Buffer ( Buffer )
                     , endOfLine
                     , startOfLine
@@ -77,32 +79,37 @@ cGetLine u@(UtilityBar w _) buffer@(Buffer h cursor _) = do
 
 cGetOption :: (Show a) => Window -> [Option a] -> IO (a)
 cGetOption u@(UtilityBar w _) options = do
-    let n = maximum $ map (\(_, s, x) -> length s + length (show x) + 1) options
+    let n = maximum $ map (\(c, s, _) -> length (translateChar c) + length s + 1) options
     Curses.wMove w 1 0
     mapM (printOption w n) options
     Curses.wRefresh w
-    c <- Curses.getCh
-    case checkOption c options of Nothing -> cGetOption u options
-                                  Just x  -> return x
+    c' <- Curses.getCh
+    case checkOption c' options of Nothing -> cGetOption u options
+                                   Just x  -> return x
 
 checkOption :: Curses.Key -> [Option a] -> Maybe a
 checkOption _ [] = Nothing
 checkOption k@(Curses.KeyChar c) ((c', _, x):xs)
-    | c == c'   = Just x
-    | otherwise = checkOption k xs
+    | toUpper c == toUpper c' = Just x
+    | otherwise               = checkOption k xs
 
 printOption :: (Show a) => Curses.Window -> Int -> Option a -> IO ()
-printOption w n (_, s, x) = do
+printOption w n (c, s, _) = do
     Curses.wAttrSet w (Curses.attr0, Curses.Pair 0)
-    Curses.wAddStr w s
+    Curses.wAddStr w sc
     Curses.wAttrSet w (Curses.attr0, Curses.Pair 1)
-    Curses.wAddStr w $ (replicate (n - length s - length sx) ' ') ++ sx ++ " "
+    Curses.wAddStr w $ padToLen' (n - length sc) s ++ " "
   where
-    sx = show x
+    sc = translateChar c
+
+-- expand with '\ETX' to "^C" and such as needed
+translateChar :: Char -> String
+translateChar c = [toUpper c]
 
 -- TODO: This repeats a subset of what's in Main.hs - overload?
 handleKey :: Curses.Key -> Window -> Buffer -> IO (String)
 handleKey (Curses.KeyChar c) u buffer@(Buffer h _ _)
+    | c == '\ESC' = return $ ""
     | c == '\r'   = return $ toString h
     | c == '\DEL' = cGetLine u $ backspace buffer
     | c == '\SUB' = cGetLine u $ undo buffer

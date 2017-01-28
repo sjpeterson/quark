@@ -29,6 +29,11 @@ padToLen k a
   | k <= length a = a
   | otherwise     = padToLen k $ a ++ " "
 
+padToLen' :: Int -> [Char] -> [Char]
+padToLen' k a
+    | k <= length a = a
+    | otherwise     = padToLen k (' ':a)
+
 -- Concatenate two strings, padding with spaces in the middle
 padMidToLen :: Int -> [Char] -> [Char] -> [Char]
 padMidToLen k a0 a1

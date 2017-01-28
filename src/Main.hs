@@ -1,7 +1,8 @@
 module Main where
 
 import System.Environment ( getArgs )
-import System.Directory ( doesFileExist )
+import System.Directory ( doesFileExist
+                        , doesDirectoryExist )
 
 import qualified UI.HSCurses.Curses as Curses
 -- import qualified UI.HSCurses.CursesHelper as CursesH
@@ -140,11 +141,49 @@ initFlipper path = do
     extendedBuffer <- initBuffer path
     return (extendedBuffer, [], [])
 
-save :: Window -> ExtendedBuffer -> IO ()
-save u ((Buffer h _ _), path, False) = do writeFile path $ nlEnd $ toString h
-                                          debug u $ path ++ " saved!"
-  where nlEnd s  = if nlTail s then s else s ++ "\n"
-save u _ = debug u "Can't save protected buffer"
+-- TODO: clean this mess up!
+promptSave :: Layout -> Flipper ExtendedBuffer -> IO ()
+promptSave layout buffers = case active buffers of
+    (b@(Buffer h _ _), path, False) ->
+        do newPath <- promptString u "Save buffer to file:" path
+           fileExists <- doesFileExist newPath
+           let doConfirm = fileExists && path /= newPath
+           dirExists <- doesDirectoryExist newPath
+           let newBuffers = mapF (\(b, _, _) -> (b, newPath, False)) buffers
+           if dirExists || newPath == ""
+               then do debug u $ if newPath == ""
+                                     then "Buffer was not saved"
+                                     else path ++ " is a directory"
+                       mainLoop layout buffers
+               else if doConfirm
+                        then confirmSave layout buffers newPath
+                        else save layout newBuffers
+    _                               ->
+        do debug u "Can't save protected buffer"
+           mainLoop layout buffers
+  where
+    u = utilityBar layout
+
+confirmSave :: Layout -> Flipper ExtendedBuffer -> String -> IO ()
+confirmSave layout buffers newPath = do
+    overwrite <- promptChoice u promptText [ ('y', "Yes", True)
+                                           , ('n', "No", False) ]
+    if overwrite then save layout newBuffers
+                 else do debug u "Buffer was not saved"
+                         mainLoop layout buffers
+  where
+    u = utilityBar layout
+    promptText = newPath ++ " already exists, overwrite?"
+    newBuffers = mapF (\(b, _, _) -> (b, newPath, False)) buffers
+
+save :: Layout -> Flipper ExtendedBuffer -> IO ()
+save layout buffers = do
+    writeFile path $ nlEnd $ toString h
+    debug (utilityBar layout) $ path ++ " saved!"
+    mainLoop layout $ mapF (\(b, _, _) -> (b, path, False)) buffers
+  where
+    ((Buffer h _ _), path, _) = active buffers
+    nlEnd s  = if nlTail s then s else s ++ "\n"
 
 -- TODO: consider moving to separate file
 action :: (Buffer -> Buffer) -> Layout -> Flipper ExtendedBuffer -> IO ()
@@ -153,8 +192,7 @@ action a layout buffers = mainLoop layout $ mapF (mapXB a) buffers
 handleKey :: Curses.Key -> Layout -> Flipper ExtendedBuffer -> IO ()
 handleKey (Curses.KeyChar c) layout buffers
     | c == '\DC1' = end
-    | c == '\DC3' = do save (utilityBar layout) $ active buffers
-                       continue
+    | c == '\DC3' = promptSave layout buffers
     | c == '\DEL' = action backspace layout buffers
     | c == '\SUB' = action undo layout buffers
     | c == '\EM'  = action redo layout buffers
@@ -168,6 +206,7 @@ handleKey (Curses.KeyChar c) layout buffers
                        debug u $ "You selected: " ++ (show x)
                        continue
     | c == '\r'   = action (input '\n') layout buffers
+    | c == '\t'   = action (tab 4) layout buffers
     | isPrint c   = action (input c) layout buffers
     | otherwise   = continue
   where

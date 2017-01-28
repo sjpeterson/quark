@@ -23,6 +23,7 @@ module Quark.Buffer ( Buffer ( Buffer
                     , cursor
                     , input
                     , paste
+                    , tab
                     , delete
                     , backspace
                     , selection
@@ -84,6 +85,12 @@ input c = insert [c] True
 
 paste :: String -> Buffer -> Buffer
 paste s = insert s False
+
+tab :: Int -> Buffer -> Buffer
+tab k b@(Buffer _ crs sel) = insert (replicate n ' ') False b
+  where
+    n = k - (mod c k)
+    (_, c) = minCursor crs sel
 
 -- Generic insert string at current selection
 insert :: String -> Bool -> Buffer -> Buffer
