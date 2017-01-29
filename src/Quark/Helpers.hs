@@ -18,6 +18,14 @@ strSize s = (strHeight s, strWidth s)
 lnWidth :: String -> Int
 lnWidth s = (length $ show $ length $ lines s) + 1
 
+lnIndent :: Int -> String -> Int
+lnIndent r s = case drop r (lines s) of
+    (x:_) -> length $ takeWhile (\c -> c == ' ') x
+    _     -> 0
+
+lineSplitIx :: Int -> String -> Int
+lineSplitIx r s = (length s) - (length $ unlines $ drop r $ lines s) + 1
+
 -- Check is a string ends in newline or not
 nlTail :: String -> Bool
 nlTail "" = False

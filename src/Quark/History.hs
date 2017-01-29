@@ -21,10 +21,12 @@
 module Quark.History where
 
 import Quark.Types
+import Quark.Helpers ( lineSplitIx )
 
 -- (Edit n s ix) means to delete n characters at index ix, replacing them with
 -- string s.
-data Edit = Edit Deletion String Index Selection Bool deriving (Show, Eq)
+data Edit = Edit Deletion String Index Selection Bool
+          | IndentLine Row Int deriving (Show, Eq)
 
 -- EditHistory consists of lists of present and future edits and an integer
 -- indicating the number of edits since last save.
@@ -50,6 +52,10 @@ doEdit (Edit (n, m) sx ix sel _) s = (take p s0) ++ sx ++ (drop q s1)
     p = (length s0) - n + (min 0 sel)
     q = m + (max 0 sel)
     (s0, s1)  = splitAt ix s
+doEdit (IndentLine r n) s = s0 ++ (replicate (max 0 n) ' ') ++ (drop n' s1)
+  where
+    n' = min (length $ takeWhile (\c -> c == ' ') s1) $ max 0 (-n)
+    (s0, s1) = splitAt (lineSplitIx r s) s
 
 -- Undo by moving the most recent edit to the head of future edits
 -- Second pattern is needed when loading files
@@ -77,8 +83,9 @@ addEditToHistory
   where
     p0 = k /= 0 && sel0 == 0 && ix0 == ix1 - n1 + (min 0 sel1) + (length s1)
     p1 = f0 && f1 && (n0 == 0 || length s1 == 0)
+addEditToHistory
+  x0@(IndentLine r0 n0) (k, x1@(IndentLine r1 n1):xs, _)
+    | r0 == r1 && signum n0 == signum n1 =
+        (k, (IndentLine r0 (n0 + n1)):xs, [])
+    | otherwise = (k + 1, x0:x1:xs, [])
 addEditToHistory x _ = (1, [x], [])
-
--- TODO:
--- do not fuse with a recent paste (how to distinguish from fused inserts?
--- do not fuse paste of length 1

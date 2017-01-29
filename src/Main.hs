@@ -205,7 +205,7 @@ handleKey (Curses.KeyChar c) layout buffers
                                                     , ('b', "b", 2) ]
                        debug u $ "You selected: " ++ (show x)
                        continue
-    | c == '\r'   = action (input '\n') layout buffers
+    | c == '\r'   = action nlAutoIndent layout buffers
     | c == '\t'   = action (tab 4) layout buffers
     | isPrint c   = action (input c) layout buffers
     | otherwise   = continue
@@ -224,6 +224,7 @@ handleKey k layout buffers
     | k == Curses.KeyHome = action startOfLine layout buffers
     | k == Curses.KeyUnknown 532 = action endOfFile layout buffers
     | k == Curses.KeyUnknown 537 = action startOfFile layout buffers
+    | k == Curses.KeyBTab = action (unTab 4) layout buffers
     | otherwise = mainLoop layout buffers
   where
     (TextView _ (r, _) _) = primaryPane layout

@@ -267,6 +267,12 @@ historyUnitTests = testGroup "Unit tests for History.hs"
   , testCase "toString forward selection delete" $ assertEqual "" "tesstring" $
       toString (1, [ (Edit (0, 0) "" 3 2 True)
                    , (Edit (0, 0) "test string" 0 0 False) ], [])
+  , testCase "toString IndentLine" $ assertEqual "" "test\n    string" $
+      toString (1, [ (IndentLine 1 4)
+                   , (Edit (0, 0) "test\nstring" 0 0 False) ], [])
+  , testCase "toString dedent line" $ assertEqual "" "test\nstring" $
+      toString (1, [ (IndentLine 1 (-4))
+                   , (Edit (0, 0) "test\n   string" 0 0 False) ], [])
   , testCase "Gracefully handle incomplete edit history with toString" $
       assertEqual "" "test string" $ toString
           (1, [ (Edit (0, 0) "test string" 6 0 True)

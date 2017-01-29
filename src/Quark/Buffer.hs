@@ -22,8 +22,10 @@ module Quark.Buffer ( Buffer ( Buffer
                     , editHistory
                     , cursor
                     , input
+                    , nlAutoIndent
                     , paste
                     , tab
+                    , unTab
                     , delete
                     , backspace
                     , selection
@@ -45,7 +47,8 @@ import Quark.Types ( Clipboard
                                , Down )
                    , Name
                    , Index )
-import Quark.History ( Edit ( Edit )
+import Quark.History ( Edit ( Edit
+                            , IndentLine )
                      , EditHistory
                      , emptyEditHistory
                      , addEditToHistory
@@ -59,6 +62,7 @@ import Quark.Cursor ( move
                      , orderTwo
                      , ixToCursor
                      , cursorToIx )
+import Quark.Helpers ( lnIndent )
 
 -- The Buffer data type
 data Buffer = LockedBuffer String
@@ -87,10 +91,26 @@ paste :: String -> Buffer -> Buffer
 paste s = insert s False
 
 tab :: Int -> Buffer -> Buffer
-tab k b@(Buffer _ crs sel) = insert (replicate n ' ') False b
+tab tabWidth b@(Buffer h crs@(r, _) sel)
+    | crs == sel = insert (replicate n ' ') False b
+    | otherwise  = Buffer newH crs sel
   where
-    n = k - (mod c k)
+    n = tabWidth - (mod c tabWidth)
     (_, c) = minCursor crs sel
+    newH = addEditToHistory (IndentLine r tabWidth) h
+
+unTab :: Int -> Buffer -> Buffer
+unTab tabWidth (Buffer h crs@(r, _) sel) = Buffer newH newCrs newSel
+  where
+    newH = addEditToHistory (IndentLine r (-tabWidth)) h
+    newCrs = crs
+    newSel = sel
+
+nlAutoIndent :: Buffer -> Buffer
+nlAutoIndent b@(Buffer h crs sel) = insert ('\n':(replicate n ' ')) True b
+  where
+    n = lnIndent r (toString h)
+    (r, _) = minCursor crs sel
 
 -- Generic insert string at current selection
 insert :: String -> Bool -> Buffer -> Buffer
