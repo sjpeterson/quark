@@ -24,7 +24,7 @@ lnIndent r s = case drop r (lines s) of
     _     -> 0
 
 lineSplitIx :: Int -> String -> Int
-lineSplitIx r s = (length s) - (length $ unlines $ drop r $ lines s) + 1
+lineSplitIx r s = min (length s) $ length $ unlines $ take r $ lines s
 
 -- Check is a string ends in newline or not
 nlTail :: String -> Bool

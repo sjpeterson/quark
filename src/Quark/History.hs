@@ -26,7 +26,15 @@ import Quark.Helpers ( lineSplitIx )
 -- (Edit n s ix) means to delete n characters at index ix, replacing them with
 -- string s.
 data Edit = Edit Deletion String Index Selection Bool
-          | IndentLine Row Int deriving (Show, Eq)
+          | IndentLine Row Int Index Selection deriving (Show, Eq)
+
+editIndex:: Edit -> Index
+editIndex (Edit _ _ ix _ _) = ix
+editIndex (IndentLine _ _ ix _) = ix
+
+editSelection :: Edit -> Selection
+editSelection (Edit _ _ _ sel _) = sel
+editSelection (IndentLine _ _ _ sel) = sel
 
 -- EditHistory consists of lists of present and future edits and an integer
 -- indicating the number of edits since last save.
@@ -52,7 +60,7 @@ doEdit (Edit (n, m) sx ix sel _) s = (take p s0) ++ sx ++ (drop q s1)
     p = (length s0) - n + (min 0 sel)
     q = m + (max 0 sel)
     (s0, s1)  = splitAt ix s
-doEdit (IndentLine r n) s = s0 ++ (replicate (max 0 n) ' ') ++ (drop n' s1)
+doEdit (IndentLine r n _ _) s = s0 ++ (replicate (max 0 n) ' ') ++ (drop n' s1)
   where
     n' = min (length $ takeWhile (\c -> c == ' ') s1) $ max 0 (-n)
     (s0, s1) = splitAt (lineSplitIx r s) s
@@ -79,13 +87,13 @@ addEditToHistory :: Edit -> EditHistory -> EditHistory
 addEditToHistory
   x0@(Edit (n0, m0) s0 ix0 sel0 f0) (k, x1@(Edit (n1, m1) s1 ix1 sel1 f1):xs, _)
     | p0 && p1  = (k, (Edit (n1 + n0, m1 + m0) (s1 ++ s0) (ix1) sel1 f0):xs, [])
-    | otherwise = (k + 1, x0:x1:xs, [])
   where
     p0 = k /= 0 && sel0 == 0 && ix0 == ix1 - n1 + (min 0 sel1) + (length s1)
     p1 = f0 && f1 && (n0 == 0 || length s1 == 0)
-addEditToHistory
-  x0@(IndentLine r0 n0) (k, x1@(IndentLine r1 n1):xs, _)
+addEditToHistory x0@(IndentLine r0 n0 _ _) ( k
+                                           , x1@(IndentLine r1 n1 ix sel):xs
+                                           , _)
     | r0 == r1 && signum n0 == signum n1 =
-        (k, (IndentLine r0 (n0 + n1)):xs, [])
-    | otherwise = (k + 1, x0:x1:xs, [])
+        (k, (IndentLine r0 (n0 + n1) ix sel):xs, [])
+addEditToHistory x0 (k, (x1:xs), _) = (k + 1, x0:x1:xs, [])
 addEditToHistory x _ = (1, [x], [])

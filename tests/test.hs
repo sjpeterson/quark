@@ -45,6 +45,18 @@ helpersUnitTests = testGroup "Unit tests for Helpers.hs"
       assertEqual "" 2 $ lnWidth "test\nstring"
   , testCase "Line numbers width, test 2" $
       assertEqual "" 4 $ lnWidth $ unlines $ replicate 145 "test"
+  , testCase "lineSplitIx: newline-terminated string" $
+      assertEqual "" 5 $ lineSplitIx 1 "test\nstring\n"
+  , testCase "lineSplitIx: open-ended string" $
+      assertEqual "" 5 $ lineSplitIx 1 "test\nstring"
+  , testCase "lineSplitIx: line 0, newline-terminated string" $
+      assertEqual "" 0 $ lineSplitIx 0 "test\nstring\n"
+  , testCase "lineSplitIx: line 0, open-ended string" $
+        assertEqual "" 0 $ lineSplitIx 0 "test\nstring"
+  , testCase "lineSplitIx: beyond last line, newline-terminated string" $
+      assertEqual "" 12 $ lineSplitIx 4 "test\nstring\n"
+  , testCase "lineSplitIx: beyond last line, open-ended string" $
+      assertEqual "" 11 $ lineSplitIx 4 "test\nstring"
   ]
 
 {- Unit tests for the Cursors.hs
@@ -239,7 +251,14 @@ historyUnitTests = testGroup "Unit tests for History.hs"
           addEditToHistory (Edit (0, 0) "abc" 3 (-2) True)
               (1, [ (Edit (0, 2) "" 3 0 True)
                   , (Edit (0, 0) "test string" 0 0 False) ], [])
-  , testCase "" $
+  , testCase "addEditToHistory: Do not fuse IndentLine with Edit" $
+      assertEqual "" (2, [ (IndentLine 1 4 7 1)
+                         , (Edit (0, 0) "string" 5 0 True)
+                         , (Edit (0, 0) "test\n" 0 0 False) ], []) $
+          addEditToHistory (IndentLine 1 4 7 1)
+              (1, [ (Edit (0, 0) "string" 5 0 True)
+                  , (Edit (0, 0) "test\n" 0 0 False) ], [])
+  , testCase "newEdit" $
       assertEqual "" (2, [ (Edit (0, 0) "de" 6 0 True)
                          , (Edit (0, 0) "abc" 3 0 True)
                          , (Edit (0, 0) "test string" 0 0 False) ], []) $
@@ -267,12 +286,20 @@ historyUnitTests = testGroup "Unit tests for History.hs"
   , testCase "toString forward selection delete" $ assertEqual "" "tesstring" $
       toString (1, [ (Edit (0, 0) "" 3 2 True)
                    , (Edit (0, 0) "test string" 0 0 False) ], [])
-  , testCase "toString IndentLine" $ assertEqual "" "test\n    string" $
-      toString (1, [ (IndentLine 1 4)
+  , testCase "toString indent line" $ assertEqual "" "test\n    string" $
+      toString (1, [ (IndentLine 1 4 7 1)
                    , (Edit (0, 0) "test\nstring" 0 0 False) ], [])
+  , testCase "toString indent line, file ending with linebreak" $
+      assertEqual "" "test\n    string\n" $
+          toString (1, [ (IndentLine 1 4 7 1)
+                       , (Edit (0, 0) "test\nstring\n" 0 0 False) ], [])
   , testCase "toString dedent line" $ assertEqual "" "test\nstring" $
-      toString (1, [ (IndentLine 1 (-4))
-                   , (Edit (0, 0) "test\n   string" 0 0 False) ], [])
+      toString (1, [ (IndentLine 1 (-4) 11 0)
+                   , (Edit (0, 0) "test\n    string" 0 0 False) ], [])
+  , testCase "toString dedent line, file ending with line break" $
+      assertEqual "" "test\nstring\n" $
+          toString (1, [ (IndentLine 1 (-4) 11 0)
+                       , (Edit (0, 0) "test\n    string\n" 0 0 False) ], [])
   , testCase "Gracefully handle incomplete edit history with toString" $
       assertEqual "" "test string" $ toString
           (1, [ (Edit (0, 0) "test string" 6 0 True)

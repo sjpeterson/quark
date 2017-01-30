@@ -1,4 +1,4 @@
---------
+---------------------------------------------------------------
 --
 -- Module:      Quark.Buffer
 -- Author:      Stefan Peterson
@@ -8,11 +8,11 @@
 -- Stability:   Stable
 -- Portability: Unknown
 --
---------
+-- ----------------------------------------------------------
 --
 -- Module for quark buffers.
 --
---------
+---------------------------------------------------------------
 
 module Quark.Buffer ( Buffer ( Buffer
                              , LockedBuffer )
@@ -21,6 +21,7 @@ module Quark.Buffer ( Buffer ( Buffer
                     , mapXB
                     , editHistory
                     , cursor
+                    , selectionCursor
                     , input
                     , nlAutoIndent
                     , paste
@@ -46,10 +47,13 @@ import Quark.Types ( Clipboard
                                , Up
                                , Down )
                    , Name
-                   , Index )
+                   , Index
+                   , Selection )
 import Quark.History ( Edit ( Edit
                             , IndentLine )
                      , EditHistory
+                     , editIndex
+                     , editSelection
                      , emptyEditHistory
                      , addEditToHistory
                      , undoEdit
@@ -62,7 +66,8 @@ import Quark.Cursor ( move
                      , orderTwo
                      , ixToCursor
                      , cursorToIx )
-import Quark.Helpers ( lnIndent )
+import Quark.Helpers ( lnIndent
+                     , lineSplitIx )
 
 -- The Buffer data type
 data Buffer = LockedBuffer String
@@ -91,20 +96,25 @@ paste :: String -> Buffer -> Buffer
 paste s = insert s False
 
 tab :: Int -> Buffer -> Buffer
-tab tabWidth b@(Buffer h crs@(r, _) sel)
-    | crs == sel = insert (replicate n ' ') False b
-    | otherwise  = Buffer newH crs sel
+tab tabWidth b@(Buffer h crs@(r, c) sel@(rr, cc))
+    | crs == sel = insert (replicate n ' ') True b
+    | otherwise  = Buffer newH (r, c + n') (rr, cc + n')
   where
     n = tabWidth - (mod c tabWidth)
-    (_, c) = minCursor crs sel
-    newH = addEditToHistory (IndentLine r tabWidth) h
+    newH = addEditToHistory (IndentLine r n' ix sel') h
+    (ix, sel') = ixAndSel b
+    n' = tabWidth - mod (lnIndent r $ toString h) tabWidth
+    s0 = toString h
 
 unTab :: Int -> Buffer -> Buffer
-unTab tabWidth (Buffer h crs@(r, _) sel) = Buffer newH newCrs newSel
+unTab tabWidth b@(Buffer h (r, c) (rr, cc))
+    | n == 0    = b
+    | otherwise = Buffer newH (r, c + n') (rr, cc + n')
   where
-    newH = addEditToHistory (IndentLine r (-tabWidth)) h
-    newCrs = crs
-    newSel = sel
+    n = lnIndent r $ toString h
+    newH = addEditToHistory (IndentLine r n' ix sel) h
+    (ix, sel) = ixAndSel b
+    n' = (-tabWidth) + mod (-n) tabWidth
 
 nlAutoIndent :: Buffer -> Buffer
 nlAutoIndent b@(Buffer h crs sel) = insert ('\n':(replicate n ' ')) True b
@@ -112,12 +122,18 @@ nlAutoIndent b@(Buffer h crs sel) = insert ('\n':(replicate n ' ')) True b
     n = lnIndent r (toString h)
     (r, _) = minCursor crs sel
 
+ixAndSel :: Buffer -> (Index, Selection)
+ixAndSel (Buffer h crs sel) = ((cursorToIx crs s), (distance crs sel s))
+  where
+    s = toString h
+
 -- Generic insert string at current selection
 insert :: String -> Bool -> Buffer -> Buffer
-insert s fusible (Buffer h crs sel) = Buffer newH newCrs newCrs
+insert s fusible b@(Buffer h crs sel) = Buffer newH newCrs newCrs
   where
     newH = addEditToHistory edit h
-    edit = Edit (0, 0) s (cursorToIx crs s0) (distance crs sel s0) fusible
+    edit = Edit (0, 0) s ix sel' fusible
+    (ix, sel') = ixAndSel b
     s0 = toString h
     newCrs = ixToCursor newIx newS
     newIx = (cursorToIx (minCursor crs sel) s0) + (length s)
@@ -143,12 +159,6 @@ genericDelete d (Buffer h crs sel) = Buffer newH newCrs newCrs
     s0 = toString h
     c0 = (distance crs sel s0) == 0
 
--- Cut selection
--- cut :: Buffer -> Buffer
--- cut buffer@(Buffer h crs sel _ path) = backspace (Buffer h crs sel s path)
---   where
---     s = copy buffer
-
 -- Copy selection
 selection :: Buffer -> String
 selection (Buffer h crs sel) = take l $ drop k s
@@ -157,42 +167,33 @@ selection (Buffer h crs sel) = take l $ drop k s
     k = cursorToIx (minCursor crs sel) s
     s = toString h
 
--- Paste contents of clipboard at current selection
--- paste :: Buffer -> Buffer
--- paste buffer@(Buffer _ _ _ clipboard _) = insert clipboard buffer
-
 -- Perform undo on buffer, moving cursor to the beginning of the undone edit
 undo :: Buffer -> Buffer
-undo buffer@(Buffer h@(_, past, _) crs sel') = case past of
-    x0@(Edit (n, m) s ix sel _):x1:xs -> Buffer newH newCrs newSel
-                                         where
-        newH = undoEdit h
-        (newCrs, newSel) = case (cursorToIx crs s0) == postIx && crs == sel' of
-            False -> (postCrs, postCrs)
-            _     -> (preCrs, preSel)
-        postIx = ix + length s
-        postCrs = ixToCursor postIx s0
-        s0 = toString h
-        preCrs = ixToCursor ix newS
-        preSel = ixToCursor (ix + sel) newS
-        newS = toString newH
-    _                               -> buffer   -- nothing to undo
+undo buffer@(Buffer h@(_, past, _) crs sel) = case past of
+    (x0:x1:xs) -> alignCursor True $ Buffer (undoEdit h) crs sel
+    _          -> buffer
 
 -- Perform redo on buffer, moving cursor to the end of the redone edit
 redo :: Buffer -> Buffer
-redo buffer@(Buffer h@(_, _, future) crs sel') = case future of
-    x@(Edit _ s ix sel _):xs -> Buffer newH newSel newCrs
-                                where
-        newH = redoEdit h
-        (newCrs, newSel) = case (cursorToIx crs s0) == ix && d == sel of
-            False -> (preCrs, preSel)
-            _     -> (postCrs, postCrs)
-        d = distance crs sel' s0
-        preCrs = ixToCursor ix s0
-        preSel = ixToCursor (ix + sel) s0
-        s0 = toString h
-        postCrs = ixToCursor (ix + length s) $ toString newH
-    _                      -> buffer            -- nothing to redo
+redo buffer@(Buffer h@(_, _, future) crs sel) = case future of
+     (x:xs) -> alignCursor False $ Buffer (redoEdit h) crs sel
+     _      -> buffer
+
+alignCursor :: Bool -> Buffer -> Buffer
+alignCursor True (Buffer h@(_, _, y:ys) _ _) = Buffer h newCrs newSel
+  where
+    newCrs = ixToCursor (editIndex y) s
+    newSel = ixToCursor (editIndex y + editSelection y) s
+    s = toString h
+alignCursor False b@(Buffer h@(_, x:xs, _) crs sel) = Buffer h newCrs newSel
+  where
+    newCrs = case x of
+        (Edit (n, _) s ix _ _) -> ixToCursor (ix - n + length s) $ toString h
+        (IndentLine _ n ix _)  -> ixToCursor (ix + n) $ toString h
+    newSel = case x of
+        (Edit _ _ _ _ _)      -> newCrs
+        (IndentLine _ n ix sel) -> ixToCursor (ix + sel + n) $ toString h
+alignCursor _ b = b
 
 -- End and Home functions
 endOfLine :: Buffer -> Buffer
@@ -217,11 +218,10 @@ startOfFile (Buffer h _ _) = Buffer h (0, 0) (0, 0)
 
 -- Move the cursor one step, set selection cursor to same
 moveCursor :: Direction -> Buffer -> Buffer
---moveCursor = genericMoveCursor False
 moveCursor = moveCursorN 1
 
 moveCursorN :: Int -> Direction -> Buffer -> Buffer
-moveCursorN n d = genericMoveCursor False n d
+moveCursorN = genericMoveCursor False
 
 -- Move the cursor, keeping selection cursor in place
 selectMoveCursor :: Direction -> Buffer -> Buffer
@@ -234,10 +234,11 @@ genericMoveCursor moveSel n d (Buffer h crs sel)
     | otherwise = genericMoveCursor moveSel (n - 1) d (Buffer h newCrs newSel)
   where
     newSel
-        | moveSel == False = move d s crs
-        | d == Backward    = minCrs
-        | d == Forward     = maxCrs
-        | otherwise        = move d s crs
+        | moveSel == True = move d s sel
+        | crs == sel      = move d s crs
+        | d == Backward   = minCrs
+        | d == Forward    = maxCrs
+        | otherwise       = move d s crs
     newCrs = case moveSel of
         False -> newSel
         _     -> crs

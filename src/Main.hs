@@ -218,6 +218,10 @@ handleKey k layout buffers
     | k == Curses.KeyRight = action (moveCursor Forward) layout buffers
     | k == Curses.KeyDown = action (moveCursor Down) layout buffers
     | k == Curses.KeyUp = action (moveCursor Up) layout buffers
+    | k == Curses.KeySLeft = action (selectMoveCursor Backward) layout buffers
+    | k == Curses.KeySRight = action (selectMoveCursor Forward) layout buffers
+    | k == Curses.KeySNext = action (selectMoveCursor Down) layout buffers
+    | k == Curses.KeySPrevious = action (selectMoveCursor Up) layout buffers
     | k == Curses.KeyPPage = action (moveCursorN (r - 1) Up) layout buffers
     | k == Curses.KeyNPage = action (moveCursorN (r - 1) Down) layout buffers
     | k == Curses.KeyEnd = action endOfLine layout buffers
@@ -256,12 +260,13 @@ mainLoop :: Layout -> Flipper ExtendedBuffer -> IO ()
 mainLoop layout buffers = do
     let lnOffset = lnWidth $ ebToString $ active buffers
     let crs = cursor $ (\(x, _, _) -> x ) $ active buffers
+    let sel = selectionCursor $ (\(x, _, _) -> x ) $ active buffers
     let layout' = mapL (changeOffset' crs lnOffset) layout
     let w@(TextView _ _ (rr, cc)) = primaryPane layout'
     -- debug (utilityBar layout') $ show w
     printText w (ebToString $ active buffers)
     updateCursor w (rr, cc - lnOffset) crs
-    setTitle (titleBar layout') $ show crs
+    setTitle (titleBar layout') $ (show crs) ++ " " ++ (show sel)
     refresh w
     c <- Curses.getCh
     debug (utilityBar layout') $ show c
