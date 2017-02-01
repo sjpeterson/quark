@@ -74,7 +74,7 @@ import Quark.Helpers ( lnIndent
 data Buffer = LockedBuffer String
             | Buffer { editHistory :: EditHistory
                      , cursor :: Cursor
-                     , selectionCursor :: Cursor } deriving Show
+                     , selectionCursor :: Cursor } deriving (Eq, Show)
 -- TODO:
 -- It might be neat to have a type of buffer that mirrors and updates with
 -- another buffer, but is non-editable. The low-tech version of this would be

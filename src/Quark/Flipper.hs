@@ -67,7 +67,7 @@ mapF :: (a -> a) -> Flipper a -> Flipper a
 mapF f (x, y, z) = (f x, y, z)
 
 toList :: Flipper a -> [a]
-toList (x, y, z) = x:y ++ z
+toList (x, y, z) = (reverse y) ++ x:z
 
 length' :: Flipper a -> Int
 length' (x, y, z) = 1 + (length y) + (length z)

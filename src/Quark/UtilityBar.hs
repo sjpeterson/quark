@@ -110,7 +110,7 @@ translateChar c = [toUpper c]
 -- TODO: This repeats a subset of what's in Main.hs - overload?
 handleKey :: Curses.Key -> Window -> Buffer -> IO (String)
 handleKey (Curses.KeyChar c) u buffer@(Buffer h _ _)
-    | c == '\ESC' = return $ ""
+    | c == '\ESC' = return $ "\ESC"
     | c == '\r'   = return $ toString h
     | c == '\DEL' = cGetLine u $ backspace buffer
     | c == '\SUB' = cGetLine u $ undo buffer

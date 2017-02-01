@@ -9,6 +9,7 @@ import qualified UI.HSCurses.Curses as Curses
 -- import Control.Exception (bracket_)
 
 import Data.Char ( isPrint )
+import Data.List ( findIndices )
 
 import Quark.Window
 import Quark.Layout
@@ -139,28 +140,12 @@ fillBackground (TitleBar cTitleBar (h, w)) colorId = do
     Curses.wMove cTitleBar 1 0
     Curses.wRefresh cTitleBar
 
--- TODO: maybe join these two?
-quit :: Layout -> Flipper ExtendedBuffer -> IO ()
-quit layout buffers = if unsavedBuffers buffers
-                         then saveAndQuit layout buffers
-                         else end
-
-saveAndQuit :: Layout -> Flipper ExtendedBuffer -> IO ()
-saveAndQuit layout buffers = do
-    (newBuffers, saved) <- chooseSave layout $ flipToUnsaved buffers
-    if saved then quit layout newBuffers
-             else mainLoop layout newBuffers
-
-flipToUnsaved :: Flipper ExtendedBuffer -> Flipper ExtendedBuffer
-flipToUnsaved buffers
-    | unsavedBuffers buffers == False    = buffers
-    | unsavedXB (active buffers) == True = buffers
-    | otherwise                          = flipToUnsaved $ flipNext buffers
-
-unsavedBuffers :: Flipper ExtendedBuffer -> Bool
-unsavedBuffers buffers = foldr foldfun False (toList buffers)
-  where
-    foldfun = \xb acc -> if unsavedXB xb then True else acc
+saveAndQuit :: [Int] -> Layout -> Flipper ExtendedBuffer -> IO ()
+saveAndQuit [] _ _ = end
+saveAndQuit (x:xs) layout buffers = do
+    (newBuffers, cancel) <- chooseSave layout $ flipTo x buffers
+    if cancel then mainLoop layout newBuffers
+              else saveAndQuit xs layout newBuffers
 
 chooseSave :: Layout
            -> Flipper ExtendedBuffer
@@ -169,16 +154,33 @@ chooseSave layout buffers = do
     save <- promptChoice u promptText [ ('y', "Yes", Just True)
                                       , ('n', "No", Just False)
                                       , ('\ESC', "Cancel", Nothing) ]
-    case save of Just True  -> do newBuffers <- writeFXB path buffers
-                                  return (newBuffers, True)
-                 Just False -> return (buffers, False)
-                 Nothing    -> return (buffers, False)
+    chooseSave' save layout buffers
   where
     u = utilityBar layout
-    promptText = "Save changes to " ++ path ++ "?"
+    promptText = "Save changes to " ++ pathOrUntitled ++ "?"
+    pathOrUntitled = if path == "" then "Untitled" else path
     (_, path, _) = active buffers
 
-promptSave :: Layout -> Flipper ExtendedBuffer -> IO (Flipper ExtendedBuffer)
+chooseSave' :: Maybe Bool
+            -> Layout
+            -> Flipper ExtendedBuffer
+            -> IO (Flipper ExtendedBuffer, Bool)
+chooseSave' (Just True) layout buffers = do
+    (newBuffers, canceled) <- if path == "" then promptSave layout buffers
+                                            else writeFXB path buffers
+    if canceled
+        then chooseSave layout buffers
+        else if newBuffers == buffers
+                 then chooseSave' (Just True) layout buffers
+                 else return (newBuffers, False)
+  where
+    (_, path, _) = active buffers
+chooseSave' (Just False) _ buffers = return (buffers, False)
+chooseSave' Nothing _ buffers = return (buffers, True)
+
+promptSave :: Layout
+           -> Flipper ExtendedBuffer
+           -> IO (Flipper ExtendedBuffer, Bool)
 promptSave layout buffers = case active buffers of
     (b@(Buffer h _ _), path, False) ->
         do newPath <- promptString u "Save buffer to file:" path
@@ -189,36 +191,40 @@ promptSave layout buffers = case active buffers of
                then do debug u $ if newPath == ""
                                      then "Buffer was not saved"
                                      else path ++ " is a directory"
-                       return buffers
+                       return (buffers, False)
                else if doConfirm
                         then confirmSave newPath layout buffers
-                        else do debug u $ "Saved " ++ newPath
-                                writeFXB newPath buffers
+                        else if newPath == "\ESC"
+                                 then return (buffers, True)
+                                 else do debug u $ "Saved " ++ newPath
+                                         writeFXB newPath buffers
     _                               ->
         do debug u "Can't save protected buffer"
-           return buffers
+           return (buffers, True)
   where
     u = utilityBar layout
 
 confirmSave :: String
              -> Layout
              -> Flipper ExtendedBuffer
-             -> IO (Flipper ExtendedBuffer)
+             -> IO (Flipper ExtendedBuffer, Bool)
 confirmSave newPath layout buffers = do
     overwrite <- promptChoice u promptText [ ('y', "Yes", True)
                                            , ('n', "No", False) ]
     if overwrite then do debug u $ "Saved " ++ newPath
                          writeFXB newPath buffers
                  else do debug u "Buffer was not saved"
-                         return buffers
+                         return (buffers, False)
   where
     u = utilityBar layout
     promptText = newPath ++ " already exists, overwrite?"
 
-writeFXB :: FilePath -> Flipper ExtendedBuffer -> IO (Flipper ExtendedBuffer)
+writeFXB :: FilePath
+         -> Flipper ExtendedBuffer
+         -> IO (Flipper ExtendedBuffer, Bool)
 writeFXB path buffers = do
     newXB <- writeXB path xb
-    return (newXB, x, y)
+    return ((newXB, x, y), False)
   where
     (xb, x, y) = buffers
 
@@ -240,8 +246,8 @@ action a layout buffers = mainLoop layout $ mapF (mapXB a) buffers
 
 handleKey :: Curses.Key -> Layout -> Flipper ExtendedBuffer -> IO ()
 handleKey (Curses.KeyChar c) layout buffers
-    | c == '\DC1' = quit layout buffers
-    | c == '\DC3' = do newBuffers <- promptSave layout buffers
+    | c == '\DC1' = saveAndQuit unsavedIndices layout buffers
+    | c == '\DC3' = do (newBuffers, _) <- promptSave layout buffers
                        mainLoop layout newBuffers
     | c == '\DEL' = action backspace layout buffers
     | c == '\SUB' = action undo layout buffers
@@ -260,6 +266,7 @@ handleKey (Curses.KeyChar c) layout buffers
     | isPrint c   = action (input c) layout buffers
     | otherwise   = continue
   where
+    unsavedIndices = findIndices unsavedXB $ toList buffers
     ((Buffer h _ _), _, _) = active buffers
     continue = mainLoop layout buffers
 handleKey k layout buffers
