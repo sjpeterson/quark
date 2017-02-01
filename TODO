@@ -1,11 +1,8 @@
 Functionality:
   - Prompts
-    - Confirm Quit
-    - Save as
-  - Tab
+    - Confirm Quit when unsaved buffers
   - Select
-    - Left/Right
-    - Shift+PgUp/PgDown (stand in for lack of up/down capability?)
+    - Show selection
     - Home/End
     - Line
     - Everything

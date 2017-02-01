@@ -75,6 +75,17 @@ initLayout path = do
     -- printText (primaryPane layout) text
     return layout
 
+initBuffer :: String -> IO (ExtendedBuffer)
+initBuffer path = do
+    fileExists <- doesFileExist path
+    contents <- if fileExists then readFile path else return ""
+    return ((Buffer (fromString contents) (0, 0) (0, 0)), path, False)
+
+initFlipper :: String -> IO (Flipper ExtendedBuffer)
+initFlipper path = do
+    extendedBuffer <- initBuffer path
+    return (extendedBuffer, [], [])
+
 refresh :: Window -> IO ()
 refresh (TextView w _ _)  = Curses.wRefresh w
 
@@ -128,61 +139,99 @@ fillBackground (TitleBar cTitleBar (h, w)) colorId = do
     Curses.wMove cTitleBar 1 0
     Curses.wRefresh cTitleBar
 
--- TODO: rewrite for style
-initBuffer :: String -> IO (ExtendedBuffer)
-initBuffer path = do
-    fileExists <- doesFileExist path
-    contents <- if fileExists then readFile path else return ""
-    -- let title = if fileExists then path else "Untitled"
-    return ((Buffer (fromString contents) (0, 0) (0, 0)), path, False)
+-- TODO: maybe join these two?
+quit :: Layout -> Flipper ExtendedBuffer -> IO ()
+quit layout buffers = if unsavedBuffers buffers
+                         then saveAndQuit layout buffers
+                         else end
 
-initFlipper :: String -> IO (Flipper ExtendedBuffer)
-initFlipper path = do
-    extendedBuffer <- initBuffer path
-    return (extendedBuffer, [], [])
+saveAndQuit :: Layout -> Flipper ExtendedBuffer -> IO ()
+saveAndQuit layout buffers = do
+    (newBuffers, saved) <- chooseSave layout $ flipToUnsaved buffers
+    if saved then quit layout newBuffers
+             else mainLoop layout newBuffers
 
--- TODO: clean this mess up!
-promptSave :: Layout -> Flipper ExtendedBuffer -> IO ()
+flipToUnsaved :: Flipper ExtendedBuffer -> Flipper ExtendedBuffer
+flipToUnsaved buffers
+    | unsavedBuffers buffers == False    = buffers
+    | unsavedXB (active buffers) == True = buffers
+    | otherwise                          = flipToUnsaved $ flipNext buffers
+
+unsavedBuffers :: Flipper ExtendedBuffer -> Bool
+unsavedBuffers buffers = foldr foldfun False (toList buffers)
+  where
+    foldfun = \xb acc -> if unsavedXB xb then True else acc
+
+chooseSave :: Layout
+           -> Flipper ExtendedBuffer
+           -> IO (Flipper ExtendedBuffer, Bool)
+chooseSave layout buffers = do
+    save <- promptChoice u promptText [ ('y', "Yes", Just True)
+                                      , ('n', "No", Just False)
+                                      , ('\ESC', "Cancel", Nothing) ]
+    case save of Just True  -> do newBuffers <- writeFXB path buffers
+                                  return (newBuffers, True)
+                 Just False -> return (buffers, False)
+                 Nothing    -> return (buffers, False)
+  where
+    u = utilityBar layout
+    promptText = "Save changes to " ++ path ++ "?"
+    (_, path, _) = active buffers
+
+promptSave :: Layout -> Flipper ExtendedBuffer -> IO (Flipper ExtendedBuffer)
 promptSave layout buffers = case active buffers of
     (b@(Buffer h _ _), path, False) ->
         do newPath <- promptString u "Save buffer to file:" path
            fileExists <- doesFileExist newPath
            let doConfirm = fileExists && path /= newPath
            dirExists <- doesDirectoryExist newPath
-           let newBuffers = mapF (\(b, _, _) -> (b, newPath, False)) buffers
            if dirExists || newPath == ""
                then do debug u $ if newPath == ""
                                      then "Buffer was not saved"
                                      else path ++ " is a directory"
-                       mainLoop layout buffers
+                       return buffers
                else if doConfirm
-                        then confirmSave layout buffers newPath
-                        else save layout newBuffers
+                        then confirmSave newPath layout buffers
+                        else do debug u $ "Saved " ++ newPath
+                                writeFXB newPath buffers
     _                               ->
         do debug u "Can't save protected buffer"
-           mainLoop layout buffers
+           return buffers
   where
     u = utilityBar layout
 
-confirmSave :: Layout -> Flipper ExtendedBuffer -> String -> IO ()
-confirmSave layout buffers newPath = do
+confirmSave :: String
+             -> Layout
+             -> Flipper ExtendedBuffer
+             -> IO (Flipper ExtendedBuffer)
+confirmSave newPath layout buffers = do
     overwrite <- promptChoice u promptText [ ('y', "Yes", True)
                                            , ('n', "No", False) ]
-    if overwrite then save layout newBuffers
+    if overwrite then do debug u $ "Saved " ++ newPath
+                         writeFXB newPath buffers
                  else do debug u "Buffer was not saved"
-                         mainLoop layout buffers
+                         return buffers
   where
     u = utilityBar layout
     promptText = newPath ++ " already exists, overwrite?"
-    newBuffers = mapF (\(b, _, _) -> (b, newPath, False)) buffers
 
-save :: Layout -> Flipper ExtendedBuffer -> IO ()
-save layout buffers = do
-    writeFile path $ nlEnd $ toString h
-    debug (utilityBar layout) $ path ++ " saved!"
-    mainLoop layout $ mapF (\(b, _, _) -> (b, path, False)) buffers
+writeFXB :: FilePath -> Flipper ExtendedBuffer -> IO (Flipper ExtendedBuffer)
+writeFXB path buffers = do
+    newXB <- writeXB path xb
+    return (newXB, x, y)
   where
-    ((Buffer h _ _), path, _) = active buffers
+    (xb, x, y) = buffers
+
+writeXB :: FilePath -> ExtendedBuffer -> IO ExtendedBuffer
+writeXB path (b, _, False) = do
+    newB <- writeBuffer path b
+    return $ (newB, path, False)
+
+writeBuffer :: FilePath -> Buffer -> IO Buffer
+writeBuffer path (Buffer h@(n, p, f) c s) = do
+    writeFile path $ nlEnd $ toString h
+    return $ Buffer (0, p, f) c s
+  where
     nlEnd s  = if nlTail s then s else s ++ "\n"
 
 -- TODO: consider moving to separate file
@@ -191,8 +240,9 @@ action a layout buffers = mainLoop layout $ mapF (mapXB a) buffers
 
 handleKey :: Curses.Key -> Layout -> Flipper ExtendedBuffer -> IO ()
 handleKey (Curses.KeyChar c) layout buffers
-    | c == '\DC1' = end
-    | c == '\DC3' = promptSave layout buffers
+    | c == '\DC1' = quit layout buffers
+    | c == '\DC3' = do newBuffers <- promptSave layout buffers
+                       mainLoop layout newBuffers
     | c == '\DEL' = action backspace layout buffers
     | c == '\SUB' = action undo layout buffers
     | c == '\EM'  = action redo layout buffers
@@ -278,6 +328,6 @@ end = Curses.endWin
 main :: IO ()
 main = do
     args <- getArgs
-    let path = (\x -> if (length x) == 0 then "None" else head x) args
+    let path = (\x -> if (length x) == 0 then "" else head x) args
     start path
     -- or bracket pattern?

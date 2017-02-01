@@ -38,7 +38,8 @@ module Quark.Buffer ( Buffer ( Buffer
                     , endOfLine
                     , startOfLine
                     , endOfFile
-                    , startOfFile ) where
+                    , startOfFile
+                    , unsavedXB ) where
 
 import Quark.Types ( Clipboard
                    , Cursor
@@ -87,6 +88,14 @@ ebToString ((Buffer h _ _), _, _) = toString h
 -- TODO: monad/functor/whatever
 mapXB :: (Buffer -> Buffer) -> ExtendedBuffer -> ExtendedBuffer
 mapXB f (buffer, s, b) = (f buffer, s, b)
+
+unsaved :: Buffer -> Bool
+unsaved (Buffer (k, _, _) _ _) = case k of
+    0 -> False
+    _ -> True
+
+unsavedXB :: ExtendedBuffer -> Bool
+unsavedXB (b, _, _) = unsaved b
 
 -- Input single character
 input :: Char -> Buffer -> Buffer

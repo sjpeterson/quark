@@ -104,6 +104,7 @@ printOption w n (c, s, _) = do
 
 -- expand with '\ETX' to "^C" and such as needed
 translateChar :: Char -> String
+translateChar '\ESC' = "ESC"
 translateChar c = [toUpper c]
 
 -- TODO: This repeats a subset of what's in Main.hs - overload?
