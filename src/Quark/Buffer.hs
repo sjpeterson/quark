@@ -18,6 +18,7 @@ module Quark.Buffer ( Buffer ( Buffer
                              , LockedBuffer )
                     , ExtendedBuffer
                     , ebToString
+                    , ebSelection
                     , mapXB
                     , editHistory
                     , cursor
@@ -84,6 +85,13 @@ type ExtendedBuffer = (Buffer, FilePath, Bool)
 
 ebToString :: ExtendedBuffer -> String
 ebToString ((Buffer h _ _), _, _) = toString h
+
+ebSelection :: ExtendedBuffer -> (Index, Index)
+ebSelection ((Buffer h crs sel), _, _) = ( cursorToIx selectionStart s
+                                      , cursorToIx selectionEnd s )
+  where
+    (selectionStart, selectionEnd) = orderTwo crs sel
+    s = toString h
 
 -- TODO: monad/functor/whatever
 mapXB :: (Buffer -> Buffer) -> ExtendedBuffer -> ExtendedBuffer
@@ -230,11 +238,11 @@ moveCursor :: Direction -> Buffer -> Buffer
 moveCursor = moveCursorN 1
 
 moveCursorN :: Int -> Direction -> Buffer -> Buffer
-moveCursorN = genericMoveCursor False
+moveCursorN = genericMoveCursor True
 
 -- Move the cursor, keeping selection cursor in place
 selectMoveCursor :: Direction -> Buffer -> Buffer
-selectMoveCursor = genericMoveCursor True 1
+selectMoveCursor = genericMoveCursor False 1
 
 -- Generic move cursor (not exported)
 genericMoveCursor :: Bool -> Int -> Direction -> Buffer -> Buffer
@@ -242,15 +250,15 @@ genericMoveCursor moveSel n d (Buffer h crs sel)
     | n == 1    = Buffer h newCrs newSel
     | otherwise = genericMoveCursor moveSel (n - 1) d (Buffer h newCrs newSel)
   where
-    newSel
-        | moveSel == True = move d s sel
-        | crs == sel      = move d s crs
-        | d == Backward   = minCrs
-        | d == Forward    = maxCrs
-        | otherwise       = move d s crs
-    newCrs = case moveSel of
-        False -> newSel
-        _     -> crs
+    newCrs
+        | moveSel == False = move d s crs
+        | crs == sel       = move d s crs
+        | d == Backward    = minCrs
+        | d == Forward     = maxCrs
+        | otherwise        = move d s crs
+    newSel = case moveSel of
+        True  -> newCrs
+        False -> sel
     s = toString h
     (minCrs, maxCrs) = orderTwo crs sel
 

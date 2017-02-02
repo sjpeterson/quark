@@ -47,8 +47,9 @@ defineColor n f b =
 -- 15 - White
 -- 16 - Black
 --
--- 17 is for the title bar.
+-- 17 is for the title bar
 -- 18 is for line numbers
+-- 19 is for selections
 
 defineColors :: IO ()
 defineColors = do
@@ -56,6 +57,7 @@ defineColors = do
   -- defineColor 17 16 7
   defineColor 17 16 3
   defineColor 18 3 (-1)
+  defineColor 19 (-1) 8
 
 setTitle :: Window -> String -> IO ()
 setTitle (TitleBar w (_, c)) title = do
@@ -114,24 +116,31 @@ changeOffset d (TextView w size (rr, cc))
     ccStep = 5
 
 -- TODO: show hints of overflow
-printText :: Window -> String -> IO ()
-printText t@(TextView w (r, c) (rr, cc)) text = do
+printText :: Window -> (Index, Index) -> String -> IO ()
+printText t@(TextView w (r, c) (rr, cc)) q text = do
     mapM_ (\(k, l, s) ->
         printLine k l s t) $ zip3 [0..(r - 2)] lineNumbers textLines
   where
     n =  (length $ lines text) + if nlTail text then 1 else 0
     lnc = (length $ show n) + 1
     lineNumbers = map (padToLen lnc) (map show $ drop rr [1..n]) ++ repeat ""
-    textLines =
+    textLines' =
         map ((padToLen (c - lnc)). drop cc) $ drop rr (lines text) ++ repeat ""
+    textLines =
+        map ((padToLenSL (c - lnc)) . dropSL cc) $
+            drop rr (selectionLines $ splitAt2 q text) ++ repeat [("", False)]
 
-printLine :: Int -> String -> String -> Window -> IO ()
+printLine :: Int -> String -> [(String, Bool)] -> Window -> IO ()
 printLine k lineNumber text (TextView w (_, c) _) = do
     Curses.wMove w k 0
     Curses.wAttrSet w (Curses.attr0, Curses.Pair 18)
     Curses.wAddStr w lineNumber
-    Curses.wAttrSet w (Curses.attr0, Curses.Pair 0)
-    Curses.wAddStr w $ take (c - length lineNumber) text
+    mapM_ printSection text -- $ [(take (c - length lineNumber) text, False)]
+  where
+    printSection (s, selected) = do
+        Curses.wAttrSet w $ if selected then (Curses.attr0, Curses.Pair 19)
+                                        else (Curses.attr0, Curses.Pair 0)
+        Curses.wAddStr w s
 
 fillBackground :: Window -> Int -> IO ()
 fillBackground (TitleBar cTitleBar (h, w)) colorId = do
@@ -321,7 +330,7 @@ mainLoop layout buffers = do
     let layout' = mapL (changeOffset' crs lnOffset) layout
     let w@(TextView _ _ (rr, cc)) = primaryPane layout'
     -- debug (utilityBar layout') $ show w
-    printText w (ebToString $ active buffers)
+    printText w (ebSelection $ active buffers) (ebToString $ active buffers)
     updateCursor w (rr, cc - lnOffset) crs
     setTitle (titleBar layout') $ (show crs) ++ " " ++ (show sel)
     refresh w

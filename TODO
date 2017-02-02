@@ -1,8 +1,5 @@
 Functionality:
-  - Prompts
-    - Confirm Quit when unsaved buffers
-  - Select
-    - Show selection
+  - Selections
     - Home/End
     - Line
     - Everything
@@ -11,3 +8,7 @@ Functionality:
 
 Potential future optimizations:
   - Move from prelude Strings to Data.Text
+
+Other functional or stylistic improvements:
+  - Make Flipper foldable and traversable
+  - Move Colors to own module, adapt to various terminal environments
