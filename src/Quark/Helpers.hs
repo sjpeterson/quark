@@ -58,9 +58,9 @@ splitAt2 (k0, k1) l = (x, y, z)
 selectionLines :: (String, String, String) -> [[(String, Bool)]]
 selectionLines (x, y, z) = case (nlTail x, nlTail y) of
     (True, True)   -> concat [lx, ly, lz]
-    (True, False)  -> concat [fuseSL lx ly, lz]
-    (False, True)  -> concat [lx, fuseSL ly lz]
-    (False, False) -> fuseSL lx $ fuseSL ly lz
+    (True, False)  -> concat [lx, fuseSL ly lz]
+    (False, True)  -> concat [fuseSL lx ly, lz]
+    (False, False) -> fuseSL (fuseSL lx ly) lz
   where
     lx = [[(s, False)] | s <- lines x]
     ly = [[(s, True)] | s <- lines y]
@@ -69,7 +69,7 @@ selectionLines (x, y, z) = case (nlTail x, nlTail y) of
     fuseSL [] qs = qs
     fuseSL ps (q:qs) = ps' ++ (concat [p, q]):qs
       where
-        p:ps' = reverse ps
+        (ps', [p]) = splitAt (length ps - 1) ps
 
 dropSL :: Int -> [(String, Bool)] -> [(String, Bool)]
 dropSL _ [] = []

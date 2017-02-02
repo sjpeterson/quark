@@ -330,6 +330,7 @@ mainLoop layout buffers = do
     let layout' = mapL (changeOffset' crs lnOffset) layout
     let w@(TextView _ _ (rr, cc)) = primaryPane layout'
     -- debug (utilityBar layout') $ show w
+    debug (utilityBar layout') $ (show $ ebSelection $ active buffers)
     printText w (ebSelection $ active buffers) (ebToString $ active buffers)
     updateCursor w (rr, cc - lnOffset) crs
     setTitle (titleBar layout') $ (show crs) ++ " " ++ (show sel)
