@@ -1,10 +1,5 @@
 Functionality:
-  - Selections
-    - Home/End
-    - Line
-    - Everything
   - Show overflow hints (~?)
-  - Scroll TextView one full page for PgUp/PgDn
 
 Potential future optimizations:
   - Move from prelude Strings to Data.Text

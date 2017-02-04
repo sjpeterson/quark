@@ -3,6 +3,7 @@ module Main where
 import System.Environment ( getArgs )
 import System.Directory ( doesFileExist
                         , doesDirectoryExist )
+import System.Clipboard
 
 import qualified UI.HSCurses.Curses as Curses
 -- import qualified UI.HSCurses.CursesHelper as CursesH
@@ -261,15 +262,16 @@ handleKey (Curses.KeyChar c) layout buffers
     | c == '\DEL' = action backspace layout buffers
     | c == '\SUB' = action undo layout buffers
     | c == '\EM'  = action redo layout buffers
-    | c == '\DLE' = do let u = utilityBar layout
-                       s <- promptString u "Hey man, how are you?" "default"
-                       debug u $ "You are " ++ s ++ "!"
-                       continue
-    | c == '\SI'  = do let u = utilityBar layout
-                       x <- promptChoice u "How many?" [ ('a', "a", 1)
-                                                    , ('b', "b", 2) ]
-                       debug u $ "You selected: " ++ (show x)
-                       continue
+    | c == '\CAN' = do setClipboardString $ selection $ condense $
+                           active buffers
+                       action delete layout buffers
+    | c == '\ETX' = do setClipboardString $ selection $ condense $
+                           active buffers
+                       mainLoop layout buffers
+    | c == '\SYN' = do s <- getClipboardString
+                       case s of Nothing -> mainLoop layout buffers
+                                 Just s' -> action (paste s') layout buffers
+    | c == '\SOH' = action selectAll layout buffers
     | c == '\r'   = action nlAutoIndent layout buffers
     | c == '\t'   = action (tab 4) layout buffers
     | isPrint c   = action (input c) layout buffers
@@ -290,10 +292,14 @@ handleKey k layout buffers
     | k == Curses.KeySPrevious = action (selectMoveCursor Up) layout buffers
     | k == Curses.KeyPPage = action (moveCursorN (r - 1) Up) layout buffers
     | k == Curses.KeyNPage = action (moveCursorN (r - 1) Down) layout buffers
-    | k == Curses.KeyEnd = action endOfLine layout buffers
-    | k == Curses.KeyHome = action startOfLine layout buffers
-    | k == Curses.KeyUnknown 532 = action endOfFile layout buffers
-    | k == Curses.KeyUnknown 537 = action startOfFile layout buffers
+    | k == Curses.KeyEnd = action (endOfLine True) layout buffers
+    | k == Curses.KeyHome = action (startOfLine True) layout buffers
+    | k == Curses.KeySEnd = action (endOfLine False) layout buffers
+    | k == Curses.KeySHome = action (startOfLine False) layout buffers
+    | k == Curses.KeyUnknown 532 = action (endOfFile True) layout buffers
+    | k == Curses.KeyUnknown 537 = action (startOfFile True) layout buffers
+    | k == Curses.KeyUnknown 533 = action (endOfFile False) layout buffers
+    | k == Curses.KeyUnknown 538 = action (startOfFile False) layout buffers
     | k == Curses.KeyBTab = action (unTab 4) layout buffers
     | otherwise = mainLoop layout buffers
   where
@@ -330,7 +336,7 @@ mainLoop layout buffers = do
     let layout' = mapL (changeOffset' crs lnOffset) layout
     let w@(TextView _ _ (rr, cc)) = primaryPane layout'
     -- debug (utilityBar layout') $ show w
-    debug (utilityBar layout') $ (show $ ebSelection $ active buffers)
+    -- debug (utilityBar layout') $ (show $ ebSelection $ active buffers)
     printText w (ebSelection $ active buffers) (ebToString $ active buffers)
     updateCursor w (rr, cc - lnOffset) crs
     setTitle (titleBar layout') $ (show crs) ++ " " ++ (show sel)

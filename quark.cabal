@@ -39,6 +39,7 @@ executable quark
   build-depends:       base >=4.9 && <4.10
                      , hscurses >=1.4 && < 1.5
                      , directory
+                     , Clipboard
   hs-source-dirs:      src
   default-language:    Haskell2010
 

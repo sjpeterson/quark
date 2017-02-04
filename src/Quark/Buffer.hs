@@ -20,6 +20,7 @@ module Quark.Buffer ( Buffer ( Buffer
                     , ebToString
                     , ebSelection
                     , mapXB
+                    , condense
                     , editHistory
                     , cursor
                     , selectionCursor
@@ -40,6 +41,7 @@ module Quark.Buffer ( Buffer ( Buffer
                     , startOfLine
                     , endOfFile
                     , startOfFile
+                    , selectAll
                     , unsavedXB ) where
 
 import Quark.Types ( Clipboard
@@ -96,6 +98,9 @@ ebSelection ((Buffer h crs sel), _, _) = ( cursorToIx selectionStart s
 -- TODO: monad/functor/whatever
 mapXB :: (Buffer -> Buffer) -> ExtendedBuffer -> ExtendedBuffer
 mapXB f (buffer, s, b) = (f buffer, s, b)
+
+condense :: ExtendedBuffer -> Buffer
+condense (b, _, _) = b
 
 unsaved :: Buffer -> Bool
 unsaved (Buffer (k, _, _) _ _) = case k of
@@ -213,25 +218,39 @@ alignCursor False b@(Buffer h@(_, x:xs, _) crs sel) = Buffer h newCrs newSel
 alignCursor _ b = b
 
 -- End and Home functions
-endOfLine :: Buffer -> Buffer
-endOfLine (Buffer h (r, _) _) = Buffer h newCrs newCrs
+endOfLine :: Bool -> Buffer -> Buffer
+endOfLine moveSel (Buffer h (r, _) sel) = Buffer h newCrs newSel
   where
-    newCrs = case drop r $ lines s of
-                   (x:xs) -> (r, length x)
-                   _      -> ixToCursor (length s - 1) s
+    newCrs = case drop r $ lines s of (x:xs) -> (r, length x)
+                                      _      -> ixToCursor (length s - 1) s
+    newSel = case moveSel of True  -> newCrs
+                             False -> sel
     s = toString h
 
-startOfLine :: Buffer -> Buffer
-startOfLine (Buffer h (r, _) _) = Buffer h (r, 0) (r, 0)
+startOfLine :: Bool -> Buffer -> Buffer
+startOfLine moveSel (Buffer h (r, _) sel) = Buffer h (r, 0) newSel
+  where
+    newSel = case moveSel of True  -> (r, 0)
+                             False -> sel
 
-endOfFile :: Buffer -> Buffer
-endOfFile (Buffer h crs _) = Buffer h newCrs newCrs
+endOfFile :: Bool -> Buffer -> Buffer
+endOfFile moveSel (Buffer h _ sel) = Buffer h newCrs newSel
   where
     newCrs = ixToCursor (length s) s
+    newSel = case moveSel of True  -> newCrs
+                             False -> sel
     s = toString h
 
-startOfFile :: Buffer -> Buffer
-startOfFile (Buffer h _ _) = Buffer h (0, 0) (0, 0)
+startOfFile :: Bool -> Buffer -> Buffer
+startOfFile moveSel (Buffer h _ sel) = Buffer h (0, 0) newSel
+  where
+    newSel = case moveSel of True  -> (0, 0)
+                             False -> sel
+
+selectAll :: Buffer -> Buffer
+selectAll (Buffer h _ _) = Buffer h (0, 0) $ ixToCursor (length s) s
+  where
+    s = toString h
 
 -- Move the cursor one step, set selection cursor to same
 moveCursor :: Direction -> Buffer -> Buffer

@@ -57,7 +57,7 @@ clear u = do
 promptString :: Window -> String -> String -> IO (String)
 promptString u s def = do
     prompt 0 u s
-    let b = endOfLine $ Buffer (fromString def) (0, 0) (0, 0)
+    let b = endOfLine True $ Buffer (fromString def) (0, 0) (0, 0)
     s' <- cGetLine u b
     clear u
     return s'
@@ -121,8 +121,8 @@ handleKey k u buffer
     | k == Curses.KeyDC = cGetLine u $ delete buffer
     | k == Curses.KeyLeft = cGetLine u $ (moveCursor Backward) buffer
     | k == Curses.KeyRight = cGetLine u $ (moveCursor Forward) buffer
-    | k == Curses.KeyEnd = cGetLine u $ endOfLine buffer
-    | k == Curses.KeyHome = cGetLine u $ startOfLine buffer
-    | k == Curses.KeyUnknown 532 = cGetLine u $ endOfLine buffer
-    | k == Curses.KeyUnknown 537 = cGetLine u $ startOfLine buffer
+    | k == Curses.KeyEnd = cGetLine u $ endOfLine True buffer
+    | k == Curses.KeyHome = cGetLine u $ startOfLine True buffer
+    | k == Curses.KeyUnknown 532 = cGetLine u $ endOfLine True buffer
+    | k == Curses.KeyUnknown 537 = cGetLine u $ startOfLine True buffer
     | otherwise = cGetLine u $ buffer
