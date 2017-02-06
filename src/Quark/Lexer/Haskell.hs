@@ -21,6 +21,7 @@ import Data.List ( intercalate )
 import Text.Regex.PCRE
 
 import Quark.Types
+import Quark.Lexer.Core
 
 haskellGrammar = [ (StringLiteral, "\".*?\"")
                  , (Comment, "\\{-.*-\\}")
@@ -43,33 +44,7 @@ haskellGrammar = [ (StringLiteral, "\".*?\"")
                                               , "@"
                                               , "\\\\"]) ]
 
---  , blockComment     = "\\{-.*-\\}"
---  , lineComment      = "--.*?\n"
---  , stringLiteral    = "\".*\""
---  , characterLiteral = "'[^']'"
---  , numberLiteral    = "[0-9]+?\\.?[0-9]*?"
---  , typeLiteral      = "(([A-Z]\\w*)+)(\\.[A-Z]\\w*)*(?![\\w\\.])"
---  , identifier       = "[a-z]\\w*"
---  , whitespace       = "[ \t]+"
---  , operator         = intercalate "|" [ "::"
---                                       , "=>"
---                                       , "->"
---                                       , "="
---                                       , "!"
---                                       , ";"
---                                       , "\\|"
---                                       , "<-"
---                                       , ">"
---                                       , "<"
---                                       , "<="
---                                       , ">="
---                                       , "=="
---                                       , "@"
---                                       , "\\\\"] }
 
-
-lexer :: Grammar -> String -> [Token]
-lexer g s = undefined
 
 tokenizeHaskell :: String -> [Token]
 tokenizeHaskell = lexer haskellGrammar

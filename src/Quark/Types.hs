@@ -34,7 +34,7 @@ type PrintRange = (Size, Offset)
 type Option a = (Char, String, a)
 
 -- Algebraic data types
-data Direction = Backward | Forward | Up | Down deriving Eq
+data Direction = Backward | Forward | Up | Down deriving (Show, Eq)
 
 -- Types for lexers
 data Grammar' = Grammar' { blockComment :: (String, String)
@@ -61,4 +61,4 @@ data Token = Keyword String
            | CharacterLiteral String
            | NumberLiteral String
            | BooleanLiteral String
-           | Unclassified String
+           | Unclassified String deriving (Show, Eq)
