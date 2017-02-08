@@ -36,15 +36,15 @@ type Option a = (Char, String, a)
 -- Algebraic data types
 data Direction = Backward | Forward | Up | Down deriving (Show, Eq)
 
--- Types for lexers
+-- Types and synonyms for lexers
+type Regex = String  -- This name conflicts with Text.Regex..
+
 data Grammar' = Grammar' { blockComment :: (String, String)
                          , lineComment :: String
                          , typeStart :: [Char]
                          , stringQuote :: [Char]
                          , charQuote :: [Char]
                          , numberLiteral :: [Char] }
-
-type Regex = String
 
 {- A grammar is a list of (Token data constructor, regex) tuples in order of
    precedence. -}
@@ -57,8 +57,9 @@ data Token = Keyword String
            | Operator String
            | Comment String
            | StringLiteral String
-           | IntegerLiteral String
-           | CharacterLiteral String
            | NumberLiteral String
+           | IntegerLiteral String
+           | FloatLiteral String
+           | CharacterLiteral String
            | BooleanLiteral String
            | Unclassified String deriving (Show, Eq)

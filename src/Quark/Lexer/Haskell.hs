@@ -16,35 +16,53 @@
 
 module Quark.Lexer.Haskell ( tokenizeHaskell ) where
 
-import Data.List ( intercalate )
-
-import Text.Regex.PCRE
-
 import Quark.Types
 import Quark.Lexer.Core
 
-haskellGrammar = [ (StringLiteral, "\".*?\"")
-                 , (Comment, "\\{-.*-\\}")
-                 , (Comment, "--.*?\n")
+haskellGrammar = [ (StringLiteral, "\"[\\S\\s]*?(\")(?<!\\\\\\\")")
+                 , (Comment, "\\{-[\\S\\s]*?-\\}")
+                 , (Comment, "--[^\n]*")
                  , (CharacterLiteral, "'[^']'")
                  , (NumberLiteral, "[0-9]+?\\.?[0-9]*?")
-                 , (Operator, intercalate "|" [ "::"
-                                              , "=>"
-                                              , "->"
-                                              , "="
-                                              , "!"
-                                              , ";"
-                                              , "\\|"
-                                              , "<-"
-                                              , ">"
-                                              , "<"
-                                              , "<="
-                                              , ">="
-                                              , "=="
-                                              , "@"
-                                              , "\\\\"]) ]
-
-
+                 , (Operator, listToRe [ "::"
+                                       , "=>"
+                                       , "->"
+                                       , "!"
+                                       , ";"
+                                       , "\\|"
+                                       , "<-"
+                                       , ">"
+                                       , "<"
+                                       , "<="
+                                       , ">="
+                                       , "=="
+                                       , "@"
+                                       , "="
+                                       , "\\\\"])
+                 , (Keyword, listToRe [ "case"
+                                      , "class"
+                                      , "data"
+                                      , "default"
+                                      , "deriving"
+                                      , "do"
+                                      , "else"
+                                      , "foreign"
+                                      , "if"
+                                      , "import"
+                                      , "in"
+                                      , "infix"
+                                      , "infixl"
+                                      , "infixr"
+                                      , "instance"
+                                      , "let"
+                                      , "module"
+                                      , "newtype"
+                                      , "of"
+                                      , "then"
+                                      , "type"
+                                      , "where"
+                                      , "_" ])
+                 , (Newline, "\n") ]
 
 tokenizeHaskell :: String -> [Token]
 tokenizeHaskell = lexer haskellGrammar

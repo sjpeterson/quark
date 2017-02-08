@@ -14,37 +14,62 @@
 --
 ---------------------------------------------------------------
 
-module Quark.Lexer.Core where
+module Quark.Lexer.Core ( lexer
+                        , listToRe ) where
 
-{- data Token = Keyword String
-           | Literal String
-           | Whitespace String
-           | Newline String
-           | Operator String
-           | Comment String
-           | StringLiteral String
-           | IntegerLiteral String
-           | CharacterLiteral String
-           | NumberLiteral String
-           | BooleanLiteral String
-           | Unclassified String deriving (Show, Eq) -}
+import Data.List ( intersperse
+                 , intercalate
+                 , sortBy )
+
+import Text.Regex.PCRE
+
+import qualified Quark.Types as Q
 
 -- Consider lens or microlens to make this neater
-tokenLength :: Token -> Int
-tokenLength (Keyword s) = length s
-tokenLength (Literal s) = length s
-tokenLength (Whitespace s) = length s
+tokenString :: Q.Token -> String
+tokenString (Q.Keyword s)          = s
+tokenString (Q.Literal s)          = s
+tokenString (Q.Whitespace s)       = s
+tokenString (Q.Newline s)          = s
+tokenString (Q.Operator s)         = s
+tokenString (Q.Comment s)          = s
+tokenString (Q.StringLiteral s)    = s
+tokenString (Q.IntegerLiteral s)   = s
+tokenString (Q.CharacterLiteral s) = s
+tokenString (Q.FloatLiteral s)     = s
+tokenString (Q.NumberLiteral s)    = s
+tokenString (Q.BooleanLiteral s)   = s
+tokenString (Q.Unclassified s)     = s
 
-lexer :: Grammar -> String -> [Token]
-lexer _ [] = []
-lexer g s = t:(lexer g s')
+tokenLength :: Q.Token -> Int
+tokenLength = length . tokenString
+
+listToRe :: [String] -> Q.Regex
+listToRe l = "^(" ++ intercalate "|" sortedL ++ ")"
   where
-    t = nextToken g s
-    s' = drop (tokenLength t) s
+    sortedL = sortBy (\x y -> compare (length y) (length x)) l
 
-nextToken :: Grammar -> String -> Token
-nextToken _ []           = []
-nextToken [] x:_         = Unclassified x
-nextToken g@(t, re):gs s = case s =~ re :: String of
-    "" -> nextToken gs s
-    s' -> t s'
+lexer :: Q.Grammar -> String -> [Q.Token]
+lexer g s = concat $ lexer' g s
+
+lexer' :: Q.Grammar -> String -> [[Q.Token]]
+lexer' _ [] = []
+lexer' g s = t:(lexer' g s')
+  where
+    t = nextTokens g s
+    s' = drop (sum (map tokenLength t) + (length t) - 1) s
+
+nextTokens :: Q.Grammar -> String -> [Q.Token]
+nextTokens _ []             = [Q.Unclassified ""]
+nextTokens [] (x:_)         = [Q.Unclassified [x]]
+nextTokens (g@(t, re):gs) s = case s =~ (hatify re) :: String of
+    "" -> nextTokens gs s
+    s' -> case s' of
+              "\n" -> [t s']
+              _    -> intersperse (Q.Newline "\n") [t s'' | s'' <- lines s']
+
+hatify :: Q.Regex -> Q.Regex
+hatify "" = ""
+hatify re@(x:xs) = case x of
+    '^' -> re
+    _   -> '^':re
