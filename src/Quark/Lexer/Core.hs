@@ -39,6 +39,9 @@ tokenString (Q.CharacterLiteral s) = s
 tokenString (Q.FloatLiteral s)     = s
 tokenString (Q.NumberLiteral s)    = s
 tokenString (Q.BooleanLiteral s)   = s
+tokenString (Q.Separator s)        = s
+tokenString (Q.TypeIdent s)        = s
+tokenString (Q.VarIdent s)         = s
 tokenString (Q.Unclassified s)     = s
 
 tokenLength :: Q.Token -> Int
@@ -50,7 +53,7 @@ listToRe l = "^(" ++ intercalate "|" sortedL ++ ")"
     sortedL = sortBy (\x y -> compare (length y) (length x)) l
 
 lexer :: Q.Grammar -> String -> [Q.Token]
-lexer g s = concat $ lexer' g s
+lexer g s = (fuseUnclassified . concat) $ lexer' g s
 
 lexer' :: Q.Grammar -> String -> [[Q.Token]]
 lexer' _ [] = []
@@ -61,7 +64,7 @@ lexer' g s = t:(lexer' g s')
 
 nextTokens :: Q.Grammar -> String -> [Q.Token]
 nextTokens _ []             = [Q.Unclassified ""]
-nextTokens [] (x:_)         = [Q.Unclassified [x]]
+nextTokens [] (x:xs)         = [Q.Unclassified [x]]
 nextTokens (g@(t, re):gs) s = case s =~ (hatify re) :: String of
     "" -> nextTokens gs s
     s' -> case s' of
@@ -73,3 +76,13 @@ hatify "" = ""
 hatify re@(x:xs) = case x of
     '^' -> re
     _   -> '^':re
+
+-- Not sure if this part is really worth it
+fuseUnclassified :: [Q.Token] -> [Q.Token]
+fuseUnclassified = foldr fuseFold []
+
+fuseFold :: Q.Token -> [Q.Token] -> [Q.Token]
+fuseFold t [] = [t]
+fuseFold (Q.Unclassified s0) ((Q.Unclassified s1):ts) =
+    (Q.Unclassified $ s0 ++ s1):ts
+fuseFold t ts = t:ts

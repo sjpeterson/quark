@@ -62,4 +62,7 @@ data Token = Keyword String
            | FloatLiteral String
            | CharacterLiteral String
            | BooleanLiteral String
+           | VarIdent String
+           | TypeIdent String
+           | Separator String
            | Unclassified String deriving (Show, Eq)

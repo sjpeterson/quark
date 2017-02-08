@@ -120,5 +120,20 @@ hsLexerUnitTests = testGroup "Unit tests for Helpers.hs"
   , testCase "Keyword: _" $
       assertEqual "" [Keyword "_"] $
         tokenizeHaskell "_"
+  , testCase "Simple type" $
+      assertEqual "" [TypeIdent "MyType"] $
+        tokenizeHaskell "MyType"
+  , testCase "Qualified type" $
+      assertEqual "" [TypeIdent "MyModule.MyType"] $
+        tokenizeHaskell "MyModule.MyType"
+  , testCase "Qualified type with numbers" $
+      assertEqual "" [TypeIdent "MyModule1.MyType9"] $
+        tokenizeHaskell "MyModule1.MyType9"
+  , testCase "simple variable" $
+        assertEqual "" [VarIdent "myVariable0"] $
+          tokenizeHaskell "myVariable0"
+  , testCase "qualified variable (function)" $
+        assertEqual "" [VarIdent "MyModule.myVariable0"] $
+          tokenizeHaskell "MyModule.myVariable0"
   , testCase "Dummy" $
       assertEqual "" 1 1]

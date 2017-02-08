@@ -38,7 +38,11 @@ haskellGrammar = [ (StringLiteral, "\"[\\S\\s]*?(\")(?<!\\\\\\\")")
                                        , "=="
                                        , "@"
                                        , "="
+                                       , "\\.\\."
+                                       , ":"
+                                       , "~"
                                        , "\\\\"])
+                 , (Separator, ",")
                  , (Keyword, listToRe [ "case"
                                       , "class"
                                       , "data"
@@ -62,6 +66,9 @@ haskellGrammar = [ (StringLiteral, "\"[\\S\\s]*?(\")(?<!\\\\\\\")")
                                       , "type"
                                       , "where"
                                       , "_" ])
+                 , (TypeIdent, "(([A-Z][A-Za-z0-9]*)+)(\\.[A-Z][A-Za-z0-9]*)*\
+                                 \(?![a-zA-Z0-9\\.])")
+                 , (VarIdent, "([A-Z][A-Za-z0-9]*\\.)?([a-z][A-Za-z0-9]*)")
                  , (Newline, "\n") ]
 
 tokenizeHaskell :: String -> [Token]
