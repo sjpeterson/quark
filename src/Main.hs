@@ -20,6 +20,7 @@ import Quark.History
 import Quark.Types
 import Quark.Helpers
 import Quark.UtilityBar
+import Quark.Lexer.Core
 
 -- neat shorthand for initializing foreground color f and background color b
 -- as color pair n
@@ -142,6 +143,26 @@ printLine k lineNumber text (TextView w (_, c) _) = do
         Curses.wAttrSet w $ if selected then (Curses.attr0, Curses.Pair 19)
                                         else (Curses.attr0, Curses.Pair 0)
         Curses.wAddStr w s
+
+printTokenLine :: Int -> String -> [Token] -> Window -> IO ()
+printTokenLine k lineNumber tokens w'@(TextView w (_, c) (_, c0)) = do
+    Curses.wMove w k 0
+    Curses.wAttrSet w (Curses.attr0, Curses.Pair 18)
+    Curses.wAddStr w lineNumber
+    mapM_ printTokens $ takeTL (c - length lineNumber) $ dropTL c0 tokens
+  where
+    printTokens t = do
+        setTokenColor t w'
+        printToken t w'
+
+printToken :: Token -> Window -> IO ()
+printToken t (TextView w _ _) = Curses.wAddStr w $ tokenString t
+
+setTokenColor :: Token -> Window -> IO ()
+setTokenColor (ReservedIdent _) (TextView w _ _) =
+    Curses.wAttrSet w (Curses.attr0, Curses.Pair 3)
+setTokenColor _ (TextView w _ _) =
+    Curses.wAttrSet w (Curses.attr0, Curses.Pair 0)
 
 fillBackground :: Window -> Int -> IO ()
 fillBackground (TitleBar cTitleBar (h, w)) colorId = do

@@ -15,6 +15,10 @@
 ---------------------------------------------------------------
 
 module Quark.Lexer.Core ( lexer
+                        , tokenString
+                        , tokenLines
+                        , takeTL
+                        , dropTL
                         , listToRe ) where
 
 import Data.List ( intersperse
@@ -26,26 +30,76 @@ import Text.Regex.PCRE
 import qualified Quark.Types as Q
 
 -- Consider lens or microlens to make this neater
+mapT :: (String -> a) -> Q.Token -> a
+mapT f (Q.Comment s)       = f s
+mapT f (Q.DocComment s)    = f s
+mapT f (Q.Pragma s)        = f s
+mapT f (Q.TypeIdent s)     = f s
+mapT f (Q.VarIdent s)      = f s
+mapT f (Q.ReservedIdent s) = f s
+mapT f (Q.Operator s)      = f s
+mapT f (Q.Bracket s)       = f s
+mapT f (Q.Separator s)     = f s
+mapT f (Q.IntLiteral s)    = f s
+mapT f (Q.FloatLiteral s)  = f s
+mapT f (Q.NumLiteral s)    = f s
+mapT f (Q.StringLiteral s) = f s
+mapT f (Q.CharLiteral s)   = f s
+mapT f (Q.BoolLiteral s)   = f s
+mapT f (Q.Whitespace s)    = f s
+mapT f (Q.Newline s)       = f s
+mapT f (Q.Unclassified s)  = f s
+
+liftT :: (String -> String) -> Q.Token -> Q.Token
+liftT f (Q.Comment s)       = Q.Comment $ f s
+liftT f (Q.DocComment s)    = Q.DocComment $ f s
+liftT f (Q.Pragma s)        = Q.Pragma $ f s
+liftT f (Q.TypeIdent s)     = Q.TypeIdent $ f s
+liftT f (Q.VarIdent s)      = Q.VarIdent $ f s
+liftT f (Q.ReservedIdent s) = Q.ReservedIdent $ f s
+liftT f (Q.Operator s)      = Q.Operator $ f s
+liftT f (Q.Bracket s)       = Q.Bracket $ f s
+liftT f (Q.Separator s)     = Q.Separator $ f s
+liftT f (Q.IntLiteral s)    = Q.IntLiteral $ f s
+liftT f (Q.FloatLiteral s)  = Q.FloatLiteral $ f s
+liftT f (Q.NumLiteral s)    = Q.NumLiteral $ f s
+liftT f (Q.StringLiteral s) = Q.StringLiteral $ f s
+liftT f (Q.CharLiteral s)   = Q.CharLiteral $ f s
+liftT f (Q.BoolLiteral s)   = Q.BoolLiteral $ f s
+liftT f (Q.Whitespace s)    = Q.Whitespace $ f s
+liftT f (Q.Newline s)       = Q.Newline $ f s
+liftT f (Q.Unclassified s)  = Q.Unclassified $ f s
+
 tokenString :: Q.Token -> String
-tokenString (Q.Keyword s)          = s
-tokenString (Q.Literal s)          = s
-tokenString (Q.Whitespace s)       = s
-tokenString (Q.Newline s)          = s
-tokenString (Q.Operator s)         = s
-tokenString (Q.Comment s)          = s
-tokenString (Q.StringLiteral s)    = s
-tokenString (Q.IntegerLiteral s)   = s
-tokenString (Q.CharacterLiteral s) = s
-tokenString (Q.FloatLiteral s)     = s
-tokenString (Q.NumberLiteral s)    = s
-tokenString (Q.BooleanLiteral s)   = s
-tokenString (Q.Separator s)        = s
-tokenString (Q.TypeIdent s)        = s
-tokenString (Q.VarIdent s)         = s
-tokenString (Q.Unclassified s)     = s
+tokenString = mapT id
 
 tokenLength :: Q.Token -> Int
-tokenLength = length . tokenString
+tokenLength = mapT length
+
+tokenLines :: [Q.Token] -> [[Q.Token]]
+tokenLines [] = []
+tokenLines t = cons (case break (== (Q.Newline "\n")) t of
+                        (l, t') -> (l, case t' of
+                                        [] -> []
+                                        _:t'' -> tokenLines t''))
+  where
+    cons ~(p, q) = p:q
+
+takeTL :: Int -> [Q.Token] -> [Q.Token]
+takeTL _ []     = []
+takeTL n (t:ts) = case n > k of
+    True  -> t:(takeTL (n-k) ts)
+    False -> [liftT (take n) t]
+  where
+    k = tokenLength t
+
+dropTL :: Int -> [Q.Token] -> [Q.Token]
+dropTL _ [] = []
+dropTL n (t:ts) = case n >= k of
+    True  -> dropTL (n-k) ts
+    False -> (liftT (drop n) t):ts
+  where
+    k = tokenLength t
 
 listToRe :: [String] -> Q.Regex
 listToRe l = "^(" ++ intercalate "|" sortedL ++ ")"

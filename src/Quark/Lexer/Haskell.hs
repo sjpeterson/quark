@@ -20,10 +20,11 @@ import Quark.Types
 import Quark.Lexer.Core
 
 haskellGrammar = [ (StringLiteral, "\"[\\S\\s]*?(\")(?<!\\\\\\\")")
+                 , (Pragma, "\\{-#.*?#-\\}")
                  , (Comment, "\\{-[\\S\\s]*?-\\}")
                  , (Comment, "--[^\n]*")
-                 , (CharacterLiteral, "'[^']'")
-                 , (NumberLiteral, "[0-9]+?\\.?[0-9]*?")
+                 , (CharLiteral, "'[^']'")
+                 , (NumLiteral, "[0-9]+?\\.?[0-9]*?")
                  , (Operator, listToRe [ "::"
                                        , "=>"
                                        , "->"
@@ -43,29 +44,29 @@ haskellGrammar = [ (StringLiteral, "\"[\\S\\s]*?(\")(?<!\\\\\\\")")
                                        , "~"
                                        , "\\\\"])
                  , (Separator, ",")
-                 , (Keyword, listToRe [ "case"
-                                      , "class"
-                                      , "data"
-                                      , "default"
-                                      , "deriving"
-                                      , "do"
-                                      , "else"
-                                      , "foreign"
-                                      , "if"
-                                      , "import"
-                                      , "in"
-                                      , "infix"
-                                      , "infixl"
-                                      , "infixr"
-                                      , "instance"
-                                      , "let"
-                                      , "module"
-                                      , "newtype"
-                                      , "of"
-                                      , "then"
-                                      , "type"
-                                      , "where"
-                                      , "_" ])
+                 , (ReservedIdent, listToRe [ "case"
+                                            , "class"
+                                            , "data"
+                                            , "default"
+                                            , "deriving"
+                                            , "do"
+                                            , "else"
+                                            , "foreign"
+                                            , "if"
+                                            , "import"
+                                            , "in"
+                                            , "infix"
+                                            , "infixl"
+                                            , "infixr"
+                                            , "instance"
+                                            , "let"
+                                            , "module"
+                                            , "newtype"
+                                            , "of"
+                                            , "then"
+                                            , "type"
+                                            , "where"
+                                            , "_" ])
                  , (TypeIdent, "(([A-Z][A-Za-z0-9]*)+)(\\.[A-Z][A-Za-z0-9]*)*\
                                  \(?![a-zA-Z0-9\\.])")
                  , (VarIdent, "([A-Z][A-Za-z0-9]*\\.)?([a-z][A-Za-z0-9]*)")

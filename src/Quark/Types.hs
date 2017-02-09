@@ -37,32 +37,27 @@ type Option a = (Char, String, a)
 data Direction = Backward | Forward | Up | Down deriving (Show, Eq)
 
 -- Types and synonyms for lexers
-type Regex = String  -- This name conflicts with Text.Regex..
-
-data Grammar' = Grammar' { blockComment :: (String, String)
-                         , lineComment :: String
-                         , typeStart :: [Char]
-                         , stringQuote :: [Char]
-                         , charQuote :: [Char]
-                         , numberLiteral :: [Char] }
+type Regex = String  -- This name conflicts with Text.Regex.*
 
 {- A grammar is a list of (Token data constructor, regex) tuples in order of
-   precedence. -}
+   precedence, see for example Quark.Lexer.Haskell for an example -}
 type Grammar = [((String -> Token), Regex)]
 
-data Token = Keyword String
-           | Literal String
+data Token = Comment String
+           | DocComment String
+           | Pragma String
+           | TypeIdent String
+           | VarIdent String
+           | ReservedIdent String
+           | Operator String
+           | Bracket String
+           | Separator String
+           | IntLiteral String
+           | FloatLiteral String
+           | NumLiteral String
+           | StringLiteral String
+           | CharLiteral String
+           | BoolLiteral String
            | Whitespace String
            | Newline String
-           | Operator String
-           | Comment String
-           | StringLiteral String
-           | NumberLiteral String
-           | IntegerLiteral String
-           | FloatLiteral String
-           | CharacterLiteral String
-           | BooleanLiteral String
-           | VarIdent String
-           | TypeIdent String
-           | Separator String
            | Unclassified String deriving (Show, Eq)

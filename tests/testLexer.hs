@@ -51,74 +51,74 @@ hsLexerUnitTests = testGroup "Unit tests for Helpers.hs"
   , testCase "Line comment with many dashes" $
       assertEqual "" [ Comment "---------------"] $
         tokenizeHaskell "---------------"
-  , testCase "Keyword: case" $
-      assertEqual "" [Keyword "case"] $
+  , testCase "ReservedIdent: case" $
+      assertEqual "" [ReservedIdent "case"] $
         tokenizeHaskell "case"
-  , testCase "Keyword: class" $
-      assertEqual "" [Keyword "class"] $
+  , testCase "ReservedIdent: class" $
+      assertEqual "" [ReservedIdent "class"] $
         tokenizeHaskell "class"
-  , testCase "Keyword: data" $
-      assertEqual "" [Keyword "data"] $
+  , testCase "ReservedIdent: data" $
+      assertEqual "" [ReservedIdent "data"] $
         tokenizeHaskell "data"
-  , testCase "Keyword: default" $
-      assertEqual "" [Keyword "default"] $
+  , testCase "ReservedIdent: default" $
+      assertEqual "" [ReservedIdent "default"] $
         tokenizeHaskell "default"
-  , testCase "Keyword: deriving" $
-      assertEqual "" [Keyword "deriving"] $
+  , testCase "ReservedIdent: deriving" $
+      assertEqual "" [ReservedIdent "deriving"] $
         tokenizeHaskell "deriving"
-  , testCase "Keyword: do" $
-      assertEqual "" [Keyword "do"] $
+  , testCase "ReservedIdent: do" $
+      assertEqual "" [ReservedIdent "do"] $
         tokenizeHaskell "do"
-  , testCase "Keyword: else" $
-      assertEqual "" [Keyword "else"] $
+  , testCase "ReservedIdent: else" $
+      assertEqual "" [ReservedIdent "else"] $
         tokenizeHaskell "else"
-  , testCase "Keyword: foreign" $
-      assertEqual "" [Keyword "foreign"] $
+  , testCase "ReservedIdent: foreign" $
+      assertEqual "" [ReservedIdent "foreign"] $
         tokenizeHaskell "foreign"
-  , testCase "Keyword: if" $
-      assertEqual "" [Keyword "if"] $
+  , testCase "ReservedIdent: if" $
+      assertEqual "" [ReservedIdent "if"] $
         tokenizeHaskell "if"
-  , testCase "Keyword: import" $
-      assertEqual "" [Keyword "import"] $
+  , testCase "ReservedIdent: import" $
+      assertEqual "" [ReservedIdent "import"] $
         tokenizeHaskell "import"
-  , testCase "Keyword: in" $
-      assertEqual "" [Keyword "in"] $
+  , testCase "ReservedIdent: in" $
+      assertEqual "" [ReservedIdent "in"] $
         tokenizeHaskell "in"
-  , testCase "Keyword: infix" $
-      assertEqual "" [Keyword "infix"] $
+  , testCase "ReservedIdent: infix" $
+      assertEqual "" [ReservedIdent "infix"] $
         tokenizeHaskell "infix"
-  , testCase "Keyword: infixl" $
-      assertEqual "" [Keyword "infixl"] $
+  , testCase "ReservedIdent: infixl" $
+      assertEqual "" [ReservedIdent "infixl"] $
         tokenizeHaskell "infixl"
-  , testCase "Keyword: infixr" $
-      assertEqual "" [Keyword "infixr"] $
+  , testCase "ReservedIdent: infixr" $
+      assertEqual "" [ReservedIdent "infixr"] $
         tokenizeHaskell "infixr"
-  , testCase "Keyword: instance" $
-      assertEqual "" [Keyword "instance"] $
+  , testCase "ReservedIdent: instance" $
+      assertEqual "" [ReservedIdent "instance"] $
         tokenizeHaskell "instance"
-  , testCase "Keyword: let" $
-      assertEqual "" [Keyword "let"] $
+  , testCase "ReservedIdent: let" $
+      assertEqual "" [ReservedIdent "let"] $
         tokenizeHaskell "let"
-  , testCase "Keyword: module" $
-      assertEqual "" [Keyword "module"] $
+  , testCase "ReservedIdent: module" $
+      assertEqual "" [ReservedIdent "module"] $
         tokenizeHaskell "module"
-  , testCase "Keyword: newtype" $
-      assertEqual "" [Keyword "newtype"] $
+  , testCase "ReservedIdent: newtype" $
+      assertEqual "" [ReservedIdent "newtype"] $
         tokenizeHaskell "newtype"
-  , testCase "Keyword: of" $
-      assertEqual "" [Keyword "of"] $
+  , testCase "ReservedIdent: of" $
+      assertEqual "" [ReservedIdent "of"] $
         tokenizeHaskell "of"
-  , testCase "Keyword: then" $
-      assertEqual "" [Keyword "then"] $
+  , testCase "ReservedIdent: then" $
+      assertEqual "" [ReservedIdent "then"] $
         tokenizeHaskell "then"
-  , testCase "Keyword: type" $
-      assertEqual "" [Keyword "type"] $
+  , testCase "ReservedIdent: type" $
+      assertEqual "" [ReservedIdent "type"] $
         tokenizeHaskell "type"
-  , testCase "Keyword: where" $
-      assertEqual "" [Keyword "where"] $
+  , testCase "ReservedIdent: where" $
+      assertEqual "" [ReservedIdent "where"] $
         tokenizeHaskell "where"
-  , testCase "Keyword: _" $
-      assertEqual "" [Keyword "_"] $
+  , testCase "ReservedIdent: _" $
+      assertEqual "" [ReservedIdent "_"] $
         tokenizeHaskell "_"
   , testCase "Simple type" $
       assertEqual "" [TypeIdent "MyType"] $
