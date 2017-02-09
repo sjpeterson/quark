@@ -19,7 +19,9 @@ module Quark.Lexer.Haskell ( tokenizeHaskell ) where
 import Quark.Types
 import Quark.Lexer.Core
 
-haskellGrammar = [ (StringLiteral, "\"[\\S\\s]*?(\")(?<!\\\\\\\")")
+haskellGrammar = [ (Newline, "\n")
+                 , (Whitespace, "[ \t]*")
+                 , (StringLiteral, "\"[\\S\\s]*?(\")(?<!\\\\\\\")")
                  , (Pragma, "\\{-#.*?#-\\}")
                  , (Comment, "\\{-[\\S\\s]*?-\\}")
                  , (Comment, "--[^\n]*")
@@ -69,8 +71,7 @@ haskellGrammar = [ (StringLiteral, "\"[\\S\\s]*?(\")(?<!\\\\\\\")")
                                             , "_" ])
                  , (TypeIdent, "(([A-Z][A-Za-z0-9]*)+)(\\.[A-Z][A-Za-z0-9]*)*\
                                  \(?![a-zA-Z0-9\\.])")
-                 , (VarIdent, "([A-Z][A-Za-z0-9]*\\.)?([a-z][A-Za-z0-9]*)")
-                 , (Newline, "\n") ]
+                 , (VarIdent, "([A-Z][A-Za-z0-9]*\\.)?([a-z][A-Za-z0-9]*)") ]
 
 tokenizeHaskell :: String -> [Token]
 tokenizeHaskell = lexer haskellGrammar

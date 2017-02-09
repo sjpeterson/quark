@@ -123,13 +123,14 @@ nextTokens (g@(t, re):gs) s = case s =~ (hatify re) :: String of
     "" -> nextTokens gs s
     s' -> case s' of
               "\n" -> [t s']
-              _    -> intersperse (Q.Newline "\n") [t s'' | s'' <- lines s']
+              _ -> [t s']
+              -- _    -> intersperse (Q.Newline "\n") [t s'' | s'' <- lines s']
 
 hatify :: Q.Regex -> Q.Regex
 hatify "" = ""
-hatify re@(x:xs) = case x of
-    '^' -> re
-    _   -> '^':re
+hatify re@(x:xs) = case re =~ "\\\\A" :: Bool of
+    True  -> re
+    False -> "\\A" ++ re
 
 -- Not sure if this part is really worth it
 fuseUnclassified :: [Q.Token] -> [Q.Token]

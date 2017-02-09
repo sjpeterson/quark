@@ -21,6 +21,7 @@ import Quark.Types
 import Quark.Helpers
 import Quark.UtilityBar
 import Quark.Lexer.Core
+import Quark.Lexer.Haskell
 
 -- neat shorthand for initializing foreground color f and background color b
 -- as color pair n
@@ -126,8 +127,6 @@ printText t@(TextView w (r, c) (rr, cc)) q text = do
     n =  (length $ lines text) + if nlTail text then 1 else 0
     lnc = (length $ show n) + 1
     lineNumbers = map (padToLen lnc) (map show $ drop rr [1..n]) ++ repeat ""
-    textLines' =
-        map ((padToLen (c - lnc)). drop cc) $ drop rr (lines text) ++ repeat ""
     textLines =
         map ((padToLenSL (c - lnc)) . dropSL cc) $
             drop rr (selectionLines $ splitAt2 q text) ++ repeat [("", False)]
@@ -143,6 +142,17 @@ printLine k lineNumber text (TextView w (_, c) _) = do
         Curses.wAttrSet w $ if selected then (Curses.attr0, Curses.Pair 19)
                                         else (Curses.attr0, Curses.Pair 0)
         Curses.wAddStr w s
+
+printText' :: Window -> (Index, Index) -> String -> IO ()
+printText' t@(TextView w (r, c) (rr, cc)) q text = do
+    Curses.wclear w
+    mapM_ (\(k, l, s) -> printTokenLine k l s t) $
+        zip3 [0..(r - 2)] lineNumbers tokens
+  where
+    n =  (length $ lines text) + if nlTail text then 1 else 0
+    lnc = (length $ show n) + 1
+    lineNumbers = map (padToLen lnc) (map show $ [rr + 1..n]) ++ repeat ""
+    tokens = drop rr $ tokenLines $ tokenizeHaskell text
 
 printTokenLine :: Int -> String -> [Token] -> Window -> IO ()
 printTokenLine k lineNumber tokens w'@(TextView w (_, c) (_, c0)) = do
@@ -355,12 +365,12 @@ mainLoop layout buffers = do
     let crs = cursor $ (\(x, _, _) -> x ) $ active buffers
     let sel = selectionCursor $ (\(x, _, _) -> x ) $ active buffers
     let layout' = mapL (changeOffset' crs lnOffset) layout
-    let w@(TextView _ _ (rr, cc)) = primaryPane layout'
+    let w@(TextView _ _ moo@(rr, cc)) = primaryPane layout'
     -- debug (utilityBar layout') $ show w
     -- debug (utilityBar layout') $ (show $ ebSelection $ active buffers)
-    printText w (ebSelection $ active buffers) (ebToString $ active buffers)
+    printText' w (ebSelection $ active buffers) (ebToString $ active buffers)
     updateCursor w (rr, cc - lnOffset) crs
-    setTitle (titleBar layout') $ (show crs) ++ " " ++ (show sel)
+    setTitle (titleBar layout') $ (show crs) ++ " " ++ (show sel) ++ " " ++ (show moo)
     refresh w
     c <- Curses.getCh
     debug (utilityBar layout') $ show c
