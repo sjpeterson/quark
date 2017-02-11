@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Main where
 
 import System.Environment ( getArgs )
@@ -11,6 +13,8 @@ import qualified UI.HSCurses.Curses as Curses
 
 import Data.Char ( isPrint )
 import Data.List ( findIndices )
+import Data.ByteString (ByteString)
+import qualified Data.ByteString.Char8 as B
 
 import Quark.Window
 import Quark.Layout
@@ -84,7 +88,7 @@ initLayout path = do
 initBuffer :: String -> IO (ExtendedBuffer)
 initBuffer path = do
     fileExists <- doesFileExist path
-    contents <- if fileExists then readFile path else return ""
+    contents <- if fileExists then B.readFile path else return ""
     return ((Buffer (fromString contents) (0, 0) (0, 0)), path, False)
 
 initFlipper :: String -> IO (Flipper ExtendedBuffer)
@@ -119,54 +123,54 @@ changeOffset d (TextView w size (rr, cc))
     ccStep = 5
 
 -- TODO: show hints of overflow
-printText :: Window -> (Index, Index) -> String -> IO ()
+printText :: Window -> (Index, Index) -> ByteString -> IO ()
 printText t@(TextView w (r, c) (rr, cc)) q text = do
     mapM_ (\(k, l, s) ->
         printLine k l s t) $ zip3 [0..(r - 2)] lineNumbers textLines
   where
-    n =  (length $ lines text) + if nlTail text then 1 else 0
+    n =  (length $ B.lines text) + if nlTail text then 1 else 0
     lnc = (length $ show n) + 1
-    lineNumbers = map (padToLen lnc) (map show $ drop rr [1..n]) ++ repeat ""
+    lineNumbers = map (padToLen lnc) (map (B.pack . show) $ drop rr [1..n]) ++ repeat ""
     textLines =
         map ((padToLenSL (c - lnc)) . dropSL cc) $
             drop rr (selectionLines $ splitAt2 q text) ++ repeat [("", False)]
 
-printLine :: Int -> String -> [(String, Bool)] -> Window -> IO ()
+printLine :: Int -> ByteString -> [(ByteString, Bool)] -> Window -> IO ()
 printLine k lineNumber text (TextView w (_, c) _) = do
     Curses.wMove w k 0
     Curses.wAttrSet w (Curses.attr0, Curses.Pair 18)
-    Curses.wAddStr w lineNumber
+    Curses.wAddStr w $ B.unpack lineNumber
     mapM_ printSection text -- $ [(take (c - length lineNumber) text, False)]
   where
     printSection (s, selected) = do
         Curses.wAttrSet w $ if selected then (Curses.attr0, Curses.Pair 19)
                                         else (Curses.attr0, Curses.Pair 0)
-        Curses.wAddStr w s
+        Curses.wAddStr w $ B.unpack s
 
-printText' :: Window -> (Index, Index) -> String -> IO ()
+printText' :: Window -> (Index, Index) -> ByteString -> IO ()
 printText' t@(TextView w (r, c) (rr, cc)) q text = do
     Curses.wclear w
     mapM_ (\(k, l, s) -> printTokenLine k l s t) $
         zip3 [0..(r - 2)] lineNumbers tokens
   where
-    n =  (length $ lines text) + if nlTail text then 1 else 0
+    n =  (length $ B.lines text) + if nlTail text then 1 else 0
     lnc = (length $ show n) + 1
-    lineNumbers = map (padToLen lnc) (map show $ [rr + 1..n]) ++ repeat ""
+    lineNumbers = map (padToLen lnc) (map (B.pack . show) $ [rr + 1..n]) ++ repeat ""
     tokens = drop rr $ tokenLines $ tokenizeHaskell text
 
-printTokenLine :: Int -> String -> [Token] -> Window -> IO ()
+printTokenLine :: Int -> ByteString -> [Token] -> Window -> IO ()
 printTokenLine k lineNumber tokens w'@(TextView w (_, c) (_, c0)) = do
     Curses.wMove w k 0
     Curses.wAttrSet w (Curses.attr0, Curses.Pair 18)
-    Curses.wAddStr w lineNumber
-    mapM_ printTokens $ takeTL (c - length lineNumber) $ dropTL c0 tokens
+    Curses.wAddStr w $ B.unpack lineNumber
+    mapM_ printTokens $ takeTL (c - B.length lineNumber) $ dropTL c0 tokens
   where
     printTokens t = do
         setTokenColor t w'
         printToken t w'
 
 printToken :: Token -> Window -> IO ()
-printToken t (TextView w _ _) = Curses.wAddStr w $ tokenString t
+printToken t (TextView w _ _) = Curses.wAddStr w $ B.unpack $ tokenString t
 
 setTokenColor :: Token -> Window -> IO ()
 setTokenColor (ReservedIdent _) (TextView w _ _) =
@@ -198,7 +202,7 @@ chooseSave layout buffers = do
     chooseSave' save layout buffers
   where
     u = utilityBar layout
-    promptText = "Save changes to " ++ pathOrUntitled ++ "?"
+    promptText = B.pack $ "Save changes to " ++ pathOrUntitled ++ "?"
     pathOrUntitled = if path == "" then "Untitled" else path
     (_, path, _) = active buffers
 
@@ -224,20 +228,20 @@ promptSave :: Layout
            -> IO (Flipper ExtendedBuffer, Bool)
 promptSave layout buffers = case active buffers of
     (b@(Buffer h _ _), path, False) ->
-        do newPath <- promptString u "Save buffer to file:" path
+        do newPath <- promptString u (B.pack "Save buffer to file:") $ B.pack path
            fileExists <- doesFileExist newPath
            let doConfirm = fileExists && path /= newPath
            dirExists <- doesDirectoryExist newPath
            if dirExists || newPath == ""
-               then do debug u $ if newPath == ""
-                                     then "Buffer was not saved"
-                                     else path ++ " is a directory"
+               then do debug u $ B.pack $ if newPath == ""
+                                              then "Buffer was not saved"
+                                              else path ++ " is a directory"
                        return (buffers, False)
                else if doConfirm
                         then confirmSave newPath layout buffers
                         else if newPath == "\ESC"
                                  then return (buffers, True)
-                                 else do debug u $ "Saved " ++ newPath
+                                 else do debug u $ B.pack $ "Saved " ++ newPath
                                          writeFXB newPath buffers
     _                               ->
         do debug u "Can't save protected buffer"
@@ -245,20 +249,20 @@ promptSave layout buffers = case active buffers of
   where
     u = utilityBar layout
 
-confirmSave :: String
-             -> Layout
-             -> Flipper ExtendedBuffer
-             -> IO (Flipper ExtendedBuffer, Bool)
+confirmSave :: FilePath
+            -> Layout
+            -> Flipper ExtendedBuffer
+            -> IO (Flipper ExtendedBuffer, Bool)
 confirmSave newPath layout buffers = do
     overwrite <- promptChoice u promptText [ ('y', "Yes", True)
                                            , ('n', "No", False) ]
-    if overwrite then do debug u $ "Saved " ++ newPath
+    if overwrite then do debug u $ "Saved " ~~ (B.pack newPath)
                          writeFXB newPath buffers
                  else do debug u "Buffer was not saved"
                          return (buffers, False)
   where
     u = utilityBar layout
-    promptText = newPath ++ " already exists, overwrite?"
+    promptText = (B.pack newPath) ~~ " already exists, overwrite?"
 
 writeFXB :: FilePath
          -> Flipper ExtendedBuffer
@@ -276,10 +280,10 @@ writeXB path (b, _, False) = do
 
 writeBuffer :: FilePath -> Buffer -> IO Buffer
 writeBuffer path (Buffer h@(n, p, f) c s) = do
-    writeFile path $ nlEnd $ toString h
+    B.writeFile path $ nlEnd $ toString h -- no real need to unpack
     return $ Buffer (0, p, f) c s
   where
-    nlEnd s  = if nlTail s then s else s ++ "\n"
+    nlEnd s  = if nlTail s then s else s ~~ "\n"
 
 -- TODO: consider moving to separate file
 action :: (Buffer -> Buffer) -> Layout -> Flipper ExtendedBuffer -> IO ()
@@ -293,15 +297,15 @@ handleKey (Curses.KeyChar c) layout buffers
     | c == '\DEL' = action backspace layout buffers
     | c == '\SUB' = action undo layout buffers
     | c == '\EM'  = action redo layout buffers
-    | c == '\CAN' = do setClipboardString $ selection $ condense $
+    | c == '\CAN' = do setClipboardString $ B.unpack $ selection $ condense $
                            active buffers
                        action delete layout buffers
-    | c == '\ETX' = do setClipboardString $ selection $ condense $
+    | c == '\ETX' = do setClipboardString $ B.unpack $ selection $ condense $
                            active buffers
                        mainLoop layout buffers
     | c == '\SYN' = do s <- getClipboardString
                        case s of Nothing -> mainLoop layout buffers
-                                 Just s' -> action (paste s') layout buffers
+                                 Just s' -> action (paste $ B.pack s') layout buffers
     | c == '\SOH' = action selectAll layout buffers
     | c == '\r'   = action nlAutoIndent layout buffers
     | c == '\t'   = action (tab 4) layout buffers
@@ -373,7 +377,7 @@ mainLoop layout buffers = do
     setTitle (titleBar layout') $ (show crs) ++ " " ++ (show sel) ++ " " ++ (show moo)
     refresh w
     c <- Curses.getCh
-    debug (utilityBar layout') $ show c
+    debug (utilityBar layout') $ B.pack $ show c
     handleKey c layout' buffers
 
 end :: IO ()

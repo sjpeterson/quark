@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 --------
 --
 -- Module:      Quark.UtilityBar
@@ -18,6 +20,8 @@ module Quark.UtilityBar ( promptString
                         , promptChoice
                         , debug ) where
 
+import Data.ByteString (ByteString)
+import qualified Data.ByteString.Char8 as B
 import Data.Char ( isPrint
                  , toUpper )
 
@@ -26,7 +30,8 @@ import qualified UI.HSCurses.Curses as Curses
 import Quark.Window ( Window ( UtilityBar )
                     , updateCursor )
 import Quark.Helpers ( padToLen
-                     , padToLen' )
+                     , padToLen'
+                     , (~~))
 import Quark.Buffer ( Buffer ( Buffer )
                     , endOfLine
                     , startOfLine
@@ -41,10 +46,10 @@ import Quark.History ( fromString
                      , toString )
 
 
-prompt :: Int -> Window -> String -> IO ()
+prompt :: Int -> Window -> ByteString -> IO ()
 prompt r (UtilityBar w (_, c)) text = do
     Curses.wAttrSet w (Curses.attr0, Curses.Pair 1)
-    Curses.mvWAddStr w r 0 $ padToLen (c - 1) text
+    Curses.mvWAddStr w r 0 $ B.unpack $ padToLen (c - 1) text
     Curses.wRefresh w
 
 debug = prompt 0
@@ -54,7 +59,7 @@ clear u = do
     prompt 0 u ""
     prompt 1 u ""
 
-promptString :: Window -> String -> String -> IO (String)
+promptString :: Window -> ByteString -> ByteString -> IO (String)
 promptString u s def = do
     prompt 0 u s
     let b = endOfLine True $ Buffer (fromString def) (0, 0) (0, 0)
@@ -62,7 +67,7 @@ promptString u s def = do
     clear u
     return s'
 
-promptChoice :: (Show a) => Window -> String -> [Option a] -> IO (a)
+promptChoice :: (Show a) => Window -> ByteString -> [Option a] -> IO (a)
 promptChoice u s options = do
     prompt 0 u s
     x <- cGetOption u options
@@ -79,13 +84,15 @@ cGetLine u@(UtilityBar w _) buffer@(Buffer h cursor _) = do
 
 cGetOption :: (Show a) => Window -> [Option a] -> IO (a)
 cGetOption u@(UtilityBar w _) options = do
-    let n = maximum $ map (\(c, s, _) -> length (translateChar c) + length s + 1) options
+    let n = maximum $ map optionLength options
     Curses.wMove w 1 0
     mapM (printOption w n) options
     Curses.wRefresh w
     c' <- Curses.getCh
     case checkOption c' options of Nothing -> cGetOption u options
                                    Just x  -> return x
+  where
+    optionLength = \(c, s, _) -> length (translateChar c) + B.length s + 1
 
 checkOption :: Curses.Key -> [Option a] -> Maybe a
 checkOption _ [] = Nothing
@@ -98,7 +105,7 @@ printOption w n (c, s, _) = do
     Curses.wAttrSet w (Curses.attr0, Curses.Pair 0)
     Curses.wAddStr w sc
     Curses.wAttrSet w (Curses.attr0, Curses.Pair 1)
-    Curses.wAddStr w $ padToLen' (n - length sc) s ++ " "
+    Curses.wAddStr w $ B.unpack (padToLen' (n - length sc) s) ++ " "
   where
     sc = translateChar c
 
@@ -111,7 +118,7 @@ translateChar c = [toUpper c]
 handleKey :: Curses.Key -> Window -> Buffer -> IO (String)
 handleKey (Curses.KeyChar c) u buffer@(Buffer h _ _)
     | c == '\ESC' = return $ "\ESC"
-    | c == '\r'   = return $ toString h
+    | c == '\r'   = return $ B.unpack $ toString h
     | c == '\DEL' = cGetLine u $ backspace buffer
     | c == '\SUB' = cGetLine u $ undo buffer
     | c == '\EM'  = cGetLine u $ redo buffer

@@ -1,6 +1,15 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Quark.Helpers where
 
+import Data.ByteString (ByteString)
+import qualified Data.ByteString.Char8 as B
+
 import Quark.Types (Size)
+
+-- ByteString version of (++)
+(~~) :: B.ByteString -> B.ByteString -> B.ByteString
+(~~) = B.append
 
 -- Compute width of a string in number of columns
 strWidth :: String -> Int
@@ -15,71 +24,71 @@ strSize :: String -> Size
 strSize s = (strHeight s, strWidth s)
 
 -- Line number width
-lnWidth :: String -> Int
-lnWidth s = (length $ show $ length $ lines s) + 1
+lnWidth :: ByteString -> Int
+lnWidth s = (length $ show $ length $ B.lines s) + 1
 
-lnIndent :: Int -> String -> Int
-lnIndent r s = case drop r (lines s) of
-    (x:_) -> length $ takeWhile (\c -> c == ' ') x
+lnIndent :: Int -> ByteString -> Int
+lnIndent r s = case drop r (B.lines s) of
+    (x:_) -> B.length $ B.takeWhile (\c -> c == ' ') x
     _     -> 0
 
-lineSplitIx :: Int -> String -> Int
-lineSplitIx r s = min (length s) $ length $ unlines $ take r $ lines s
+lineSplitIx :: Int -> ByteString -> Int
+lineSplitIx r s = min (B.length s) $ B.length $ B.unlines $ take r $ B.lines s
 
 -- Check is a string ends in newline or not
-nlTail :: String -> Bool
+nlTail :: ByteString -> Bool
 nlTail "" = False
-nlTail s  = if last s == '\n' then True else False
+nlTail s  = if B.last s == '\n' then True else False
 
 -- Pad a string with spaces at the end
-padToLen :: Int -> [Char] -> [Char]
+padToLen :: Int -> ByteString -> ByteString
 padToLen k a
-    | k <= length a = a
-    | otherwise     = padToLen k $ a ++ " "
+    | k <= B.length a = a
+    | otherwise     = padToLen k $ a ~~ " "
 
-padToLen' :: Int -> [Char] -> [Char]
+padToLen' :: Int -> ByteString -> ByteString
 padToLen' k a
-    | k <= length a = a
-    | otherwise     = padToLen k (' ':a)
+    | k <= B.length a = a
+    | otherwise     = padToLen k (B.cons ' ' a)
 
 -- Concatenate two strings, padding with spaces in the middle
-padMidToLen :: Int -> [Char] -> [Char] -> [Char]
+padMidToLen :: Int -> String -> String -> String
 padMidToLen k a0 a1
     | k == (length a0 + length a1) = a0 ++ a1
     | otherwise                    = padMidToLen k (a0 ++ " ") a1
 
 -- Selection helpers
-splitAt2 :: (Int, Int) -> [a] -> ([a], [a], [a])
+splitAt2 :: (Int, Int) -> ByteString -> (ByteString, ByteString, ByteString)
 splitAt2 (k0, k1) l = (x, y, z)
   where
-    (x, x') = splitAt k0 l
-    (y, z) = splitAt (k1 - k0) x'
+    (x, x') = B.splitAt k0 l
+    (y, z) = B.splitAt (k1 - k0) x'
 
-selectionLines :: (String, String, String) -> [[(String, Bool)]]
+selectionLines :: (ByteString, ByteString, ByteString) -> [[(ByteString, Bool)]]
 selectionLines (x, y, z) = case (nlTail x, nlTail y) of
     (True, True)   -> concat [lx, ly, lz]
     (True, False)  -> concat [lx, fuseSL ly lz]
     (False, True)  -> concat [fuseSL lx ly, lz]
     (False, False) -> fuseSL (fuseSL lx ly) lz
   where
-    lx = [[(s, False)] | s <- lines x]
-    ly = [[(s, True)] | s <- lines y]
-    lz = [[(s, False)] | s <- lines z]
+    lx = [[(s, False)] | s <- B.lines x]
+    ly = [[(s, True)] | s <- B.lines y]
+    lz = [[(s, False)] | s <- B.lines z]
     fuseSL ps [] = ps
     fuseSL [] qs = qs
     fuseSL ps (q:qs) = ps' ++ (concat [p, q]):qs
       where
         (ps', [p]) = splitAt (length ps - 1) ps
 
-dropSL :: Int -> [(String, Bool)] -> [(String, Bool)]
+dropSL :: Int -> [(ByteString, Bool)] -> [(ByteString, Bool)]
 dropSL _ [] = []
 dropSL k x@((p, q):xs)
     | k <= 0    = x
-    | otherwise = case k < n of True  -> (drop k p, q):xs
+    | otherwise = case k < n of True  -> (B.drop k p, q):xs
                                 False -> dropSL (k - n) xs
   where
-    n = length p
+    n = B.length p
 
-padToLenSL :: Int -> [(String, Bool)] -> [(String, Bool)]
-padToLenSL k [] = [(replicate k ' ', False)]
-padToLenSL k (x@(p0, _):xs) = x:(padToLenSL (k - length p0) xs)
+padToLenSL :: Int -> [(ByteString, Bool)] -> [(ByteString, Bool)]
+padToLenSL k [] = [(B.replicate k ' ', False)]
+padToLenSL k (x@(p0, _):xs) = x:(padToLenSL (k - B.length p0) xs)

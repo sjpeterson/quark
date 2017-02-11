@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings, ViewPatterns #-}
+
 ---------------------------------------------------------------
 --
 -- Module:      Quark.Lexer.Core
@@ -25,12 +27,17 @@ import Data.List ( intersperse
                  , intercalate
                  , sortBy )
 
+import Data.ByteString (ByteString)
+import qualified Data.ByteString.Char8 as B
+
 import Text.Regex.PCRE
+import Text.Regex.PCRE.ByteString
 
 import qualified Quark.Types as Q
+import Quark.Helpers ((~~))
 
 -- Consider lens or microlens to make this neater
-mapT :: (String -> a) -> Q.Token -> a
+mapT :: (ByteString -> a) -> Q.Token -> a
 mapT f (Q.Comment s)       = f s
 mapT f (Q.DocComment s)    = f s
 mapT f (Q.Pragma s)        = f s
@@ -50,7 +57,7 @@ mapT f (Q.Whitespace s)    = f s
 mapT f (Q.Newline s)       = f s
 mapT f (Q.Unclassified s)  = f s
 
-liftT :: (String -> String) -> Q.Token -> Q.Token
+liftT :: (ByteString -> ByteString) -> Q.Token -> Q.Token
 liftT f (Q.Comment s)       = Q.Comment $ f s
 liftT f (Q.DocComment s)    = Q.DocComment $ f s
 liftT f (Q.Pragma s)        = Q.Pragma $ f s
@@ -70,11 +77,11 @@ liftT f (Q.Whitespace s)    = Q.Whitespace $ f s
 liftT f (Q.Newline s)       = Q.Newline $ f s
 liftT f (Q.Unclassified s)  = Q.Unclassified $ f s
 
-tokenString :: Q.Token -> String
+tokenString :: Q.Token -> ByteString
 tokenString = mapT id
 
 tokenLength :: Q.Token -> Int
-tokenLength = mapT length
+tokenLength = mapT B.length
 
 tokenLines :: [Q.Token] -> [[Q.Token]]
 tokenLines [] = []
@@ -89,7 +96,7 @@ takeTL :: Int -> [Q.Token] -> [Q.Token]
 takeTL _ []     = []
 takeTL n (t:ts) = case n > k of
     True  -> t:(takeTL (n-k) ts)
-    False -> [liftT (take n) t]
+    False -> [liftT (B.take n) t]
   where
     k = tokenLength t
 
@@ -97,40 +104,39 @@ dropTL :: Int -> [Q.Token] -> [Q.Token]
 dropTL _ [] = []
 dropTL n (t:ts) = case n >= k of
     True  -> dropTL (n-k) ts
-    False -> (liftT (drop n) t):ts
+    False -> (liftT (B.drop n) t):ts
   where
     k = tokenLength t
 
 listToRe :: [String] -> Q.Regex
-listToRe l = "^(" ++ intercalate "|" sortedL ++ ")"
+listToRe l = B.pack $ "^(" ++ intercalate "|" sortedL ++ ")"
   where
     sortedL = sortBy (\x y -> compare (length y) (length x)) l
 
-lexer :: Q.Grammar -> String -> [Q.Token]
+lexer :: Q.Grammar -> ByteString -> [Q.Token]
 lexer g s = (fuseUnclassified . concat) $ lexer' g s
 
-lexer' :: Q.Grammar -> String -> [[Q.Token]]
-lexer' _ [] = []
+lexer' :: Q.Grammar -> ByteString -> [[Q.Token]]
+lexer' _ "" = []
 lexer' g s = t:(lexer' g s')
   where
     t = nextTokens g s
-    s' = drop (sum (map tokenLength t) + (length t) - 1) s
+    s' = B.drop (sum (map tokenLength t) + (length t) - 1) s
 
-nextTokens :: Q.Grammar -> String -> [Q.Token]
-nextTokens _ []             = [Q.Unclassified ""]
-nextTokens [] (x:xs)         = [Q.Unclassified [x]]
-nextTokens (g@(t, re):gs) s = case s =~ (hatify re) :: String of
+nextTokens :: Q.Grammar -> ByteString -> [Q.Token]
+nextTokens _ ""                          = []
+nextTokens [] (B.uncons -> Just (x, _)) = [Q.Unclassified $ B.pack [x]]
+nextTokens (g@(t, re):gs) s = case s =~ (hatify re) :: ByteString of
     "" -> nextTokens gs s
     s' -> case s' of
               "\n" -> [t s']
-              _ -> [t s']
-              -- _    -> intersperse (Q.Newline "\n") [t s'' | s'' <- lines s']
+              _    -> intersperse (Q.Newline "\n") [t s'' | s'' <- B.lines s']
 
 hatify :: Q.Regex -> Q.Regex
 hatify "" = ""
-hatify re@(x:xs) = case re =~ "\\\\A" :: Bool of
+hatify re = case re =~ (B.pack "\\\\A") :: Bool of
     True  -> re
-    False -> "\\A" ++ re
+    False -> "\\A" ~~ re
 
 -- Not sure if this part is really worth it
 fuseUnclassified :: [Q.Token] -> [Q.Token]
@@ -139,5 +145,5 @@ fuseUnclassified = foldr fuseFold []
 fuseFold :: Q.Token -> [Q.Token] -> [Q.Token]
 fuseFold t [] = [t]
 fuseFold (Q.Unclassified s0) ((Q.Unclassified s1):ts) =
-    (Q.Unclassified $ s0 ++ s1):ts
+    (Q.Unclassified $ s0 ~~ s1):ts
 fuseFold t ts = t:ts

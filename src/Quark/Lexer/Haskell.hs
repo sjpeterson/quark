@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 ---------------------------------------------------------------
 --
 -- Module:      Quark.Lexer.Haskell
@@ -15,6 +17,8 @@
 ---------------------------------------------------------------
 
 module Quark.Lexer.Haskell ( tokenizeHaskell ) where
+
+import Data.ByteString (ByteString)
 
 import Quark.Types
 import Quark.Lexer.Core
@@ -73,5 +77,5 @@ haskellGrammar = [ (Newline, "\n")
                                  \(?![a-zA-Z0-9\\.])")
                  , (VarIdent, "([A-Z][A-Za-z0-9]*\\.)?([a-z][A-Za-z0-9]*)") ]
 
-tokenizeHaskell :: String -> [Token]
+tokenizeHaskell :: ByteString -> [Token]
 tokenizeHaskell = lexer haskellGrammar

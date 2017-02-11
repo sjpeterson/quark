@@ -1,3 +1,5 @@
+{-# OverloadedStrings #-}
+
 --------
 --
 -- Module:      Quark.Types
@@ -16,14 +18,16 @@
 
 module Quark.Types where
 
+import qualified Data.ByteString.Char8 as B
+
 -- Type aliases for primitive types
 type Row = Int
 type Col = Int
 type Index = Int
 type Selection = Int
 
-type Clipboard = String
-type Name = String
+type Clipboard = B.ByteString
+type Name = B.ByteString
 
 -- Type aliases for tuples
 type Deletion = (Int, Int)    -- (backspaces, deletes)
@@ -31,33 +35,33 @@ type Cursor = (Row, Col)
 type Size = (Row, Col)
 type Offset = (Row, Col)
 type PrintRange = (Size, Offset)
-type Option a = (Char, String, a)
+type Option a = (Char, B.ByteString, a)
 
 -- Algebraic data types
 data Direction = Backward | Forward | Up | Down deriving (Show, Eq)
 
 -- Types and synonyms for lexers
-type Regex = String  -- This name conflicts with Text.Regex.*
+type Regex = B.ByteString  -- This name conflicts with Text.Regex.*
 
 {- A grammar is a list of (Token data constructor, regex) tuples in order of
    precedence, see for example Quark.Lexer.Haskell for an example -}
-type Grammar = [((String -> Token), Regex)]
+type Grammar = [((B.ByteString -> Token), Regex)]
 
-data Token = Comment String
-           | DocComment String
-           | Pragma String
-           | TypeIdent String
-           | VarIdent String
-           | ReservedIdent String
-           | Operator String
-           | Bracket String
-           | Separator String
-           | IntLiteral String
-           | FloatLiteral String
-           | NumLiteral String
-           | StringLiteral String
-           | CharLiteral String
-           | BoolLiteral String
-           | Whitespace String
-           | Newline String
-           | Unclassified String deriving (Show, Eq)
+data Token = Comment B.ByteString
+           | DocComment B.ByteString
+           | Pragma B.ByteString
+           | TypeIdent B.ByteString
+           | VarIdent B.ByteString
+           | ReservedIdent B.ByteString
+           | Operator B.ByteString
+           | Bracket B.ByteString
+           | Separator B.ByteString
+           | IntLiteral B.ByteString
+           | FloatLiteral B.ByteString
+           | NumLiteral B.ByteString
+           | StringLiteral B.ByteString
+           | CharLiteral B.ByteString
+           | BoolLiteral B.ByteString
+           | Whitespace B.ByteString
+           | Newline B.ByteString
+           | Unclassified B.ByteString deriving (Show, Eq)
