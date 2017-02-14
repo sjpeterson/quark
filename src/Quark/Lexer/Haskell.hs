@@ -23,14 +23,15 @@ import Data.ByteString (ByteString)
 import Quark.Types
 import Quark.Lexer.Core
 
-haskellGrammar = [ (Newline, "\n")
-                 , (Whitespace, "[ \t]*")
-                 , (StringLiteral, "\"[\\S\\s]*?(\")(?<!\\\\\\\")")
-                 , (Pragma, "\\{-#.*?#-\\}")
-                 , (Comment, "\\{-[\\S\\s]*?-\\}")
-                 , (Comment, "--[^\n]*")
-                 , (CharLiteral, "'[^']'")
-                 , (NumLiteral, "[0-9]+?\\.?[0-9]*?")
+haskellGrammar :: Grammar
+haskellGrammar = [ (Newline, "\\A\n")
+                 , (Whitespace, "\\A[ \t]*")
+                 , (StringLiteral, "\\A\"[\\S\\s]*?(\")(?<!\\\\\\\")")
+                 , (Pragma, "\\A\\{-#.*?#-\\}")
+                 , (Comment, "\\A\\{-[\\S\\s]*?-\\}")
+                 , (Comment, "\\A--[^\n]*")
+                 , (CharLiteral, "\\A'[^']'")
+                 , (NumLiteral, "\\A[0-9]+?\\.?[0-9]*?")
                  , (Operator, listToRe [ "::"
                                        , "=>"
                                        , "->"
@@ -49,7 +50,7 @@ haskellGrammar = [ (Newline, "\n")
                                        , ":"
                                        , "~"
                                        , "\\\\"])
-                 , (Separator, ",")
+                 , (Separator, "\\A,")
                  , (ReservedIdent, listToRe [ "case"
                                             , "class"
                                             , "data"
@@ -73,9 +74,9 @@ haskellGrammar = [ (Newline, "\n")
                                             , "type"
                                             , "where"
                                             , "_" ])
-                 , (TypeIdent, "(([A-Z][A-Za-z0-9]*)+)(\\.[A-Z][A-Za-z0-9]*)*\
+                 , (TypeIdent, "\\A(([A-Z][A-Za-z0-9]*)+)(\\.[A-Z][A-Za-z0-9]*)*\
                                  \(?![a-zA-Z0-9\\.])")
-                 , (VarIdent, "([A-Z][\\w]*\\.)?([a-z][A-Za-z0-9]*)") ]
+                 , (VarIdent, "\\A([A-Z][\\w]*\\.)?([a-z][A-Za-z0-9]*)") ]
 
 tokenizeHaskell :: ByteString -> [Token]
-tokenizeHaskell = lexer haskellGrammar
+tokenizeHaskell = lexer $ compileGrammar haskellGrammar

@@ -21,6 +21,7 @@ module Quark.Lexer.Core ( lexer
                         , tokenLines
                         , takeTL
                         , dropTL
+                        , compileGrammar
                         , listToRe ) where
 
 import Data.List ( intersperse
@@ -108,27 +109,39 @@ dropTL n (t:ts) = case n >= k of
   where
     k = tokenLength t
 
+compileGrammar :: Q.Grammar -> Q.CompiledGrammar
+compileGrammar = map (\(t, re) -> (t, makeRegex re))
+
 listToRe :: [String] -> Q.Regex
-listToRe l = B.pack $ "^(" ++ intercalate "|" wbL ++ ")"
+listToRe l = B.pack $ "\\A(" ++ intercalate "|" wbL ++ ")"
   where
     wbL = map (\s -> s ++ "\\b") sortedL
     sortedL = sortBy (\x y -> compare (length y) (length x)) l
 
-lexer :: Q.Grammar -> ByteString -> [Q.Token]
+lexer :: Q.CompiledGrammar -> ByteString -> [Q.Token]
 lexer g s = (fuseUnclassified . concat) $ lexer' g s
 
-lexer' :: Q.Grammar -> ByteString -> [[Q.Token]]
+lexer' :: Q.CompiledGrammar -> ByteString -> [[Q.Token]]
 lexer' _ "" = []
 lexer' g s = t:(lexer' g s')
   where
     t = nextTokens g s
     s' = B.drop (sum (map tokenLength t) + (length t) - 1) s
 
-nextTokens :: Q.Grammar -> ByteString -> [Q.Token]
-nextTokens _ ""                          = []
+nextTokens :: Q.CompiledGrammar -> ByteString -> [Q.Token]
+nextTokens _ "" = []
 nextTokens [] (B.uncons -> Just (x, _)) = [Q.Unclassified $ B.pack [x]]
-nextTokens (g@(t, re):gs) s = case s =~ (hatify re) :: ByteString of
+nextTokens (g@(t, re):gs) s = case match re s of
     "" -> nextTokens gs s
+    s' -> case s' of
+              "\n" -> [t s']
+              _    -> intersperse (Q.Newline "\n") [t s'' | s'' <- B.lines s']
+
+nextTokens' :: Q.Grammar -> ByteString -> [Q.Token]
+nextTokens' _ ""                          = []
+nextTokens' [] (B.uncons -> Just (x, _)) = [Q.Unclassified $ B.pack [x]]
+nextTokens' (g@(t, re):gs) s = case s =~ re :: ByteString of
+    "" -> nextTokens' gs s
     s' -> case s' of
               "\n" -> [t s']
               _    -> intersperse (Q.Newline "\n") [t s'' | s'' <- B.lines s']

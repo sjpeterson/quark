@@ -1,5 +1,3 @@
-{-# OverloadedStrings #-}
-
 --------
 --
 -- Module:      Quark.Types
@@ -19,6 +17,7 @@
 module Quark.Types where
 
 import qualified Data.ByteString.Char8 as B
+import qualified Text.Regex.PCRE as R
 
 -- Type aliases for primitive types
 type Row = Int
@@ -46,6 +45,7 @@ type Regex = B.ByteString  -- This name conflicts with Text.Regex.*
 {- A grammar is a list of (Token data constructor, regex) tuples in order of
    precedence, see for example Quark.Lexer.Haskell for an example -}
 type Grammar = [((B.ByteString -> Token), Regex)]
+type CompiledGrammar = [((B.ByteString -> Token), R.Regex)]
 
 data Token = Comment B.ByteString
            | DocComment B.ByteString
