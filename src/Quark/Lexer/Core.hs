@@ -109,8 +109,9 @@ dropTL n (t:ts) = case n >= k of
     k = tokenLength t
 
 listToRe :: [String] -> Q.Regex
-listToRe l = B.pack $ "^(" ++ intercalate "|" sortedL ++ ")"
+listToRe l = B.pack $ "^(" ++ intercalate "|" wbL ++ ")"
   where
+    wbL = map (\s -> s ++ "\\b") sortedL
     sortedL = sortBy (\x y -> compare (length y) (length x)) l
 
 lexer :: Q.Grammar -> ByteString -> [Q.Token]

@@ -75,7 +75,7 @@ haskellGrammar = [ (Newline, "\n")
                                             , "_" ])
                  , (TypeIdent, "(([A-Z][A-Za-z0-9]*)+)(\\.[A-Z][A-Za-z0-9]*)*\
                                  \(?![a-zA-Z0-9\\.])")
-                 , (VarIdent, "([A-Z][A-Za-z0-9]*\\.)?([a-z][A-Za-z0-9]*)") ]
+                 , (VarIdent, "([A-Z][\\w]*\\.)?([a-z][A-Za-z0-9]*)") ]
 
 tokenizeHaskell :: ByteString -> [Token]
 tokenizeHaskell = lexer haskellGrammar

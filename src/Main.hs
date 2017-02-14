@@ -63,7 +63,7 @@ defineColors = do
   mapM_ (\n -> defineColor n n (-1)) [1..16]
   -- defineColor 17 16 7
   defineColor 17 16 3
-  defineColor 18 3 (-1)
+  defineColor 18 7 (-1)
   defineColor 19 (-1) 8
 
 setTitle :: Window -> String -> IO ()
@@ -175,6 +175,22 @@ printToken t (TextView w _ _) = Curses.wAddStr w $ B.unpack $ tokenString t
 setTokenColor :: Token -> Window -> IO ()
 setTokenColor (ReservedIdent _) (TextView w _ _) =
     Curses.wAttrSet w (Curses.attr0, Curses.Pair 3)
+setTokenColor (StringLiteral _) (TextView w _ _) =
+    Curses.wAttrSet w (Curses.attr0, Curses.Pair 2)
+setTokenColor (Comment _) (TextView w _ _) =
+    Curses.wAttrSet w (Curses.attr0, Curses.Pair 7)
+setTokenColor (Pragma _) (TextView w _ _) =
+    Curses.wAttrSet w (Curses.attr0, Curses.Pair 11)
+setTokenColor (CharLiteral _) (TextView w _ _) =
+    Curses.wAttrSet w (Curses.attr0, Curses.Pair 14)
+setTokenColor (NumLiteral _) (TextView w _ _) =
+    Curses.wAttrSet w (Curses.attr0, Curses.Pair 12)
+setTokenColor (Operator _) (TextView w _ _) =
+    Curses.wAttrSet w (Curses.attr0, Curses.Pair 3)
+setTokenColor (Separator _) (TextView w _ _) =
+    Curses.wAttrSet w (Curses.attr0, Curses.Pair 3)
+setTokenColor (TypeIdent _) (TextView w _ _) =
+    Curses.wAttrSet w (Curses.attr0, Curses.Pair 5)
 setTokenColor _ (TextView w _ _) =
     Curses.wAttrSet w (Curses.attr0, Curses.Pair 0)
 
@@ -374,7 +390,9 @@ mainLoop layout buffers = do
     -- debug (utilityBar layout') $ (show $ ebSelection $ active buffers)
     printText' w (ebSelection $ active buffers) (ebToString $ active buffers)
     updateCursor w (rr, cc - lnOffset) crs
-    setTitle (titleBar layout') $ (show crs) ++ " " ++ (show sel) ++ " " ++ (show moo)
+    let (_, title, _) = active buffers
+    setTitle (titleBar layout') title
+    -- (show crs) ++ " " ++ (show sel) ++ " " ++ (show moo)
     refresh w
     c <- Curses.getCh
     debug (utilityBar layout') $ B.pack $ show c
