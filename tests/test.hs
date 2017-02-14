@@ -1,8 +1,12 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 import Test.Tasty
 import Test.Tasty.QuickCheck as QC
 import Test.Tasty.HUnit
 
 import Data.List
+import Data.ByteString (ByteString)
+import qualified Data.ByteString.Char8 as B
 
 import Quark.Types
 import Quark.Helpers
@@ -44,7 +48,7 @@ helpersUnitTests = testGroup "Unit tests for Helpers.hs"
   , testCase "Line numbers width, test 1" $
       assertEqual "" 2 $ lnWidth "test\nstring"
   , testCase "Line numbers width, test 2" $
-      assertEqual "" 4 $ lnWidth $ unlines $ replicate 145 "test"
+      assertEqual "" 4 $ lnWidth $ B.unlines $ replicate 145 "test"
   , testCase "lineSplitIx: newline-terminated string" $
       assertEqual "" 5 $ lineSplitIx 1 "test\nstring\n"
   , testCase "lineSplitIx: open-ended string" $

@@ -1,5 +1,9 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 import Test.Tasty
 import Test.Tasty.HUnit
+
+import Data.ByteString (ByteString)
 
 import Quark.Lexer.Haskell
 import Quark.Types
