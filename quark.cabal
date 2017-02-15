@@ -57,13 +57,15 @@ executable quark
                -- -fprof-auto
                -- "-with-rtsopts=-N -p -s -h -i0.1"
 
--- profiling steps
+-- -- profiling steps
 -- cabal configure --enable-profiling
 -- cabal sandbox init
--- cabal install X11 --enable-library-profiling --force-reinstalls
--- cabal install --only-dependencies --enable-library-profiling
+-- cabal install X11 --enable-profiling --force-reinstalls
+-- cabal install --only-dependencies --enable-profiling
+-- cabal build
 -- quark <path> +RTS -p
 -- hp2ps -e8in -c quark.hp
+-- cabal sandbox delete
 
 test-suite test
     default-language: Haskell2010

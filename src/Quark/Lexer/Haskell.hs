@@ -16,7 +16,7 @@
 --
 ---------------------------------------------------------------
 
-module Quark.Lexer.Haskell ( tokenizeHaskell ) where
+module Quark.Lexer.Haskell ( tokenizeHaskell, haskellGrammar ) where
 
 import Data.ByteString (ByteString)
 
@@ -32,24 +32,24 @@ haskellGrammar = [ (Newline, "\\A\n")
                  , (Comment, "\\A--[^\n]*")
                  , (CharLiteral, "\\A'[^']'")
                  , (NumLiteral, "\\A[0-9]+?\\.?[0-9]*?")
-                 , (Operator, listToRe [ "::"
-                                       , "=>"
-                                       , "->"
-                                       , "!"
-                                       , ";"
-                                       , "\\|"
-                                       , "<-"
-                                       , ">"
-                                       , "<"
-                                       , "<="
-                                       , ">="
-                                       , "=="
-                                       , "@"
-                                       , "="
-                                       , "\\.\\."
-                                       , ":"
-                                       , "~"
-                                       , "\\\\"])
+                 , (Operator, listToRe' [ "::"
+                                        , "=>"
+                                        , "->"
+                                        , "!"
+                                        , ";"
+                                        , "\\|"
+                                        , "<-"
+                                        , ">"
+                                        , "<"
+                                        , "<="
+                                        , ">="
+                                        , "=="
+                                        , "@"
+                                        , "="
+                                        , "\\.\\."
+                                        , ":"
+                                        , "~"
+                                        , "\\\\"])
                  , (Separator, "\\A,")
                  , (ReservedIdent, listToRe [ "case"
                                             , "class"
@@ -78,5 +78,8 @@ haskellGrammar = [ (Newline, "\\A\n")
                                  \(?![a-zA-Z0-9\\.])")
                  , (VarIdent, "\\A([A-Z][\\w]*\\.)?([a-z][A-Za-z0-9]*)") ]
 
+compiledHaskellGrammar :: CompiledGrammar
+compiledHaskellGrammar = compileGrammar haskellGrammar
+
 tokenizeHaskell :: ByteString -> [Token]
-tokenizeHaskell = lexer $ compileGrammar haskellGrammar
+tokenizeHaskell = lexer $ compiledHaskellGrammar

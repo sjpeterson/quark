@@ -44,8 +44,8 @@ type Regex = B.ByteString  -- This name conflicts with Text.Regex.*
 
 {- A grammar is a list of (Token data constructor, regex) tuples in order of
    precedence, see for example Quark.Lexer.Haskell for an example -}
-type Grammar = [((B.ByteString -> Token), Regex)]
-type CompiledGrammar = [((B.ByteString -> Token), R.Regex)]
+type Grammar = [(B.ByteString -> Token, Regex)]
+type CompiledGrammar = [(B.ByteString -> Token, B.ByteString -> B.ByteString)]
 
 data Token = Comment B.ByteString
            | DocComment B.ByteString

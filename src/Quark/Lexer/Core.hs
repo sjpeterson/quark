@@ -22,7 +22,8 @@ module Quark.Lexer.Core ( lexer
                         , takeTL
                         , dropTL
                         , compileGrammar
-                        , listToRe ) where
+                        , listToRe
+                        , listToRe' ) where
 
 import Data.List ( intersperse
                  , intercalate
@@ -110,12 +111,20 @@ dropTL n (t:ts) = case n >= k of
     k = tokenLength t
 
 compileGrammar :: Q.Grammar -> Q.CompiledGrammar
-compileGrammar = map (\(t, re) -> (t, makeRegex re))
+compileGrammar = map $ \(t, re) -> (t, matchCompiledRe re)
+
+matchCompiledRe :: ByteString -> ByteString -> ByteString
+matchCompiledRe re = match (makeRegex re :: Regex)
 
 listToRe :: [String] -> Q.Regex
 listToRe l = B.pack $ "\\A(" ++ intercalate "|" wbL ++ ")"
   where
     wbL = map (\s -> s ++ "\\b") sortedL
+    sortedL = sortBy (\x y -> compare (length y) (length x)) l
+
+listToRe' :: [String] -> Q.Regex
+listToRe' l = B.pack $ "\\A(" ++ intercalate "|" sortedL ++ ")"
+  where
     sortedL = sortBy (\x y -> compare (length y) (length x)) l
 
 lexer :: Q.CompiledGrammar -> ByteString -> [Q.Token]
@@ -131,7 +140,7 @@ lexer' g s = t:(lexer' g s')
 nextTokens :: Q.CompiledGrammar -> ByteString -> [Q.Token]
 nextTokens _ "" = []
 nextTokens [] (B.uncons -> Just (x, _)) = [Q.Unclassified $ B.pack [x]]
-nextTokens (g@(t, re):gs) s = case match re s of
+nextTokens (g@(t, matchRe):gs) s = case matchRe s of
     "" -> nextTokens gs s
     s' -> case s' of
               "\n" -> [t s']

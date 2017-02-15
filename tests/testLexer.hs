@@ -139,5 +139,11 @@ hsLexerUnitTests = testGroup "Unit tests for Helpers.hs"
   , testCase "qualified variable (function)" $
         assertEqual "" [VarIdent "MyModule.myVariable0"] $
           tokenizeHaskell "MyModule.myVariable0"
+  , testCase "Operator: ::" $
+      assertEqual "" [Operator "::"] $
+        tokenizeHaskell "::"
+  , testCase "Separator: ," $
+      assertEqual "" [Separator ","] $
+        tokenizeHaskell ","
   , testCase "Dummy" $
       assertEqual "" 1 1]
