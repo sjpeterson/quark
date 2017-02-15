@@ -26,49 +26,11 @@ import Quark.Helpers
 import Quark.UtilityBar
 import Quark.Lexer.Core
 import Quark.Lexer.Haskell
-
--- neat shorthand for initializing foreground color f and background color b
--- as color pair n
-defineColor :: Int -> Int -> Int -> IO ()
-defineColor n f b =
-  Curses.initPair (Curses.Pair n) (Curses.Color f) (Curses.Color b)
-
--- Initialize default color pairs from palette.
---
--- 1 through 16 are the following foreground colors on default background:
---
--- 1  - Red
--- 2  - Green
--- 3  - Brown/Dark yellow
--- 4  - Blue
--- 5  - Magenta
--- 6  - Cyan
--- 7  - Light gray
--- 8  - Dark gray
--- 9  - Light red
--- 10 - Light green
--- 11 - Yellow
--- 12 - Light blue
--- 13 - Light magenta
--- 14 - Light cyan
--- 15 - White
--- 16 - Black
---
--- 17 is for the title bar
--- 18 is for line numbers
--- 19 is for selections
-
-defineColors :: IO ()
-defineColors = do
-  mapM_ (\n -> defineColor n n (-1)) [1..16]
-  -- defineColor 17 16 7
-  defineColor 17 16 3
-  defineColor 18 7 (-1)
-  defineColor 19 (-1) 8
+import Quark.Colors
 
 setTitle :: Window -> String -> IO ()
 setTitle (TitleBar w (_, c)) title = do
-    Curses.attrSet Curses.attr0 (Curses.Pair 17)
+    Curses.attrSet Curses.attr0 (Curses.Pair titleBarColor)
     Curses.mvWAddStr w 0 0 (padMidToLen c leftText rightText)
     Curses.wRefresh w
   where
@@ -78,7 +40,7 @@ setTitle (TitleBar w (_, c)) title = do
 initLayout :: String -> IO (Layout)
 initLayout path = do
     layout <- defaultLayout
-    fillBackground (titleBar layout) 17
+    fillBackground (titleBar layout) titleBarColor
     setTitle (titleBar layout) path
     fileExists <- doesFileExist path
     -- text <- if fileExists then readFile path else return "Nothing here"
@@ -138,7 +100,7 @@ printText t@(TextView w (r, c) (rr, cc)) q text = do
 printLine :: Int -> ByteString -> [(ByteString, Bool)] -> Window -> IO ()
 printLine k lineNumber text (TextView w (_, c) _) = do
     Curses.wMove w k 0
-    Curses.wAttrSet w (Curses.attr0, Curses.Pair 18)
+    Curses.wAttrSet w (Curses.attr0, Curses.Pair lineNumberColor)
     Curses.wAddStr w $ B.unpack lineNumber
     mapM_ printSection text -- $ [(take (c - length lineNumber) text, False)]
   where
@@ -161,7 +123,7 @@ printText' t@(TextView w (r, c) (rr, cc)) q text = do
 printTokenLine :: Int -> ByteString -> [Token] -> Window -> IO ()
 printTokenLine k lineNumber tokens w'@(TextView w (_, c) (_, c0)) = do
     Curses.wMove w k 0
-    Curses.wAttrSet w (Curses.attr0, Curses.Pair 18)
+    Curses.wAttrSet w (Curses.attr0, Curses.Pair lineNumberColor)
     Curses.wAddStr w $ B.unpack lineNumber
     mapM_ printTokens $ takeTL (c - B.length lineNumber) $ dropTL c0 tokens
   where
