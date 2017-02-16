@@ -39,6 +39,7 @@ import Text.Regex.PCRE.ByteString
 
 import qualified Quark.Types as Q
 import Quark.Helpers ((~~))
+import Quark.Colors (defaultColor)
 
 -- Consider lens or microlens to make this neater
 mapT :: (ByteString -> a) -> Q.Token -> a
@@ -176,10 +177,8 @@ fuseFold (Q.Unclassified s0) ((Q.Unclassified s1):ts) =
 fuseFold t ts = t:ts
 
 tokenizeNothing :: ByteString -> [Q.Token]
-tokenizeNothing s = [Q.Unclassified s]
--- tokenizeNothing = lexer $ compileGrammar []
+tokenizeNothing s = intersperse (Q.Newline "\n") $
+    [Q.Unclassified s' | s' <- B.lines s]
 
--- should like to use defaultColor from Quark.Colors, but that causes a fail
--- when linking lexerTests for some reason
 nothingColors :: Q.Token -> Int
-nothingColors _ = 0
+nothingColors _ = defaultColor -- 0

@@ -59,8 +59,6 @@ initFlipper path = do
     extendedBuffer <- initBuffer path
     return (extendedBuffer, [], [])
 
-
-
 fillBackground :: Window -> Int -> IO ()
 fillBackground (TitleBar cTitleBar (h, w)) colorId = do
     Curses.wAttrSet cTitleBar (Curses.attr0, Curses.Pair colorId)
