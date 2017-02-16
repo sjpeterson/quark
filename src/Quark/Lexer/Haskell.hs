@@ -16,11 +16,12 @@
 --
 ---------------------------------------------------------------
 
-module Quark.Lexer.Haskell ( tokenizeHaskell, haskellGrammar ) where
+module Quark.Lexer.Haskell ( tokenizeHaskell, haskellColors ) where
 
 import Data.ByteString (ByteString)
 
 import Quark.Types
+import Quark.Colors
 import Quark.Lexer.Core
 
 haskellGrammar :: Grammar
@@ -77,6 +78,18 @@ haskellGrammar = [ (Newline, "\\A\n")
                  , (TypeIdent, "\\A(([A-Z][A-Za-z0-9]*)+)(\\.[A-Z][A-Za-z0-9]*)*\
                                  \(?![a-zA-Z0-9\\.])")
                  , (VarIdent, "\\A([A-Z][\\w]*\\.)?([a-z][A-Za-z0-9]*)") ]
+
+haskellColors :: Token -> Int
+haskellColors (ReservedIdent _) = orange
+haskellColors (Operator _)      = orange
+haskellColors (Separator _)     = orange
+haskellColors (TypeIdent _)     = purple
+haskellColors (StringLiteral _) = green
+haskellColors (CharLiteral _)   = teal
+haskellColors (NumLiteral _)    = lightBlue
+haskellColors (Pragma _)        = yellow
+haskellColors (Comment _)       = lightGray
+haskellColors _                 = defaultColor
 
 compiledHaskellGrammar :: CompiledGrammar
 compiledHaskellGrammar = compileGrammar haskellGrammar

@@ -2,7 +2,7 @@
 
 --------
 --
--- Module:      Quark.UtilityBar
+-- Module:      Quark.Window.UtilityBar
 -- Author:      Stefan Peterson
 -- License:     MIT License
 --
@@ -16,7 +16,7 @@
 --
 --------
 
-module Quark.UtilityBar ( promptString
+module Quark.Window.UtilityBar ( promptString
                         , promptChoice
                         , debug ) where
 
@@ -27,8 +27,8 @@ import Data.Char ( isPrint
 
 import qualified UI.HSCurses.Curses as Curses
 
-import Quark.Window ( Window ( UtilityBar )
-                    , updateCursor )
+import Quark.Window.Core ( Window ( UtilityBar )
+                         , updateCursor )
 import Quark.Helpers ( padToLen
                      , padToLen'
                      , (~~))

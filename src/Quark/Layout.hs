@@ -28,7 +28,7 @@ module Quark.Layout ( Layout ( MinimalLayout
 
 import qualified UI.HSCurses.Curses as Curses
 
-import Quark.Window
+import Quark.Window.Core
 
 data Layout = MinimalLayout { titleBar :: Window
                             , utilityBar :: Window

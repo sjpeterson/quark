@@ -2,7 +2,7 @@
 
 ---------------------------------------------------------------
 --
--- Module:      Quark.Lexer.Core
+-- Module:      Quark.Lexer.Window.Core
 -- Author:      Stefan Peterson
 -- License:     MIT License
 --
@@ -12,7 +12,7 @@
 --
 -- ----------------------------------------------------------
 --
--- Core lexer function
+-- Window.Core lexer function
 --
 ---------------------------------------------------------------
 
@@ -23,7 +23,9 @@ module Quark.Lexer.Core ( lexer
                         , dropTL
                         , compileGrammar
                         , listToRe
-                        , listToRe' ) where
+                        , listToRe'
+                        , tokenizeNothing
+                        , nothingColors ) where
 
 import Data.List ( intersperse
                  , intercalate
@@ -116,12 +118,14 @@ compileGrammar = map $ \(t, re) -> (t, matchCompiledRe re)
 matchCompiledRe :: ByteString -> ByteString -> ByteString
 matchCompiledRe re = match (makeRegex re :: Regex)
 
+-- append word boundary check, suitable for reserved keywords
 listToRe :: [String] -> Q.Regex
 listToRe l = B.pack $ "\\A(" ++ intercalate "|" wbL ++ ")"
   where
     wbL = map (\s -> s ++ "\\b") sortedL
     sortedL = sortBy (\x y -> compare (length y) (length x)) l
 
+-- do not append word boundary check, suitable for operators
 listToRe' :: [String] -> Q.Regex
 listToRe' l = B.pack $ "\\A(" ++ intercalate "|" sortedL ++ ")"
   where
@@ -170,3 +174,12 @@ fuseFold t [] = [t]
 fuseFold (Q.Unclassified s0) ((Q.Unclassified s1):ts) =
     (Q.Unclassified $ s0 ~~ s1):ts
 fuseFold t ts = t:ts
+
+tokenizeNothing :: ByteString -> [Q.Token]
+tokenizeNothing s = [Q.Unclassified s]
+-- tokenizeNothing = lexer $ compileGrammar []
+
+-- should like to use defaultColor from Quark.Colors, but that causes a fail
+-- when linking lexerTests for some reason
+nothingColors :: Q.Token -> Int
+nothingColors _ = 0

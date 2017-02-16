@@ -1,6 +1,6 @@
 --------
 --
--- Module:      Quark.Window
+-- Module:      Quark.Window.Core
 -- Author:      Stefan Peterson
 -- License:     MIT License
 --
@@ -14,11 +14,11 @@
 --
 --------
 
-module Quark.Window ( Window ( TitleBar
-                             , UtilityBar
-                             , TextView
-                             , DirectoryView )
-                             , updateCursor ) where
+module Quark.Window.Core ( Window ( TitleBar
+                                  , UtilityBar
+                                  , TextView
+                                  , DirectoryView )
+                                  , updateCursor ) where
 
 import qualified UI.HSCurses.Curses as Curses
 

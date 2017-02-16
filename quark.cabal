@@ -24,10 +24,11 @@ library
                  , Quark.History
                  , Quark.Cursor
                  , Quark.Buffer
-                 , Quark.Window
                  , Quark.Layout
                  , Quark.Flipper
-                 , Quark.UtilityBar
+                 , Quark.Window.Core
+                 , Quark.Window.UtilityBar
+                 , Quark.Window.TextView
                  , Quark.Lexer.Core
                  , Quark.Lexer.Haskell
   other-modules: Paths_quark
