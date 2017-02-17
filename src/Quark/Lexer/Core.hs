@@ -19,6 +19,8 @@
 module Quark.Lexer.Core ( lexer
                         , tokenString
                         , tokenLines
+                        , tokenLength
+                        , splitT
                         , takeTL
                         , dropTL
                         , compileGrammar
@@ -96,6 +98,13 @@ tokenLines t = cons (case break (== (Q.Newline "\n")) t of
                                         _:t'' -> tokenLines t''))
   where
     cons ~(p, q) = p:q
+
+splitT :: Q.Token -> [Int] -> [Q.Token]
+splitT t []     = [t]
+splitT t (s:ss) = t0:(splitT t1 $ map (\x -> x - s) ss)
+  where
+    t0 = liftT (B.take s) t
+    t1 = liftT (B.drop s) t
 
 takeTL :: Int -> [Q.Token] -> [Q.Token]
 takeTL _ []     = []

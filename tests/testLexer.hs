@@ -5,15 +5,33 @@ import Test.Tasty.HUnit
 
 import Data.ByteString (ByteString)
 
+import Quark.Lexer.Core
 import Quark.Lexer.Haskell
 import Quark.Types
 
 main = defaultMain tests
 
 tests :: TestTree
-tests = testGroup "Tests" [ hsLexerUnitTests ]
+tests = testGroup "Tests" [ lexerCoreUnitTests
+                          , hsLexerUnitTests ]
 
-hsLexerUnitTests = testGroup "Unit tests for Helpers.hs"
+lexerCoreUnitTests = testGroup "Unit tests for Lexer/Core.hs"
+  [ testCase "splitT t []" $
+      assertEqual "" [Unclassified "test string"] $
+        splitT (Unclassified "test string") []
+  , testCase "splitT t [k]" $
+      assertEqual "" [ Unclassified "tes"
+                     , Unclassified "t string"] $
+        splitT (Unclassified "test string") [3]
+  , testCase "splitT t [k0, k1]" $
+      assertEqual "" [ Unclassified "tes"
+                     , Unclassified "t st"
+                     , Unclassified "ring" ] $
+        splitT (Unclassified "test string") [3, 7]
+  , testCase "Dummy" $
+        assertEqual "" 1 1]
+
+hsLexerUnitTests = testGroup "Unit tests for Lexer/Haskell.hs"
   [ testCase "Simple StringLiteral" $
       assertEqual "" [StringLiteral "\"Try Me\"" ] $
         tokenizeHaskell "\"Try Me\""

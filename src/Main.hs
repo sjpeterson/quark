@@ -253,7 +253,7 @@ mainLoop layout buffers = do
     let w@(TextView _ _ moo@(rr, cc)) = primaryPane layout'
     -- debug (utilityBar layout') $ show w
     -- debug (utilityBar layout') $ (show $ ebSelection $ active buffers)
-    printText' w (ebSelection $ active buffers) (ebToString $ active buffers)
+    printText' w (ebCursors $ active buffers) (ebToString $ active buffers)
     updateCursor w (rr, cc - lnOffset) crs
     let (_, title, _) = active buffers
     setTitle (titleBar layout') title

@@ -92,3 +92,7 @@ dropSL k x@((p, q):xs)
 padToLenSL :: Int -> [(ByteString, Bool)] -> [(ByteString, Bool)]
 padToLenSL k [] = [(B.replicate k ' ', False)]
 padToLenSL k (x@(p0, _):xs) = x:(padToLenSL (k - B.length p0) xs)
+
+zip4 :: [a] -> [b] -> [c] -> [d] -> [(a, b, c, d)]
+zip4 (a:as') (b:bs) (c:cs) (d:ds) = (a, b, c, d):(zip4 as' bs cs ds)
+zip4 _       _      _      _      = []

@@ -23,14 +23,20 @@ cyan         = 14 :: Int
 white        = 15 :: Int
 black        = 16 :: Int
 -- 17 through 33 are for selections (red + 17 is selected red)
-titleBarColor = 34 :: Int
+titleBarColor   = 34 :: Int
 lineNumberColor = 35 :: Int
+
+-- selection color and an alternative text color to use if they match
+selectionColor = darkGray
+backupColor    = lightGray
 
 defineColors :: IO ()
 defineColors = do
   mapM_ (\n -> defineColor n n (-1)) [1..16]
-  defineColor 17 (-1) darkGray
-  mapM_ (\n -> defineColor (n + 17) n darkGray) [1..16]
+  defineColor 17 (-1) selectionColor
+  mapM_ (\n -> if n == selectionColor
+                   then defineColor (n + 17) backupColor selectionColor
+                   else defineColor (n + 17) n selectionColor) [1..16]
   defineColor titleBarColor black orange
   defineColor lineNumberColor lightGray (-1)
 

@@ -21,6 +21,7 @@ module Quark.Buffer ( Buffer ( Buffer
                     , ExtendedBuffer
                     , ebToString
                     , ebSelection
+                    , ebCursors
                     , mapXB
                     , condense
                     , editHistory
@@ -93,12 +94,15 @@ type ExtendedBuffer = (Buffer, FilePath, Bool)
 ebToString :: ExtendedBuffer -> ByteString
 ebToString ((Buffer h _ _), _, _) = toString h
 
-ebSelection :: ExtendedBuffer -> (Index, Index)
-ebSelection ((Buffer h crs sel), _, _) = ( cursorToIx selectionStart s
-                                      , cursorToIx selectionEnd s )
+ebSelection :: ExtendedBuffer -> (Index, Selection)
+ebSelection ((Buffer h crs sel), _, _) =
+    (cursorToIx selectionStart s, distance selectionStart selectionEnd s)
   where
     (selectionStart, selectionEnd) = orderTwo crs sel
     s = toString h
+
+ebCursors :: ExtendedBuffer -> (Cursor, Cursor)
+ebCursors ((Buffer h crs sel), _, _) = (crs, sel)
 
 -- TODO: monad/functor/whatever
 mapXB :: (Buffer -> Buffer) -> ExtendedBuffer -> ExtendedBuffer

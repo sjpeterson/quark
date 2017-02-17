@@ -29,6 +29,7 @@ import Quark.Window.Core
 import Quark.Helpers
 import Quark.Colors
 import Quark.Types
+import Quark.Cursor (orderTwo)
 
 refresh :: Window -> IO ()
 refresh (TextView w _ _)  = Curses.wRefresh w
@@ -81,31 +82,66 @@ printLine k lineNumber text (TextView w (_, c) _) = do
                                         else (Curses.attr0, Curses.Pair 0)
         Curses.wAddStr w $ B.unpack s
 
-printText' :: Window -> (Index, Index) -> ByteString -> IO ()
-printText' t@(TextView w (r, c) (rr, cc)) q text = do
+printText' :: Window -> (Cursor, Cursor) -> ByteString -> IO ()
+printText' w'@(TextView w (r, c) (rr, cc)) cursors text = do
     Curses.wclear w
-    mapM_ (\(k, l, s) -> printTokenLine k l s t) $
-        zip3 [0..(r - 2)] lineNumbers tokens
+    mapM_ (\(k, l, t, s) -> printTokenLine k l t s w') $
+        zip4 [0..(r - 2)] lineNumbers tokens selections
   where
     n =  (length $ B.lines text) + if nlTail text then 1 else 0
     lnc = (length $ show n) + 1
     lineNumbers = map (padToLen lnc) (map (B.pack . show) $ [rr + 1..n]) ++ repeat ""
     tokens = drop rr $ tokenLines $ tokenizeHaskell text
+    selections = map (selOnLine cursors) [rr + 0..n]
 
-printTokenLine :: Int -> ByteString -> [Token] -> Window -> IO ()
-printTokenLine k lineNumber tokens w'@(TextView w (_, c) (_, c0)) = do
+selOnLine :: (Cursor, Cursor) -> Row -> (Int, Int)
+selOnLine (crs, sel) r
+    | r < rIn || r > rOut = (-1, -1)
+    | otherwise           = (cIn', cOut')
+  where
+    cIn' = if r == rIn then cIn else 0
+    cOut' = if r == rOut then cOut else (-1)
+    ((rIn, cIn), (rOut, cOut)) = orderTwo crs sel
+
+printTokenLine :: Int -> ByteString -> [Token] -> (Col, Col) -> Window -> IO ()
+printTokenLine k lNo tokens (cIn, cOut) w'@(TextView w (_, c) (_, c0)) = do
     Curses.wMove w k 0
     Curses.wAttrSet w (Curses.attr0, Curses.Pair lineNumberColor)
-    Curses.wAddStr w $ B.unpack lineNumber
-    mapM_ printTokens $ takeTL (c - B.length lineNumber) $ dropTL c0 tokens
+    Curses.wAddStr w $ B.unpack lNo
+    mapM_ printToken $ selOnTokenLine adjustedSel $
+        takeTL (c - B.length lNo) $ dropTL c0 tokens
   where
-    printTokens t = do
-        setTokenColor t w'
-        printToken t w'
+    adjustedSel = ( if cIn == (-1) then (-1) else max 0 (cIn - c0)
+                  , if cOut == (-1) then (-1) else cOut - c0 )
+    printToken (t, selected) = do
+        setTokenColor t selected w'
+        printToken' t w'
 
-printToken :: Token -> Window -> IO ()
-printToken t (TextView w _ _) = Curses.wAddStr w $ B.unpack $ tokenString t
+selOnTokenLine :: (Col, Col) -> [Token] -> [(Token, Bool)]
+selOnTokenLine (-1, -1) ts = zip ts $ repeat False
+selOnTokenLine (0, -1) ts  = zip ts $ repeat True
+selOnTokenLine (cIn, cOut) (t:ts)
+    | cIn >= n              = (t, False):selOnTokenLine nextSel ts
+    | cIn == 0 && cOut >= n = (t, True):selOnTokenLine nextSel ts
+    | cIn == 0              = (++) (zip (splitT t [cOut]) [True, False]) $
+                                  selOnTokenLine nextSel ts
+    | cOut >= n || cOut < 0 = (++) (zip (splitT t [cIn]) [False, True]) $
+                                  selOnTokenLine nextSel ts
+    | otherwise             = (++) (zip (splitT t [cIn, cOut]) [ False
+                                                               , True
+                                                               , False]) $
+                                  selOnTokenLine nextSel ts
+  where
+    n = tokenLength t
+    nextSel = ( max (cIn - n) 0
+              , if cOut == (-1) then cOut else max (cOut - n) 0)
+selOnTokenLine _ ts = zip ts $ repeat False
 
-setTokenColor :: Token -> Window -> IO ()
-setTokenColor t (TextView w _ _) =
-    Curses.wAttrSet w (Curses.attr0, Curses.Pair $ haskellColors t)
+printToken' :: Token -> Window -> IO ()
+printToken' t (TextView w _ _) = Curses.wAddStr w $ B.unpack $ tokenString t
+
+setTokenColor :: Token -> Bool -> Window -> IO ()
+setTokenColor t selected (TextView w _ _) =
+    Curses.wAttrSet w (Curses.attr0, Curses.Pair $ haskellColors t + selOffset)
+  where
+    selOffset = if selected then 17 else 0
