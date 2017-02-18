@@ -30,6 +30,7 @@ library
                  , Quark.Window.Core
                  , Quark.Window.UtilityBar
                  , Quark.Window.TextView
+                 , Quark.Window.TitleBar
                  , Quark.Lexer.Core
                  , Quark.Lexer.Haskell
   other-modules: Paths_quark

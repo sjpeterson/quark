@@ -74,6 +74,7 @@ haskellGrammar = [ (Newline, "\\A\n")
                                             , "then"
                                             , "type"
                                             , "where"
+                                            , "as"
                                             , "_" ])
                  , (TypeIdent, "\\A(([A-Z][A-Za-z0-9]*)+)(\\.[A-Z][A-Za-z0-9]*)*\
                                  \(?![a-zA-Z0-9\\.])")

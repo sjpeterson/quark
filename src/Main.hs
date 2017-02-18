@@ -1,5 +1,21 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+--------
+--
+-- File:        Main.hs
+-- Author:      Stefan Peterson
+-- License:     MIT License
+--
+-- Maintainer:  Stefan Peterson (stefan.j.peterson@gmail.com)
+-- Stability:   Stable
+-- Portability: Unknown
+--
+--------
+--
+-- Quark main file
+--
+--------
+
 module Main where
 
 import System.Environment ( getArgs )
@@ -17,26 +33,18 @@ import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B
 
 import Quark.Window.Core
+import Quark.Window.TitleBar
 import Quark.Window.UtilityBar
 import Quark.Window.TextView
+import Quark.Lexer.Core
+import Quark.Lexer.Haskell
 import Quark.Layout
 import Quark.Buffer
 import Quark.Flipper
 import Quark.History
 import Quark.Types
 import Quark.Helpers
-import Quark.Lexer.Core
-import Quark.Lexer.Haskell
 import Quark.Colors
-
-setTitle :: Window -> String -> IO ()
-setTitle (TitleBar w (_, c)) title = do
-    Curses.attrSet Curses.attr0 (Curses.Pair titleBarColor)
-    Curses.mvWAddStr w 0 0 (padMidToLen c leftText rightText)
-    Curses.wRefresh w
-  where
-    leftText = " quark - " ++ title
-    rightText = "0.0.1a "
 
 initLayout :: String -> IO (Layout)
 initLayout path = do
@@ -58,13 +66,6 @@ initFlipper :: String -> IO (Flipper ExtendedBuffer)
 initFlipper path = do
     extendedBuffer <- initBuffer path
     return (extendedBuffer, [], [])
-
-fillBackground :: Window -> Int -> IO ()
-fillBackground (TitleBar cTitleBar (h, w)) colorId = do
-    Curses.wAttrSet cTitleBar (Curses.attr0, Curses.Pair colorId)
-    Curses.mvWAddStr cTitleBar 0 0 (take w $ repeat ' ')
-    Curses.wMove cTitleBar 1 0
-    Curses.wRefresh cTitleBar
 
 saveAndQuit :: [Int] -> Layout -> Flipper ExtendedBuffer -> IO ()
 saveAndQuit [] _ _ = end
@@ -108,25 +109,25 @@ promptSave :: Layout
            -> Flipper ExtendedBuffer
            -> IO (Flipper ExtendedBuffer, Bool)
 promptSave layout buffers = case active buffers of
-    (b@(Buffer h _ _), path, False) ->
-        do newPath <- promptString u (B.pack "Save buffer to file:") $ B.pack path
-           fileExists <- doesFileExist newPath
-           let doConfirm = fileExists && path /= newPath
-           dirExists <- doesDirectoryExist newPath
-           if dirExists || newPath == ""
-               then do debug u $ B.pack $ if newPath == ""
-                                              then "Buffer was not saved"
-                                              else path ++ " is a directory"
-                       return (buffers, False)
-               else if doConfirm
-                        then confirmSave newPath layout buffers
-                        else if newPath == "\ESC"
-                                 then return (buffers, True)
-                                 else do debug u $ B.pack $ "Saved " ++ newPath
-                                         writeFXB newPath buffers
-    _                               ->
-        do debug u "Can't save protected buffer"
-           return (buffers, True)
+    (b@(Buffer h _ _), path, False) -> do
+        newPath <- promptString u (B.pack "Save buffer to file:") $ B.pack path
+        fileExists <- doesFileExist newPath
+        let doConfirm = fileExists && path /= newPath
+        dirExists <- doesDirectoryExist newPath
+        if dirExists || newPath == ""
+            then do debug u $ B.pack $ if newPath == ""
+                                           then "Buffer was not saved"
+                                           else path ++ " is a directory"
+                    return (buffers, False)
+            else if doConfirm
+                     then confirmSave newPath layout buffers
+                     else if newPath == "\ESC"
+                              then return (buffers, True)
+                              else do debug u $ B.pack $ "Saved " ++ newPath
+                                      writeFXB newPath buffers
+    _                            -> do
+        debug u "Can't save protected buffer"
+        return (buffers, True)
   where
     u = utilityBar layout
 
@@ -166,60 +167,59 @@ writeBuffer path (Buffer h@(n, p, f) c s) = do
   where
     nlEnd s  = if nlTail s then s else s ~~ "\n"
 
--- TODO: consider moving to separate file
-action :: (Buffer -> Buffer) -> Layout -> Flipper ExtendedBuffer -> IO ()
-action a layout buffers = mainLoop layout $ mapF (mapXB a) buffers
-
 handleKey :: Curses.Key -> Layout -> Flipper ExtendedBuffer -> IO ()
-handleKey (Curses.KeyChar c) layout buffers
-    | c == '\DC1' = saveAndQuit unsavedIndices layout buffers
-    | c == '\DC3' = do (newBuffers, _) <- promptSave layout buffers
-                       mainLoop layout newBuffers
-    | c == '\DEL' = action backspace layout buffers
-    | c == '\SUB' = action undo layout buffers
-    | c == '\EM'  = action redo layout buffers
-    | c == '\CAN' = do setClipboardString $ B.unpack $ selection $ condense $
-                           active buffers
-                       action delete layout buffers
-    | c == '\ETX' = do setClipboardString $ B.unpack $ selection $ condense $
-                           active buffers
-                       mainLoop layout buffers
-    | c == '\SYN' = do s <- getClipboardString
-                       case s of Nothing -> mainLoop layout buffers
-                                 Just s' -> action (paste $ B.pack s') layout buffers
-    | c == '\SOH' = action selectAll layout buffers
-    | c == '\r'   = action nlAutoIndent layout buffers
-    | c == '\t'   = action (tab 4) layout buffers
-    | isPrint c   = action (input c) layout buffers
-    | otherwise   = continue
+handleKey k layout buffers
+    | k == translateKey "C-q"       = saveAndQuit unsavedIndices layout buffers
+    | k == translateKey "C-s"       = do
+        (newBuffers, _) <- promptSave layout buffers
+        mainLoop layout newBuffers
+    | k == translateKey "C-x"       = do
+        setClipboardString $ B.unpack $ selection $ condense $ active buffers
+        action delete
+    | k == translateKey "C-c"       = do
+        setClipboardString $ B.unpack $ selection $ condense $ active buffers
+        mainLoop layout buffers
+    | k == translateKey "C-v"       = do
+        s <- getClipboardString
+        case s of Nothing -> mainLoop layout buffers
+                  Just s' -> action (paste $ B.pack s')
+    | k == translateKey "C-z"       = action undo
+    | k == translateKey "C-y"       = action redo
+    | k == translateKey "C-a"       = action selectAll
+    | k == translateKey "Backspace" = action backspace
+    | k == translateKey "Delete"    = action delete
+    | k == translateKey "Return"    = action nlAutoIndent
+    | k == translateKey "Tab"       = action (tab 4)
+    | k == translateKey "^Tab"      = action (unTab 4)
+    | k == translateKey "Up"        = action (moveCursor Up)
+    | k == translateKey "Down"      = action (moveCursor Down)
+    | k == translateKey "Left"      = action (moveCursor Backward)
+    | k == translateKey "Right"     = action (moveCursor Forward)
+    | k == translateKey "^PgUp"     = action (selectMoveCursor Up)
+    | k == translateKey "^PgDn"     = action (selectMoveCursor Down)
+    | k == translateKey "^Left"     = action (selectMoveCursor Backward)
+    | k == translateKey "^Right"    = action (selectMoveCursor Forward)
+    | k == translateKey "PgUp"      = action (moveCursorN (r - 1) Up)
+    | k == translateKey "PgDn"      = action (moveCursorN (r - 1) Down)
+    | k == translateKey "End"       = action (endOfLine True)
+    | k == translateKey "Home"      = action (startOfLine True)
+    | k == translateKey "^End"      = action (endOfLine False)
+    | k == translateKey "^Home"     = action (startOfLine False)
+    | k == translateKey "C-End"     = action (endOfFile True)
+    | k == translateKey "C-Home"    = action (startOfFile True)
+    | k == translateKey "C-^End"    = action (endOfFile False)
+    | k == translateKey "C-^Home"   = action (startOfFile False)
+    | otherwise                     = case k of
+          (Curses.KeyChar c) -> case isPrint c of
+                                    True -> action (input c)
+                                    False -> continue
+          _ -> continue
   where
     unsavedIndices = findIndices unsavedXB $ toList buffers
     ((Buffer h _ _), _, _) = active buffers
     continue = mainLoop layout buffers
-handleKey k layout buffers
-    | k == Curses.KeyDC = action delete layout buffers
-    | k == Curses.KeyLeft = action (moveCursor Backward) layout buffers
-    | k == Curses.KeyRight = action (moveCursor Forward) layout buffers
-    | k == Curses.KeyDown = action (moveCursor Down) layout buffers
-    | k == Curses.KeyUp = action (moveCursor Up) layout buffers
-    | k == Curses.KeySLeft = action (selectMoveCursor Backward) layout buffers
-    | k == Curses.KeySRight = action (selectMoveCursor Forward) layout buffers
-    | k == Curses.KeySNext = action (selectMoveCursor Down) layout buffers
-    | k == Curses.KeySPrevious = action (selectMoveCursor Up) layout buffers
-    | k == Curses.KeyPPage = action (moveCursorN (r - 1) Up) layout buffers
-    | k == Curses.KeyNPage = action (moveCursorN (r - 1) Down) layout buffers
-    | k == Curses.KeyEnd = action (endOfLine True) layout buffers
-    | k == Curses.KeyHome = action (startOfLine True) layout buffers
-    | k == Curses.KeySEnd = action (endOfLine False) layout buffers
-    | k == Curses.KeySHome = action (startOfLine False) layout buffers
-    | k == Curses.KeyUnknown 532 = action (endOfFile True) layout buffers
-    | k == Curses.KeyUnknown 537 = action (startOfFile True) layout buffers
-    | k == Curses.KeyUnknown 533 = action (endOfFile False) layout buffers
-    | k == Curses.KeyUnknown 538 = action (startOfFile False) layout buffers
-    | k == Curses.KeyBTab = action (unTab 4) layout buffers
-    | otherwise = mainLoop layout buffers
-  where
     (TextView _ (r, _) _) = primaryPane layout
+    action a = mainLoop layout $ mapF (mapXB a) buffers
 
 -- Start Curses and initialize colors
 cursesMode :: IO ()

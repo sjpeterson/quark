@@ -5,6 +5,8 @@ module Quark.Helpers where
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B
 
+import qualified UI.HSCurses.Curses as Curses
+
 import Quark.Types (Size)
 
 -- ByteString version of (++)
@@ -96,3 +98,57 @@ padToLenSL k (x@(p0, _):xs) = x:(padToLenSL (k - B.length p0) xs)
 zip4 :: [a] -> [b] -> [c] -> [d] -> [(a, b, c, d)]
 zip4 (a:as') (b:bs) (c:cs) (d:ds) = (a, b, c, d):(zip4 as' bs cs ds)
 zip4 _       _      _      _      = []
+
+translateKey :: String -> Curses.Key
+translateKey s = case s of
+    "Return"    -> Curses.KeyChar '\r'
+    "Backspace" -> Curses.KeyChar '\DEL'
+    "Delete"    -> Curses.KeyDC
+    "^Delete"   -> Curses.KeySDC
+    "Tab"       -> Curses.KeyChar '\t'
+    "^Tab"      -> Curses.KeyBTab
+    "Home"      -> Curses.KeyHome
+    "^Home"     -> Curses.KeySHome
+    "C-Home"    -> Curses.KeyUnknown 537
+    "C-^Home"   -> Curses.KeyUnknown 538
+    "End"       -> Curses.KeyEnd
+    "^End"      -> Curses.KeySEnd
+    "C-End"     -> Curses.KeyUnknown 532
+    "C-^End"    -> Curses.KeyUnknown 533
+    "PgUp"      -> Curses.KeyPPage
+    "^PgUp"     -> Curses.KeySPrevious
+    "PgDn"      -> Curses.KeyNPage
+    "^PgDn"     -> Curses.KeySNext
+    "Insert"    -> Curses.KeyIC
+    "Up"        -> Curses.KeyUp
+    "Down"      -> Curses.KeyDown
+    "Left"      -> Curses.KeyLeft
+    "^Left"     -> Curses.KeySLeft
+    "Right"     -> Curses.KeyRight
+    "^Right"    -> Curses.KeySRight
+    "C-a"       -> Curses.KeyChar '\SOH'
+    "C-b"       -> Curses.KeyChar '\STX'
+    "C-c"       -> Curses.KeyChar '\ETX'
+    "C-d"       -> Curses.KeyChar '\EOT'
+    "C-e"       -> Curses.KeyChar '\ENQ'
+    "C-f"       -> Curses.KeyChar '\ACK'
+    "C-g"       -> Curses.KeyChar '\a'
+    "C-h"       -> Curses.KeyBackspace
+    "C-i"       -> Curses.KeyChar '\t'
+    "C-j"       -> Curses.KeyChar '\n'
+    "C-k"       -> Curses.KeyChar '\v'
+    "C-l"       -> Curses.KeyChar '\f'
+    "C-m"       -> Curses.KeyChar '\r'
+    "C-n"       -> Curses.KeyChar '\SO'
+    "C-o"       -> Curses.KeyChar '\SI'
+    "C-p"       -> Curses.KeyChar '\DLE'
+    "C-q"       -> Curses.KeyChar '\DC1'
+    "C-r"       -> Curses.KeyChar '\DC2'
+    "C-s"       -> Curses.KeyChar '\DC3'
+    "C-t"       -> Curses.KeyChar '\DC4'
+    "C-u"       -> Curses.KeyChar '\NAK'
+    "C-v"       -> Curses.KeyChar '\SYN'
+    "C-w"       -> Curses.KeyChar '\ETB'
+    "C-x"       -> Curses.KeyChar '\CAN'
+    "C-y"       -> Curses.KeyChar '\EM'
+    "C-z"       -> Curses.KeyChar '\SUB'
