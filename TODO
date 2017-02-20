@@ -1,9 +1,18 @@
 Functionality:
-  - Show overflow hints (~?)
+  - Show overflow hints (~)
+  - handle terminal resize
+  - close current buffer
+  - python lexer
+  - zsh lexer
+  - tab completion/hints for file open
 
-Potential future optimizations:
-  - Move from prelude Strings to Data.Text
+Code structure:
+  - type ExtendedBuffer = (Buffer, BufferMetaData)
+    type BufferMetaData = (FilePath, Language, Protected)
+      - guess language from path
+      - absolute FilePath
 
-Other functional or stylistic improvements:
+Possible functional or stylistic improvements:
   - Make Flipper foldable and traversable
-  - Move Colors to own module, adapt to various terminal environments
+  - Adapt colors to various terminal environments
+  - Use State monad with Layout to track, for example, insert mode, project root
