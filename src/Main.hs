@@ -76,9 +76,17 @@ saveAndQuit (x:xs) layout buffers' = do
     if cancel then mainLoop layout newBuffers
               else saveAndQuit xs layout newBuffers
 
+saveAndClose :: Layout -> Flipper ExtendedBuffer -> IO ()
+saveAndClose layout buffers = do
+    (newBuffers, _) <- chooseSave layout buffers
+    case remove newBuffers of
+        Just newerBuffers -> mainLoop layout newerBuffers
+        Nothing           -> mainLoop layout $ (emptyXB, [], [])
+
+
 newBuffer :: Layout -> Flipper ExtendedBuffer -> IO ()
 newBuffer layout buffers = mainLoop layout $
-    add ((Buffer (fromString "") (0, 0) (0, 0)), "Untitled", False) buffers
+    add emptyXB buffers
 
 promptOpen :: Layout -> Flipper ExtendedBuffer -> IO (Flipper ExtendedBuffer)
 promptOpen layout buffers = do
@@ -183,9 +191,18 @@ writeBuffer path (Buffer h@(n, p, f) c s) = do
   where
     nlEnd s  = if nlTail s then s else s ~~ "\n"
 
+resizeLayout :: Flipper ExtendedBuffer -> IO ()
+resizeLayout buffers = do
+    layout <- defaultLayout
+    fillBackground (titleBar layout) titleBarColor
+    mainLoop layout buffers
+  where
+    (_, path, _) = active buffers
+
 handleKey :: Curses.Key -> Layout -> Flipper ExtendedBuffer -> IO ()
 handleKey k layout buffers
     | k == translateKey "C-q"       = saveAndQuit unsavedIndices layout buffers
+    | k == translateKey "C-w"       = saveAndClose layout buffers
     | k == translateKey "C-s"       = do
         (newBuffers, _) <- promptSave layout buffers
         mainLoop layout newBuffers
@@ -231,10 +248,11 @@ handleKey k layout buffers
     | k == translateKey "C-^Home"   = action (startOfFile False)
     | k == translateKey "C-Left"    = actionF flipPrevious
     | k == translateKey "C-Right"   = actionF flipNext
+    | k == Curses.KeyResize         = resizeLayout buffers
     | otherwise                     = case k of
           (Curses.KeyChar c) -> case isPrint c of
                                     True -> action (input c)
-                                    False -> do debug (utilityBar layout) $ B.pack $ show k
+                                    False -> do debug u $ B.pack $ show k
                                                 continue
           _ -> do debug (utilityBar layout) $ B.pack $ show k
                   continue
@@ -245,6 +263,7 @@ handleKey k layout buffers
     (TextView _ (r, _) _) = primaryPane layout
     action a = mainLoop layout $ mapF (mapXB a) buffers
     actionF a = mainLoop layout $ a buffers
+    u = utilityBar layout
 
 -- Start Curses and initialize colors
 cursesMode :: IO ()

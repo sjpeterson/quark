@@ -19,6 +19,7 @@
 module Quark.Buffer ( Buffer ( Buffer
                              , LockedBuffer )
                     , ExtendedBuffer
+                    , emptyXB
                     , ebToString
                     , ebSelection
                     , ebCursors
@@ -90,6 +91,9 @@ data Buffer = LockedBuffer String
 -- to clone a Buffer to a LockedBuffer
 
 type ExtendedBuffer = (Buffer, FilePath, Bool)
+
+emptyXB :: ExtendedBuffer
+emptyXB = ((Buffer (fromString "") (0, 0) (0, 0)), "Untitled", False)
 
 ebToString :: ExtendedBuffer -> ByteString
 ebToString ((Buffer h _ _), _, _) = toString h

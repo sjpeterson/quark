@@ -18,6 +18,7 @@
 module Quark.Flipper ( Flipper
                , active
                , add
+               , remove
                , flipNext
                , flipPrevious
                , flipTo
@@ -27,6 +28,7 @@ module Quark.Flipper ( Flipper
                , mapF
                , toList ) where
 
+-- (current, previous, next)
 type Flipper a = (a, [a], [a])
 
 active :: Flipper a -> a
@@ -34,6 +36,11 @@ active (x, _, _) = x
 
 add :: a -> Flipper a -> Flipper a
 add newX (x, y, z) = (newX, (reverse z) ++ x:y, [])
+
+remove :: Flipper a -> Maybe (Flipper a)
+remove (_, x:xs, ys) = Just (x, xs, ys)
+remove (_, [], y:ys) = Just (y, [], ys)
+remove _             = Nothing
 
 flipNext :: Flipper a -> Flipper a
 flipNext (x, [], []) = (x, [], [])

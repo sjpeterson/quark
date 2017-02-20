@@ -1,7 +1,7 @@
 Functionality:
   - Show overflow hints (~)
-  - handle terminal resize
-  - close current buffer
+  - indicate 80 column width
+  - better handle terminal resize
   - python lexer
   - zsh lexer
   - tab completion/hints for file open
