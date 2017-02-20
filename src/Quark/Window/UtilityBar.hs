@@ -44,11 +44,12 @@ import Quark.Buffer ( Buffer ( Buffer )
 import Quark.Types
 import Quark.History ( fromString
                      , toString )
+import Quark.Colors
 
 
 prompt :: Int -> Window -> ByteString -> IO ()
 prompt r (UtilityBar w (_, c)) text = do
-    Curses.wAttrSet w (Curses.attr0, Curses.Pair 1)
+    Curses.wAttrSet w (Curses.attr0, Curses.Pair red)
     Curses.mvWAddStr w r 0 $ B.unpack $ padToLen (c - 1) text
     Curses.wRefresh w
 

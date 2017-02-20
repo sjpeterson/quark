@@ -149,7 +149,7 @@ lexer' _ "" = []
 lexer' g s = t:(lexer' g s')
   where
     t = nextTokens g s
-    s' = B.drop (sum (map tokenLength t) + (length t) - 1) s
+    s' = B.drop (sum (map tokenLength t)) s
 
 nextTokens :: Q.CompiledGrammar -> ByteString -> [Q.Token]
 nextTokens _ "" = []
@@ -158,16 +158,10 @@ nextTokens (g@(t, matchRe):gs) s = case matchRe s of
     "" -> nextTokens gs s
     s' -> case s' of
               "\n" -> [t s']
-              _    -> intersperse (Q.Newline "\n") [t s'' | s'' <- B.lines s']
+              _    -> intersperse (Q.Newline "\n") [t s'' | s'' <- sLines]
+                        where
+                          sLines = B.lines s'
 
-nextTokens' :: Q.Grammar -> ByteString -> [Q.Token]
-nextTokens' _ ""                          = []
-nextTokens' [] (B.uncons -> Just (x, _)) = [Q.Unclassified $ B.pack [x]]
-nextTokens' (g@(t, re):gs) s = case s =~ re :: ByteString of
-    "" -> nextTokens' gs s
-    s' -> case s' of
-              "\n" -> [t s']
-              _    -> intersperse (Q.Newline "\n") [t s'' | s'' <- B.lines s']
 
 hatify :: Q.Regex -> Q.Regex
 hatify "" = ""

@@ -57,33 +57,9 @@ changeOffset d (TextView w size (rr, cc))
     rrStep = 3
     ccStep = 5
 
--- TODO: show hints of overflow
-printText :: Window -> (Index, Index) -> ByteString -> IO ()
-printText t@(TextView w (r, c) (rr, cc)) q text = do
-    mapM_ (\(k, l, s) ->
-        printLine k l s t) $ zip3 [0..(r - 2)] lineNumbers textLines
-  where
-    n =  (length $ B.lines text) + if nlTail text then 1 else 0
-    lnc = (length $ show n) + 1
-    lineNumbers = map (padToLen lnc) (map (B.pack . show) $ drop rr [1..n]) ++ repeat ""
-    textLines =
-        map ((padToLenSL (c - lnc)) . dropSL cc) $
-            drop rr (selectionLines $ splitAt2 q text) ++ repeat [("", False)]
-
-printLine :: Int -> ByteString -> [(ByteString, Bool)] -> Window -> IO ()
-printLine k lineNumber text (TextView w (_, c) _) = do
-    Curses.wMove w k 0
-    Curses.wAttrSet w (Curses.attr0, Curses.Pair lineNumberColor)
-    Curses.wAddStr w $ B.unpack lineNumber
-    mapM_ printSection text -- $ [(take (c - length lineNumber) text, False)]
-  where
-    printSection (s, selected) = do
-        Curses.wAttrSet w $ if selected then (Curses.attr0, Curses.Pair 19)
-                                        else (Curses.attr0, Curses.Pair 0)
-        Curses.wAddStr w $ B.unpack s
-
-printText' :: Window -> (Cursor, Cursor) -> ByteString -> IO ()
-printText' w'@(TextView w (r, c) (rr, cc)) cursors text = do
+-- TODO: add text overflow hints
+printText :: Window -> (Cursor, Cursor) -> ByteString -> IO ()
+printText w'@(TextView w (r, c) (rr, cc)) cursors text = do
     Curses.wclear w
     mapM_ (\(k, l, t, s) -> printTokenLine k l t s w') $
         zip4 [0..(r - 2)] lineNumbers tokens selections

@@ -52,8 +52,6 @@ initLayout path = do
     fillBackground (titleBar layout) titleBarColor
     setTitle (titleBar layout) path
     fileExists <- doesFileExist path
-    -- text <- if fileExists then readFile path else return "Nothing here"
-    -- printText (primaryPane layout) text
     return layout
 
 initBuffer :: String -> IO (ExtendedBuffer)
@@ -69,10 +67,28 @@ initFlipper path = do
 
 saveAndQuit :: [Int] -> Layout -> Flipper ExtendedBuffer -> IO ()
 saveAndQuit [] _ _ = end
-saveAndQuit (x:xs) layout buffers = do
-    (newBuffers, cancel) <- chooseSave layout $ flipTo x buffers
+saveAndQuit (x:xs) layout buffers' = do
+    let w = primaryPane layout
+    let buffers = flipTo x buffers'
+    printText w (ebCursors $ active buffers) (ebToString $ active buffers)
+    refresh w
+    (newBuffers, cancel) <- chooseSave layout buffers
     if cancel then mainLoop layout newBuffers
               else saveAndQuit xs layout newBuffers
+
+newBuffer :: Layout -> Flipper ExtendedBuffer -> IO ()
+newBuffer layout buffers = mainLoop layout $
+    add ((Buffer (fromString "") (0, 0) (0, 0)), "Untitled", False) buffers
+
+promptOpen :: Layout -> Flipper ExtendedBuffer -> IO (Flipper ExtendedBuffer)
+promptOpen layout buffers = do
+    path <- promptString u (B.pack "Open file:") $ B.pack ""
+    fileExists <- doesFileExist path
+    contents <- if fileExists then B.readFile path else return ""
+    let newBuffer = ((Buffer (fromString contents) (0, 0) (0, 0)), path, False)
+    return $ add newBuffer buffers
+  where
+    u = utilityBar layout
 
 chooseSave :: Layout
            -> Flipper ExtendedBuffer
@@ -186,6 +202,10 @@ handleKey k layout buffers
     | k == translateKey "C-z"       = action undo
     | k == translateKey "C-y"       = action redo
     | k == translateKey "C-a"       = action selectAll
+    | k == translateKey "C-n"       = newBuffer layout buffers
+    | k == translateKey "C-o"       = do
+        newBuffers <- promptOpen layout buffers
+        mainLoop layout newBuffers
     | k == translateKey "Backspace" = action backspace
     | k == translateKey "Delete"    = action delete
     | k == translateKey "Return"    = action nlAutoIndent
@@ -209,17 +229,22 @@ handleKey k layout buffers
     | k == translateKey "C-Home"    = action (startOfFile True)
     | k == translateKey "C-^End"    = action (endOfFile False)
     | k == translateKey "C-^Home"   = action (startOfFile False)
+    | k == translateKey "C-Left"    = actionF flipPrevious
+    | k == translateKey "C-Right"   = actionF flipNext
     | otherwise                     = case k of
           (Curses.KeyChar c) -> case isPrint c of
                                     True -> action (input c)
-                                    False -> continue
-          _ -> continue
+                                    False -> do debug (utilityBar layout) $ B.pack $ show k
+                                                continue
+          _ -> do debug (utilityBar layout) $ B.pack $ show k
+                  continue
   where
     unsavedIndices = findIndices unsavedXB $ toList buffers
     ((Buffer h _ _), _, _) = active buffers
     continue = mainLoop layout buffers
     (TextView _ (r, _) _) = primaryPane layout
     action a = mainLoop layout $ mapF (mapXB a) buffers
+    actionF a = mainLoop layout $ a buffers
 
 -- Start Curses and initialize colors
 cursesMode :: IO ()
@@ -253,14 +278,14 @@ mainLoop layout buffers = do
     let w@(TextView _ _ moo@(rr, cc)) = primaryPane layout'
     -- debug (utilityBar layout') $ show w
     -- debug (utilityBar layout') $ (show $ ebSelection $ active buffers)
-    printText' w (ebCursors $ active buffers) (ebToString $ active buffers)
+    printText w (ebCursors $ active buffers) (ebToString $ active buffers)
     updateCursor w (rr, cc - lnOffset) crs
     let (_, title, _) = active buffers
     setTitle (titleBar layout') title
     -- (show crs) ++ " " ++ (show sel) ++ " " ++ (show moo)
     refresh w
     c <- Curses.getCh
-    debug (utilityBar layout') $ B.pack $ show c
+    -- debug (utilityBar layout') $ B.pack $ show c
     handleKey c layout' buffers
 
 end :: IO ()

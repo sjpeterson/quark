@@ -121,11 +121,19 @@ translateKey s = case s of
     "^PgDn"     -> Curses.KeySNext
     "Insert"    -> Curses.KeyIC
     "Up"        -> Curses.KeyUp
+    "C-Up"      -> Curses.KeyUnknown 569
+    "C-^Up"     -> Curses.KeyUnknown 570
     "Down"      -> Curses.KeyDown
+    "C-Down"    -> Curses.KeyUnknown 528
+    "C-^Down"   -> Curses.KeyUnknown 529
     "Left"      -> Curses.KeyLeft
     "^Left"     -> Curses.KeySLeft
+    "C-Left"    -> Curses.KeyUnknown 548
+    "C-^Left"   -> Curses.KeyUnknown 549
     "Right"     -> Curses.KeyRight
     "^Right"    -> Curses.KeySRight
+    "C-Right"   -> Curses.KeyUnknown 563
+    "C-^Right"  -> Curses.KeyUnknown 564
     "C-a"       -> Curses.KeyChar '\SOH'
     "C-b"       -> Curses.KeyChar '\STX'
     "C-c"       -> Curses.KeyChar '\ETX'

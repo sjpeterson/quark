@@ -58,8 +58,9 @@ hsLexerUnitTests = testGroup "Unit tests for Lexer/Haskell.hs"
   , testCase "Block comment with newline" $
       assertEqual "" [ Comment "{- Block"
                      , Newline "\n"
-                     , Comment "comment -}" ] $
-        tokenizeHaskell "{- Block\ncomment -}"
+                     , Comment "comment -}"
+                     , Newline "\n" ] $
+        tokenizeHaskell "{- Block\ncomment -}\n"
   , testCase "Simple Line comment" $
       assertEqual "" [Comment "-- Line comment"] $
         tokenizeHaskell "-- Line comment"
