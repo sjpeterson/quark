@@ -100,6 +100,7 @@ checkOption _ [] = Nothing
 checkOption k@(Curses.KeyChar c) ((c', _, x):xs)
     | toUpper c == toUpper c' = Just x
     | otherwise               = checkOption k xs
+checkOption _ _ = Nothing
 
 printOption :: (Show a) => Curses.Window -> Int -> Option a -> IO ()
 printOption w n (c, s, _) = do

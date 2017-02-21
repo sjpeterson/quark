@@ -23,8 +23,13 @@ import qualified UI.HSCurses.Curses as Curses
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B
 
-import Quark.Lexer.Core
-import Quark.Lexer.Haskell
+import Quark.Lexer.Core ( tokenLength
+                        , tokenString
+                        , tokenLines
+                        , splitT
+                        , dropTL
+                        , takeTL )
+import Quark.Lexer.Language
 import Quark.Window.Core
 import Quark.Helpers
 import Quark.Colors
@@ -58,16 +63,16 @@ changeOffset d (TextView w size (rr, cc))
     ccStep = 5
 
 -- TODO: add text overflow hints
-printText :: Window -> (Cursor, Cursor) -> ByteString -> IO ()
-printText w'@(TextView w (r, c) (rr, cc)) cursors text = do
+printText :: Language -> Window -> (Cursor, Cursor) -> ByteString -> IO ()
+printText language w'@(TextView w (r, c) (rr, cc)) cursors text = do
     Curses.wclear w
-    mapM_ (\(k, l, t, s) -> printTokenLine k l t s w') $
+    mapM_ (\(k, l, t, s) -> printTokenLine language k l t s w') $
         zip4 [0..(r - 2)] lineNumbers tokens selections
   where
     n =  (length $ B.lines text) + if nlTail text then 1 else 0
     lnc = (length $ show n) + 1
     lineNumbers = map (padToLen lnc) (map (B.pack . show) $ [rr + 1..n]) ++ repeat ""
-    tokens = drop rr $ tokenLines $ tokenizeHaskell text
+    tokens = drop rr $ tokenLines $ tokenize language text
     selections = map (selOnLine cursors) [rr + 0..n]
 
 selOnLine :: (Cursor, Cursor) -> Row -> (Int, Int)
@@ -79,18 +84,25 @@ selOnLine (crs, sel) r
     cOut' = if r == rOut then cOut else (-1)
     ((rIn, cIn), (rOut, cOut)) = orderTwo crs sel
 
-printTokenLine :: Int -> ByteString -> [Token] -> (Col, Col) -> Window -> IO ()
-printTokenLine k lNo tokens (cIn, cOut) w'@(TextView w (_, c) (_, c0)) = do
+printTokenLine :: Language
+               -> Int
+               -> ByteString
+               -> [Token]
+               -> (Col, Col)
+               -> Window
+               -> IO ()
+printTokenLine language k lNo tokens (cIn, cOut) w' = do
     Curses.wMove w k 0
     Curses.wAttrSet w (Curses.attr0, Curses.Pair lineNumberColor)
     Curses.wAddStr w $ B.unpack lNo
     mapM_ printToken $ selOnTokenLine adjustedSel $
         takeTL (c - B.length lNo) $ dropTL c0 tokens
   where
+    (TextView w (_, c) (_, c0)) = w'
     adjustedSel = ( if cIn == (-1) then (-1) else max 0 (cIn - c0)
                   , if cOut == (-1) then (-1) else cOut - c0 )
     printToken (t, selected) = do
-        setTokenColor t selected w'
+        setTokenColor language t selected w'
         printToken' t w'
 
 selOnTokenLine :: (Col, Col) -> [Token] -> [(Token, Bool)]
@@ -116,8 +128,9 @@ selOnTokenLine _ ts = zip ts $ repeat False
 printToken' :: Token -> Window -> IO ()
 printToken' t (TextView w _ _) = Curses.wAddStr w $ B.unpack $ tokenString t
 
-setTokenColor :: Token -> Bool -> Window -> IO ()
-setTokenColor t selected (TextView w _ _) =
-    Curses.wAttrSet w (Curses.attr0, Curses.Pair $ haskellColors t + selOffset)
+setTokenColor :: Language -> Token -> Bool -> Window -> IO ()
+setTokenColor language t selected (TextView w _ _) =
+    Curses.wAttrSet w ( Curses.attr0
+                      , Curses.Pair $ colorize language t + selOffset)
   where
     selOffset = if selected then 17 else 0

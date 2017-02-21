@@ -20,7 +20,8 @@ module Main where
 
 import System.Environment ( getArgs )
 import System.Directory ( doesFileExist
-                        , doesDirectoryExist )
+                        , doesDirectoryExist
+                        , makeAbsolute)
 import System.Clipboard
 
 import qualified UI.HSCurses.Curses as Curses
@@ -29,6 +30,7 @@ import qualified UI.HSCurses.Curses as Curses
 
 import Data.Char ( isPrint )
 import Data.List ( findIndices )
+import System.Directory ( makeAbsolute )
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B
 
@@ -36,8 +38,8 @@ import Quark.Window.Core
 import Quark.Window.TitleBar
 import Quark.Window.UtilityBar
 import Quark.Window.TextView
-import Quark.Lexer.Core
-import Quark.Lexer.Haskell
+import Quark.Lexer.Language ( assumeLanguage )
+--import Quark.Lexer.Haskell
 import Quark.Layout
 import Quark.Buffer
 import Quark.Flipper
@@ -57,8 +59,12 @@ initLayout path = do
 initBuffer :: String -> IO (ExtendedBuffer)
 initBuffer path = do
     fileExists <- doesFileExist path
-    contents <- if fileExists then B.readFile path else return ""
-    return ((Buffer (fromString contents) (0, 0) (0, 0)), path, False)
+    absPath <- makeAbsolute path
+    if fileExists
+        then do contents <- B.readFile path
+                return ( (Buffer (fromString contents) (0, 0) (0, 0))
+                       , (absPath, assumeLanguage path, False) )
+        else return emptyXB
 
 initFlipper :: String -> IO (Flipper ExtendedBuffer)
 initFlipper path = do
@@ -70,7 +76,9 @@ saveAndQuit [] _ _ = end
 saveAndQuit (x:xs) layout buffers' = do
     let w = primaryPane layout
     let buffers = flipTo x buffers'
-    printText w (ebCursors $ active buffers) (ebToString $ active buffers)
+    let (_, (_, language, _)) = active buffers
+    let cursors = ebCursors $ active buffers
+    printText language w cursors (ebToString $ active buffers)
     refresh w
     (newBuffers, cancel) <- chooseSave layout buffers
     if cancel then mainLoop layout newBuffers
@@ -93,7 +101,8 @@ promptOpen layout buffers = do
     path <- promptString u (B.pack "Open file:") $ B.pack ""
     fileExists <- doesFileExist path
     contents <- if fileExists then B.readFile path else return ""
-    let newBuffer = ((Buffer (fromString contents) (0, 0) (0, 0)), path, False)
+    let newBuffer = ( (Buffer (fromString contents) (0, 0) (0, 0))
+                    , (path, assumeLanguage path, False) )
     return $ add newBuffer buffers
   where
     u = utilityBar layout
@@ -108,9 +117,8 @@ chooseSave layout buffers = do
     chooseSave' save layout buffers
   where
     u = utilityBar layout
-    promptText = B.pack $ "Save changes to " ++ pathOrUntitled ++ "?"
-    pathOrUntitled = if path == "" then "Untitled" else path
-    (_, path, _) = active buffers
+    promptText = B.pack $ "Save changes to " ++ path ++ "?"
+    (_, (path, _, _)) = active buffers
 
 chooseSave' :: Maybe Bool
             -> Layout
@@ -125,7 +133,7 @@ chooseSave' (Just True) layout buffers = do
                  then chooseSave' (Just True) layout buffers
                  else return (newBuffers, False)
   where
-    (_, path, _) = active buffers
+    (_, (path, _, _)) = active buffers
 chooseSave' (Just False) _ buffers = return (buffers, False)
 chooseSave' Nothing _ buffers = return (buffers, True)
 
@@ -133,7 +141,7 @@ promptSave :: Layout
            -> Flipper ExtendedBuffer
            -> IO (Flipper ExtendedBuffer, Bool)
 promptSave layout buffers = case active buffers of
-    (b@(Buffer h _ _), path, False) -> do
+    (b@(Buffer h _ _), (path, _, False)) -> do
         newPath <- promptString u (B.pack "Save buffer to file:") $ B.pack path
         fileExists <- doesFileExist newPath
         let doConfirm = fileExists && path /= newPath
@@ -180,9 +188,10 @@ writeFXB path buffers = do
     (xb, x, y) = buffers
 
 writeXB :: FilePath -> ExtendedBuffer -> IO ExtendedBuffer
-writeXB path (b, _, False) = do
+writeXB path (b, (_, language, False)) = do
     newB <- writeBuffer path b
-    return $ (newB, path, False)
+    return $ (newB, (path, language, False))
+writeXB _ xb@(_, (_, _, True)) = return xb
 
 writeBuffer :: FilePath -> Buffer -> IO Buffer
 writeBuffer path (Buffer h@(n, p, f) c s) = do
@@ -197,7 +206,7 @@ resizeLayout buffers = do
     fillBackground (titleBar layout) titleBarColor
     mainLoop layout buffers
   where
-    (_, path, _) = active buffers
+    (_, (path, _, _)) = active buffers
 
 handleKey :: Curses.Key -> Layout -> Flipper ExtendedBuffer -> IO ()
 handleKey k layout buffers
@@ -258,11 +267,11 @@ handleKey k layout buffers
                   continue
   where
     unsavedIndices = findIndices unsavedXB $ toList buffers
-    ((Buffer h _ _), _, _) = active buffers
-    continue = mainLoop layout buffers
+    ((Buffer h _ _), _) = active buffers
     (TextView _ (r, _) _) = primaryPane layout
     action a = mainLoop layout $ mapF (mapXB a) buffers
     actionF a = mainLoop layout $ a buffers
+    continue = mainLoop layout buffers
     u = utilityBar layout
 
 -- Start Curses and initialize colors
@@ -291,21 +300,20 @@ start path = do
 mainLoop :: Layout -> Flipper ExtendedBuffer -> IO ()
 mainLoop layout buffers = do
     let lnOffset = lnWidth $ ebToString $ active buffers
-    let crs = cursor $ (\(x, _, _) -> x ) $ active buffers
-    let sel = selectionCursor $ (\(x, _, _) -> x ) $ active buffers
+    let ((Buffer h crs sel), (path, language, _)) = active buffers
+    -- let crs = cursor $ (\(x, _) -> x ) $ active buffers
+    -- let sel = selectionCursor $ (\(x, _) -> x ) $ active buffers
     let layout' = mapL (changeOffset' crs lnOffset) layout
     let w@(TextView _ _ moo@(rr, cc)) = primaryPane layout'
-    -- debug (utilityBar layout') $ show w
-    -- debug (utilityBar layout') $ (show $ ebSelection $ active buffers)
-    printText w (ebCursors $ active buffers) (ebToString $ active buffers)
+    printText language w cursors (ebToString $ active buffers)
     updateCursor w (rr, cc - lnOffset) crs
-    let (_, title, _) = active buffers
-    setTitle (titleBar layout') title
-    -- (show crs) ++ " " ++ (show sel) ++ " " ++ (show moo)
+    -- let (_, (path, _, _)) = active buffers
+    setTitle (titleBar layout') path
     refresh w
     c <- Curses.getCh
-    -- debug (utilityBar layout') $ B.pack $ show c
     handleKey c layout' buffers
+  where
+    cursors = ebCursors $ active buffers
 
 end :: IO ()
 end = Curses.endWin

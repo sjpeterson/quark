@@ -17,7 +17,6 @@
 module Quark.Types where
 
 import qualified Data.ByteString.Char8 as B
-import qualified Text.Regex.PCRE as R
 
 -- Type aliases for primitive types
 type Row = Int
@@ -25,6 +24,7 @@ type Col = Int
 type Index = Int
 type Selection = Int
 
+type Language = B.ByteString
 type Clipboard = B.ByteString
 type Name = B.ByteString
 
@@ -40,11 +40,11 @@ type Option a = (Char, B.ByteString, a)
 data Direction = Backward | Forward | Up | Down deriving (Show, Eq)
 
 -- Types and synonyms for lexers
-type Regex = B.ByteString  -- This name conflicts with Text.Regex.*
+type RegexString = B.ByteString
 
 {- A grammar is a list of (Token data constructor, regex) tuples in order of
    precedence, see for example Quark.Lexer.Haskell for an example -}
-type Grammar = [(B.ByteString -> Token, Regex)]
+type Grammar = [(B.ByteString -> Token, RegexString)]
 type CompiledGrammar = [(B.ByteString -> Token, B.ByteString -> B.ByteString)]
 
 data Token = Comment B.ByteString
@@ -64,4 +64,5 @@ data Token = Comment B.ByteString
            | BoolLiteral B.ByteString
            | Whitespace B.ByteString
            | Newline B.ByteString
+           | Decorator B.ByteString
            | Unclassified B.ByteString deriving (Show, Eq)

@@ -59,7 +59,8 @@ import Quark.Types ( Clipboard
                                , Down )
                    , Name
                    , Index
-                   , Selection )
+                   , Selection
+                   , Language )
 import Quark.History ( Edit ( Edit
                             , IndentLine )
                      , EditHistory
@@ -90,30 +91,32 @@ data Buffer = LockedBuffer String
 -- another buffer, but is non-editable. The low-tech version of this would be
 -- to clone a Buffer to a LockedBuffer
 
-type ExtendedBuffer = (Buffer, FilePath, Bool)
+type BufferMetaData = (FilePath, Language, Bool)
+type ExtendedBuffer = (Buffer, BufferMetaData)
 
 emptyXB :: ExtendedBuffer
-emptyXB = ((Buffer (fromString "") (0, 0) (0, 0)), "Untitled", False)
+emptyXB = ( (Buffer (fromString "") (0, 0) (0, 0))
+          , ("Untitled", "Undefined", False) )
 
 ebToString :: ExtendedBuffer -> ByteString
-ebToString ((Buffer h _ _), _, _) = toString h
+ebToString ((Buffer h _ _), _) = toString h
 
 ebSelection :: ExtendedBuffer -> (Index, Selection)
-ebSelection ((Buffer h crs sel), _, _) =
+ebSelection ((Buffer h crs sel), _) =
     (cursorToIx selectionStart s, distance selectionStart selectionEnd s)
   where
     (selectionStart, selectionEnd) = orderTwo crs sel
     s = toString h
 
 ebCursors :: ExtendedBuffer -> (Cursor, Cursor)
-ebCursors ((Buffer h crs sel), _, _) = (crs, sel)
+ebCursors ((Buffer h crs sel), _) = (crs, sel)
 
 -- TODO: monad/functor/whatever
 mapXB :: (Buffer -> Buffer) -> ExtendedBuffer -> ExtendedBuffer
-mapXB f (buffer, s, b) = (f buffer, s, b)
+mapXB f (buffer, m) = (f buffer, m)
 
 condense :: ExtendedBuffer -> Buffer
-condense (b, _, _) = b
+condense (b, _) = b
 
 unsaved :: Buffer -> Bool
 unsaved (Buffer (k, _, _) _ _) = case k of
@@ -121,7 +124,7 @@ unsaved (Buffer (k, _, _) _ _) = case k of
     _ -> True
 
 unsavedXB :: ExtendedBuffer -> Bool
-unsavedXB (b, _, _) = unsaved b
+unsavedXB (b, _) = unsaved b
 
 -- Input single character
 input :: Char -> Buffer -> Buffer

@@ -6,6 +6,7 @@ import Test.Tasty.HUnit
 import Data.ByteString (ByteString)
 
 import Quark.Lexer.Core
+import Quark.Lexer.Language
 import Quark.Lexer.Haskell
 import Quark.Types
 
@@ -30,6 +31,10 @@ lexerCoreUnitTests = testGroup "Unit tests for Lexer/Core.hs"
         splitT (Unclassified "test string") [3, 7]
   , testCase "Dummy" $
         assertEqual "" 1 1]
+
+lexerLanguageUnitTess = testGroup "Unit tests for Lexer/Language.hs"
+  [ testCase "assumeLanguage haskell" $
+      assertEqual "" "Haskell" $ assumeLanguage "/home/test/File.hs"]
 
 hsLexerUnitTests = testGroup "Unit tests for Lexer/Haskell.hs"
   [ testCase "Simple StringLiteral" $
