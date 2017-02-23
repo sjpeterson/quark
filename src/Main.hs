@@ -86,7 +86,9 @@ saveAndQuit (x:xs) layout buffers' = do
 
 saveAndClose :: Layout -> Flipper ExtendedBuffer -> IO ()
 saveAndClose layout buffers = do
-    (newBuffers, _) <- chooseSave layout buffers
+    (newBuffers, _) <- if unsavedXB $ active buffers
+                           then chooseSave layout buffers
+                           else return (buffers, False)
     case remove newBuffers of
         Just newerBuffers -> mainLoop layout newerBuffers
         Nothing           -> mainLoop layout $ (emptyXB, [], [])
