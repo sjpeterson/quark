@@ -17,8 +17,8 @@
 --------
 
 module Quark.Window.UtilityBar ( promptString
-                        , promptChoice
-                        , debug ) where
+                               , promptChoice
+                               , debug ) where
 
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B

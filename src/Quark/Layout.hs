@@ -18,7 +18,9 @@ module Quark.Layout ( Layout ( MinimalLayout
                              , BasicLayout
                              , VSplitLayout
                              , HSplitLayout )
-                    , mapL
+                    , firstL
+                    , secondL
+                    , bimapL
                     , titleBar
                     , utilityBar
                     , directoryPane
@@ -55,9 +57,19 @@ defaultLayout = do
                              else (minimalLayout r c)
     return layout
 
-mapL :: (Window -> Window) -> Layout -> Layout
-mapL f (MinimalLayout t u p) = MinimalLayout t u $ f p
-mapL f (BasicLayout t u d p) = BasicLayout t u d $ f p
+firstL :: (Window -> Window) -> Layout -> Layout
+firstL f (MinimalLayout t u p) = MinimalLayout t u (f p)
+firstL f (BasicLayout t u d p) = BasicLayout t u d (f p)
+firstL f (VSplitLayout t u d p s) = VSplitLayout t u d (f p) s
+firstL f (HSplitLayout t u d p s) = HSplitLayout t u d (f p) s
+
+secondL :: (Window -> Window) -> Layout -> Layout
+secondL f (VSplitLayout t u d p s) = VSplitLayout t u d p (f s)
+secondL f (HSplitLayout t u d p s) = HSplitLayout t u d p (f s)
+
+bimapL :: (Window -> Window) -> (Window -> Window) -> Layout -> Layout
+bimapL f0 f1 (VSplitLayout t u d p s) = VSplitLayout t u d (f0 p) (f1 s)
+bimapL f0 f1 (HSplitLayout t u d p s) = HSplitLayout t u d (f0 p) (f1 s)
 
 basicLayout :: Int -> Int -> IO (Layout)
 basicLayout r c = do

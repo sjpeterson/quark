@@ -16,7 +16,8 @@
 --
 --------
 
-module Quark.Window.TextView where
+module Quark.Window.TextView ( printText
+                             , updateOffset ) where
 
 import qualified UI.HSCurses.Curses as Curses
 
@@ -36,8 +37,24 @@ import Quark.Colors
 import Quark.Types
 import Quark.Cursor (orderTwo)
 
-refresh :: Window -> IO ()
-refresh (TextView w _ _)  = Curses.wRefresh w
+-- TODO: add text overflow hints
+printText :: Language -> Window -> (Cursor, Cursor) -> ByteString -> IO ()
+printText language w'@(TextView w (r, c) (rr, cc)) cursors text = do
+    Curses.wclear w
+    mapM_ (\(k, l, t, s) -> printTokenLine language k l t s w') $
+        zip4 [0..(r - 2)] lineNumbers tokens selections
+    Curses.wRefresh w
+  where
+    n =  (length $ B.lines text) + if nlTail text then 1 else 0
+    lnc = (length $ show n) + 1
+    lineNumbers = map (padToLen lnc) (map (B.pack . show) $ [rr + 1..n]) ++ repeat ""
+    tokens = drop rr $ tokenLines $ tokenize language text
+    selections = map (selOnLine cursors) [rr + 0..n]
+
+updateOffset :: Cursor -> Int -> Window -> Window
+updateOffset crs ccOffset t = case cursorDirection crs ccOffset t of
+    Nothing -> t
+    Just d  -> updateOffset crs ccOffset (changeOffset d t)
 
 cursorDirection :: Cursor -> Int -> Window -> Maybe Direction
 cursorDirection (x, y) y0 (TextView _ (r, c) (rr, cc))
@@ -46,11 +63,6 @@ cursorDirection (x, y) y0 (TextView _ (r, c) (rr, cc))
     | y < (cc - y0)        = Just Backward
     | y >= cc + c - y0 - 1 = Just Forward
     | otherwise            = Nothing
-
-changeOffset' :: Cursor -> Int -> Window -> Window
-changeOffset' crs ccOffset t = case cursorDirection crs ccOffset t of
-    Nothing -> t
-    Just d  -> changeOffset' crs ccOffset (changeOffset d t)
 
 changeOffset :: Direction -> Window -> Window
 changeOffset d (TextView w size (rr, cc))
@@ -61,28 +73,6 @@ changeOffset d (TextView w size (rr, cc))
   where
     rrStep = 3
     ccStep = 5
-
--- TODO: add text overflow hints
-printText :: Language -> Window -> (Cursor, Cursor) -> ByteString -> IO ()
-printText language w'@(TextView w (r, c) (rr, cc)) cursors text = do
-    Curses.wclear w
-    mapM_ (\(k, l, t, s) -> printTokenLine language k l t s w') $
-        zip4 [0..(r - 2)] lineNumbers tokens selections
-  where
-    n =  (length $ B.lines text) + if nlTail text then 1 else 0
-    lnc = (length $ show n) + 1
-    lineNumbers = map (padToLen lnc) (map (B.pack . show) $ [rr + 1..n]) ++ repeat ""
-    tokens = drop rr $ tokenLines $ tokenize language text
-    selections = map (selOnLine cursors) [rr + 0..n]
-
-selOnLine :: (Cursor, Cursor) -> Row -> (Int, Int)
-selOnLine (crs, sel) r
-    | r < rIn || r > rOut = (-1, -1)
-    | otherwise           = (cIn', cOut')
-  where
-    cIn' = if r == rIn then cIn else 0
-    cOut' = if r == rOut then cOut else (-1)
-    ((rIn, cIn), (rOut, cOut)) = orderTwo crs sel
 
 printTokenLine :: Language
                -> Int
@@ -104,6 +94,15 @@ printTokenLine language k lNo tokens (cIn, cOut) w' = do
     printToken (t, selected) = do
         setTokenColor language t selected w'
         printToken' t w'
+
+selOnLine :: (Cursor, Cursor) -> Row -> (Int, Int)
+selOnLine (crs, sel) r
+    | r < rIn || r > rOut = (-1, -1)
+    | otherwise           = (cIn', cOut')
+  where
+    cIn' = if r == rIn then cIn else 0
+    cOut' = if r == rOut then cOut else (-1)
+    ((rIn, cIn), (rOut, cOut)) = orderTwo crs sel
 
 selOnTokenLine :: (Col, Col) -> [Token] -> [(Token, Bool)]
 selOnTokenLine (-1, -1) ts = zip ts $ repeat False

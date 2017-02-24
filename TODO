@@ -1,4 +1,6 @@
 Functionality:
+  - find
+    - ...and replace
   - Show overflow hints (~)
   - indicate 80 column width
   - better handle terminal resize
@@ -6,6 +8,8 @@ Functionality:
   - tab completion/hints for file open
   - some form of interface showing open buffers
   - layout switching
+
+type Project = (FilePath, Flipper ExtendedBuffer)
 
 Possible functional or stylistic improvements:
   - Make Flipper foldable and traversable

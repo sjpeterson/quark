@@ -43,7 +43,6 @@ import Quark.Types
 import Quark.Helpers ((~~))
 import Quark.Colors (defaultColor)
 
--- Consider lens or microlens to make this neater
 mapT :: (ByteString -> a) -> Token -> a
 mapT f (Comment s)       = f s
 mapT f (DocComment s)    = f s

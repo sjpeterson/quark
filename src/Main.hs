@@ -30,6 +30,7 @@ import qualified UI.HSCurses.Curses as Curses
 
 import Data.Char ( isPrint )
 import Data.List ( findIndices )
+import Data.Bifunctor ( first )
 import System.Directory ( makeAbsolute )
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B
@@ -53,7 +54,6 @@ initLayout path = do
     layout <- defaultLayout
     fillBackground (titleBar layout) titleBarColor
     setTitle (titleBar layout) path
-    fileExists <- doesFileExist path
     return layout
 
 initBuffer :: String -> IO (ExtendedBuffer)
@@ -79,7 +79,6 @@ saveAndQuit (x:xs) layout buffers' = do
     let (_, (_, language, _)) = active buffers
     let cursors = ebCursors $ active buffers
     printText language w cursors (ebToString $ active buffers)
-    refresh w
     (newBuffers, cancel) <- chooseSave layout buffers
     if cancel then mainLoop layout newBuffers
               else saveAndQuit xs layout newBuffers
@@ -197,7 +196,7 @@ writeXB _ xb@(_, (_, _, True)) = return xb
 
 writeBuffer :: FilePath -> Buffer -> IO Buffer
 writeBuffer path (Buffer h@(n, p, f) c s) = do
-    B.writeFile path $ nlEnd $ toString h -- no real need to unpack
+    B.writeFile path $ nlEnd $ toString h
     return $ Buffer (0, p, f) c s
   where
     nlEnd s  = if nlTail s then s else s ~~ "\n"
@@ -271,17 +270,10 @@ handleKey k layout buffers
     unsavedIndices = findIndices unsavedXB $ toList buffers
     ((Buffer h _ _), _) = active buffers
     (TextView _ (r, _) _) = primaryPane layout
-    action a = mainLoop layout $ mapF (mapXB a) buffers
+    action a = mainLoop layout $ firstF (first a) buffers
     actionF a = mainLoop layout $ a buffers
     continue = mainLoop layout buffers
     u = utilityBar layout
-
--- Start Curses and initialize colors
-cursesMode :: IO ()
-cursesMode = do
-    Curses.echo False
-    Curses.raw True     -- disable flow control characters
-    Curses.nl False     -- maps Enter to C-m rather than C-j
 
 start :: String -> IO ()
 start path = do
@@ -291,7 +283,6 @@ start path = do
                          Curses.useDefaultColors
                          defineColors
                  else return ()
-    --cursesMode
     Curses.resetParams
     Curses.wclear Curses.stdScr
     Curses.refresh
@@ -303,15 +294,11 @@ mainLoop :: Layout -> Flipper ExtendedBuffer -> IO ()
 mainLoop layout buffers = do
     let lnOffset = lnWidth $ ebToString $ active buffers
     let ((Buffer h crs sel), (path, language, _)) = active buffers
-    -- let crs = cursor $ (\(x, _) -> x ) $ active buffers
-    -- let sel = selectionCursor $ (\(x, _) -> x ) $ active buffers
-    let layout' = mapL (changeOffset' crs lnOffset) layout
-    let w@(TextView _ _ moo@(rr, cc)) = primaryPane layout'
+    let layout' = firstL (updateOffset crs lnOffset) layout
+    let w@(TextView _ _ (rr, cc)) = primaryPane layout'
+    setTitle (titleBar layout') $ path ++ (show crs)
     printText language w cursors (ebToString $ active buffers)
     updateCursor w (rr, cc - lnOffset) crs
-    -- let (_, (path, _, _)) = active buffers
-    setTitle (titleBar layout') path
-    refresh w
     c <- Curses.getCh
     handleKey c layout' buffers
   where
@@ -321,8 +308,4 @@ end :: IO ()
 end = Curses.endWin
 
 main :: IO ()
-main = do
-    args <- getArgs
-    let path = (\x -> if (length x) == 0 then "" else head x) args
-    start path
-    -- or bracket pattern?
+main = (\x -> if (length x) == 0 then "" else head x) <$> getArgs >>= start

@@ -16,17 +16,17 @@
 --------
 
 module Quark.Flipper ( Flipper
-               , active
-               , add
-               , remove
-               , flipNext
-               , flipPrevious
-               , flipTo
-               , nudge
-               , nudgeBack
-               , nudgeTo
-               , mapF
-               , toList ) where
+                     , active
+                     , add
+                     , remove
+                     , flipNext
+                     , flipPrevious
+                     , flipTo
+                     , nudge
+                     , nudgeBack
+                     , nudgeTo
+                     , firstF
+                     , toList ) where
 
 -- (current, previous, next)
 type Flipper a = (a, [a], [a])
@@ -41,6 +41,9 @@ remove :: Flipper a -> Maybe (Flipper a)
 remove (_, x:xs, ys) = Just (x, xs, ys)
 remove (_, [], y:ys) = Just (y, [], ys)
 remove _             = Nothing
+
+replace :: a -> Flipper a -> Flipper a
+replace newX (x, y, z) = (newX, y, z)
 
 flipNext :: Flipper a -> Flipper a
 flipNext (x, [], []) = (x, [], [])
@@ -70,8 +73,8 @@ nudgeTo k f@(x, y, z) = case compare (mod k $ length' f) (length y) of
     LT -> nudgeTo k $ nudge f
     _  -> nudgeTo k $ nudgeBack f
 
-mapF :: (a -> a) -> Flipper a -> Flipper a
-mapF f (x, y, z) = (f x, y, z)
+firstF :: (a -> a) -> Flipper a -> Flipper a
+firstF f (x, y, z) = (f x, y, z)
 
 toList :: Flipper a -> [a]
 toList (x, y, z) = (reverse y) ++ x:z

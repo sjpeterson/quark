@@ -23,7 +23,6 @@ module Quark.Buffer ( Buffer ( Buffer
                     , ebToString
                     , ebSelection
                     , ebCursors
-                    , mapXB
                     , condense
                     , editHistory
                     , cursor
@@ -110,10 +109,6 @@ ebSelection ((Buffer h crs sel), _) =
 
 ebCursors :: ExtendedBuffer -> (Cursor, Cursor)
 ebCursors ((Buffer h crs sel), _) = (crs, sel)
-
--- TODO: monad/functor/whatever
-mapXB :: (Buffer -> Buffer) -> ExtendedBuffer -> ExtendedBuffer
-mapXB f (buffer, m) = (f buffer, m)
 
 condense :: ExtendedBuffer -> Buffer
 condense (b, _) = b
