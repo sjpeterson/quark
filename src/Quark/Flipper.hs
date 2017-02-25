@@ -19,6 +19,7 @@ module Quark.Flipper ( Flipper
                      , active
                      , add
                      , remove
+                     , replace
                      , flipNext
                      , flipPrevious
                      , flipTo

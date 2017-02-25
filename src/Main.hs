@@ -21,127 +21,122 @@ module Main where
 import System.Environment ( getArgs )
 import System.Directory ( doesFileExist
                         , doesDirectoryExist
-                        , makeAbsolute)
+                        , makeAbsolute )
+import System.FilePath ( addTrailingPathSeparator )
 import System.Clipboard
-
-import qualified UI.HSCurses.Curses as Curses
--- import qualified UI.HSCurses.CursesHelper as CursesH
 -- import Control.Exception (bracket_)
-
 import Data.Char ( isPrint )
 import Data.List ( findIndices )
 import Data.Bifunctor ( first )
-import System.Directory ( makeAbsolute )
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B
+
+import qualified UI.HSCurses.Curses as Curses
+-- import qualified UI.HSCurses.CursesHelper as CursesH
 
 import Quark.Window.Core
 import Quark.Window.TitleBar
 import Quark.Window.UtilityBar
 import Quark.Window.TextView
 import Quark.Lexer.Language ( assumeLanguage )
---import Quark.Lexer.Haskell
 import Quark.Layout
 import Quark.Buffer
 import Quark.Flipper
+import Quark.Project
 import Quark.History
 import Quark.Types
 import Quark.Helpers
 import Quark.Colors
 
-initLayout :: String -> IO (Layout)
-initLayout path = do
+initLayout :: IO (Layout)
+initLayout = do
     layout <- defaultLayout
     fillBackground (titleBar layout) titleBarColor
-    setTitle (titleBar layout) path
     return layout
 
 initBuffer :: String -> IO (ExtendedBuffer)
 initBuffer path = do
     fileExists <- doesFileExist path
-    absPath <- makeAbsolute path
     if fileExists
         then do contents <- B.readFile path
                 return ( (Buffer (fromString contents) (0, 0) (0, 0))
-                       , (absPath, assumeLanguage path, False) )
+                       , (path, assumeLanguage path, False) )
         else return emptyXB
 
-initFlipper :: String -> IO (Flipper ExtendedBuffer)
-initFlipper path = do
+initProject :: String -> IO (Project)
+initProject path = do
     extendedBuffer <- initBuffer path
-    return (extendedBuffer, [], [])
+    return ((extendedBuffer, [], []), assumeRoot path)
 
-saveAndQuit :: [Int] -> Layout -> Flipper ExtendedBuffer -> IO ()
+saveAndQuit :: [Int] -> Layout -> Project -> IO ()
 saveAndQuit [] _ _ = end
-saveAndQuit (x:xs) layout buffers' = do
+saveAndQuit (x:xs) layout project' = do
     let w = primaryPane layout
-    let buffers = flipTo x buffers'
-    let (_, (_, language, _)) = active buffers
-    let cursors = ebCursors $ active buffers
-    printText language w cursors (ebToString $ active buffers)
-    (newBuffers, cancel) <- chooseSave layout buffers
-    if cancel then mainLoop layout newBuffers
-              else saveAndQuit xs layout newBuffers
+    let project = first (flipTo x) project'
+    let activeBuffer@(_, (_, language, _)) = activeP project
+    let cursors = ebCursors $ activeBuffer
+    printText language w cursors (ebToString activeBuffer)
+    (newProject, cancel) <- chooseSave layout project
+    if cancel then mainLoop layout newProject
+              else saveAndQuit xs layout newProject
 
-saveAndClose :: Layout -> Flipper ExtendedBuffer -> IO ()
-saveAndClose layout buffers = do
-    (newBuffers, _) <- if unsavedXB $ active buffers
-                           then chooseSave layout buffers
-                           else return (buffers, False)
+saveAndClose :: Layout -> Project -> IO ()
+saveAndClose layout project = do
+    ((newBuffers, _), _) <- if unsavedXB $ activeP project
+                                then chooseSave layout project
+                                else return (project, False)
     case remove newBuffers of
-        Just newerBuffers -> mainLoop layout newerBuffers
-        Nothing           -> mainLoop layout $ (emptyXB, [], [])
+        Just newerBuffers -> mainLoop layout ( newerBuffers
+                                             , projectRoot project)
+        Nothing           -> mainLoop layout ( (emptyXB, [], [])
+                                             , projectRoot project )
 
 
-newBuffer :: Layout -> Flipper ExtendedBuffer -> IO ()
-newBuffer layout buffers = mainLoop layout $
-    add emptyXB buffers
+newBuffer :: Layout -> Project -> IO ()
+newBuffer layout project = mainLoop layout $ first (add emptyXB) project
 
-promptOpen :: Layout -> Flipper ExtendedBuffer -> IO (Flipper ExtendedBuffer)
-promptOpen layout buffers = do
-    path <- promptString u (B.pack "Open file:") $ B.pack ""
-    fileExists <- doesFileExist path
-    contents <- if fileExists then B.readFile path else return ""
-    let newBuffer = ( (Buffer (fromString contents) (0, 0) (0, 0))
-                    , (path, assumeLanguage path, False) )
-    return $ add newBuffer buffers
+promptOpen :: Layout -> Project -> IO (Project)
+promptOpen layout project = do
+    path <- promptString u (B.pack "Open file:") $ B.pack defaultPath
+    if path == "\ESC"
+        then return project
+        else do
+            fileExists <- doesFileExist path
+            contents <- if fileExists then B.readFile path else return ""
+            let newBuffer' = ( (Buffer (fromString contents) (0, 0) (0, 0))
+                             , (path, assumeLanguage path, False) )
+            return $ first (add newBuffer') project
   where
+    defaultPath = addTrailingPathSeparator $ projectRoot project
     u = utilityBar layout
 
-chooseSave :: Layout
-           -> Flipper ExtendedBuffer
-           -> IO (Flipper ExtendedBuffer, Bool)
-chooseSave layout buffers = do
+chooseSave :: Layout -> Project -> IO (Project, Bool)
+chooseSave layout project = do
     save <- promptChoice u promptText [ ('y', "Yes", Just True)
                                       , ('n', "No", Just False)
                                       , ('\ESC', "Cancel", Nothing) ]
-    chooseSave' save layout buffers
+    chooseSave' save layout project
   where
     u = utilityBar layout
     promptText = B.pack $ "Save changes to " ++ path ++ "?"
-    (_, (path, _, _)) = active buffers
+    (_, (path, _, _)) = activeP project
 
-chooseSave' :: Maybe Bool
-            -> Layout
-            -> Flipper ExtendedBuffer
-            -> IO (Flipper ExtendedBuffer, Bool)
-chooseSave' (Just True) layout buffers = do
-    (newBuffers, canceled) <- if path == "" then promptSave layout buffers
-                                            else writeFXB path buffers
+chooseSave' :: Maybe Bool -> Layout -> Project -> IO (Project, Bool)
+chooseSave' (Just True) layout project = do
+    (newProject, canceled) <- if path == "" then promptSave layout project
+                                            else writeP path project
     if canceled
-        then chooseSave layout buffers
-        else if newBuffers == buffers
-                 then chooseSave' (Just True) layout buffers
-                 else return (newBuffers, False)
+        then chooseSave layout project
+        else if newProject == project
+                 then chooseSave' (Just True) layout project
+                 else return (newProject, False)
   where
-    (_, (path, _, _)) = active buffers
-chooseSave' (Just False) _ buffers = return (buffers, False)
-chooseSave' Nothing _ buffers = return (buffers, True)
+    (_, (path, _, _)) = activeP project
+chooseSave' (Just False) _ project = return (project, False)
+chooseSave' Nothing _ project = return (project, True)
 
-promptSave :: Layout
-           -> Flipper ExtendedBuffer
-           -> IO (Flipper ExtendedBuffer, Bool)
-promptSave layout buffers = case active buffers of
+promptSave :: Layout -> Project -> IO (Project, Bool)
+promptSave layout project = case activeP project of
     (b@(Buffer h _ _), (path, _, False)) -> do
         newPath <- promptString u (B.pack "Save buffer to file:") $ B.pack path
         fileExists <- doesFileExist newPath
@@ -151,42 +146,35 @@ promptSave layout buffers = case active buffers of
             then do debug u $ B.pack $ if newPath == ""
                                            then "Buffer was not saved"
                                            else path ++ " is a directory"
-                    return (buffers, False)
+                    return (project, False)
             else if doConfirm
-                     then confirmSave newPath layout buffers
+                     then confirmSave newPath layout project
                      else if newPath == "\ESC"
-                              then return (buffers, True)
+                              then return (project, True)
                               else do debug u $ B.pack $ "Saved " ++ newPath
-                                      writeFXB newPath buffers
+                                      writeP newPath project
     _                            -> do
         debug u "Can't save protected buffer"
-        return (buffers, True)
+        return (project, True)
   where
     u = utilityBar layout
 
-confirmSave :: FilePath
-            -> Layout
-            -> Flipper ExtendedBuffer
-            -> IO (Flipper ExtendedBuffer, Bool)
-confirmSave newPath layout buffers = do
+confirmSave :: FilePath -> Layout -> Project -> IO (Project, Bool)
+confirmSave newPath layout project = do
     overwrite <- promptChoice u promptText [ ('y', "Yes", True)
                                            , ('n', "No", False) ]
     if overwrite then do debug u $ "Saved " ~~ (B.pack newPath)
-                         writeFXB newPath buffers
+                         writeP newPath project
                  else do debug u "Buffer was not saved"
-                         return (buffers, False)
+                         return (project, False)
   where
     u = utilityBar layout
     promptText = (B.pack newPath) ~~ " already exists, overwrite?"
 
-writeFXB :: FilePath
-         -> Flipper ExtendedBuffer
-         -> IO (Flipper ExtendedBuffer, Bool)
-writeFXB path buffers = do
-    newXB <- writeXB path xb
-    return ((newXB, x, y), False)
-  where
-    (xb, x, y) = buffers
+writeP :: FilePath -> Project -> IO (Project, Bool)
+writeP path project = do
+    newXB <- writeXB path $ activeP project
+    return (first (replace newXB) project, False)
 
 writeXB :: FilePath -> ExtendedBuffer -> IO ExtendedBuffer
 writeXB path (b, (_, language, False)) = do
@@ -201,38 +189,38 @@ writeBuffer path (Buffer h@(n, p, f) c s) = do
   where
     nlEnd s  = if nlTail s then s else s ~~ "\n"
 
-resizeLayout :: Flipper ExtendedBuffer -> IO ()
-resizeLayout buffers = do
+resizeLayout :: Project -> IO ()
+resizeLayout project = do
     layout <- defaultLayout
     fillBackground (titleBar layout) titleBarColor
-    mainLoop layout buffers
+    mainLoop layout project
   where
-    (_, (path, _, _)) = active buffers
+    (_, (path, _, _)) = activeP project
 
-handleKey :: Curses.Key -> Layout -> Flipper ExtendedBuffer -> IO ()
-handleKey k layout buffers
-    | k == translateKey "C-q"       = saveAndQuit unsavedIndices layout buffers
-    | k == translateKey "C-w"       = saveAndClose layout buffers
+handleKey :: Curses.Key -> Layout -> Project -> IO ()
+handleKey k layout project
+    | k == translateKey "C-q"       = saveAndQuit unsavedIndices layout project
+    | k == translateKey "C-w"       = saveAndClose layout project
     | k == translateKey "C-s"       = do
-        (newBuffers, _) <- promptSave layout buffers
-        mainLoop layout newBuffers
+        (newProject, _) <- promptSave layout project
+        mainLoop layout newProject
     | k == translateKey "C-x"       = do
-        setClipboardString $ B.unpack $ selection $ condense $ active buffers
+        setClipboardString $ B.unpack $ selection $ condense $ activeP project
         action delete
     | k == translateKey "C-c"       = do
-        setClipboardString $ B.unpack $ selection $ condense $ active buffers
-        mainLoop layout buffers
+        setClipboardString $ B.unpack $ selection $ condense $ activeP project
+        mainLoop layout project
     | k == translateKey "C-v"       = do
         s <- getClipboardString
-        case s of Nothing -> mainLoop layout buffers
+        case s of Nothing -> mainLoop layout project
                   Just s' -> action (paste $ B.pack s')
     | k == translateKey "C-z"       = action undo
     | k == translateKey "C-y"       = action redo
     | k == translateKey "C-a"       = action selectAll
-    | k == translateKey "C-n"       = newBuffer layout buffers
+    | k == translateKey "C-n"       = newBuffer layout project
     | k == translateKey "C-o"       = do
-        newBuffers <- promptOpen layout buffers
-        mainLoop layout newBuffers
+        newProject <- promptOpen layout project
+        mainLoop layout newProject
     | k == translateKey "Backspace" = action backspace
     | k == translateKey "Delete"    = action delete
     | k == translateKey "Return"    = action nlAutoIndent
@@ -258,7 +246,7 @@ handleKey k layout buffers
     | k == translateKey "C-^Home"   = action (startOfFile False)
     | k == translateKey "C-Left"    = actionF flipPrevious
     | k == translateKey "C-Right"   = actionF flipNext
-    | k == Curses.KeyResize         = resizeLayout buffers
+    | k == Curses.KeyResize         = resizeLayout project
     | otherwise                     = case k of
           (Curses.KeyChar c) -> case isPrint c of
                                     True -> action (input c)
@@ -267,12 +255,12 @@ handleKey k layout buffers
           _ -> do debug (utilityBar layout) $ B.pack $ show k
                   continue
   where
-    unsavedIndices = findIndices unsavedXB $ toList buffers
-    ((Buffer h _ _), _) = active buffers
+    unsavedIndices = findIndices unsavedXB $ (\(x, _) -> toList x) project
+    ((Buffer h _ _), _) = activeP project
     (TextView _ (r, _) _) = primaryPane layout
-    action a = mainLoop layout $ firstF (first a) buffers
-    actionF a = mainLoop layout $ a buffers
-    continue = mainLoop layout buffers
+    action a = mainLoop layout $ first (firstF (first a)) project
+    actionF a = mainLoop layout $ first a project
+    continue = mainLoop layout project
     u = utilityBar layout
 
 start :: String -> IO ()
@@ -286,23 +274,25 @@ start path = do
     Curses.resetParams
     Curses.wclear Curses.stdScr
     Curses.refresh
-    layout <- initLayout path
-    buffers <- initFlipper path
-    mainLoop layout buffers
+    absPath <- makeAbsolute path
+    layout <- initLayout
+    project <- initProject absPath
+    mainLoop layout project
 
-mainLoop :: Layout -> Flipper ExtendedBuffer -> IO ()
-mainLoop layout buffers = do
-    let lnOffset = lnWidth $ ebToString $ active buffers
-    let ((Buffer h crs sel), (path, language, _)) = active buffers
+mainLoop :: Layout -> Project -> IO ()
+mainLoop layout project = do
+    let lnOffset = lnWidth $ ebToString activeBuffer
+    let ((Buffer h crs sel), (path, language, _)) = activeBuffer
     let layout' = firstL (updateOffset crs lnOffset) layout
     let w@(TextView _ _ (rr, cc)) = primaryPane layout'
     setTitle (titleBar layout') $ path ++ (show crs)
-    printText language w cursors (ebToString $ active buffers)
+    printText language w cursors (ebToString activeBuffer)
     updateCursor w (rr, cc - lnOffset) crs
     c <- Curses.getCh
-    handleKey c layout' buffers
+    handleKey c layout' project
   where
-    cursors = ebCursors $ active buffers
+    activeBuffer = activeP project
+    cursors = ebCursors activeBuffer
 
 end :: IO ()
 end = Curses.endWin

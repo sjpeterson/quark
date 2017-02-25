@@ -36,6 +36,7 @@ import Quark.Buffer ( Buffer ( Buffer )
                     , endOfLine
                     , startOfLine
                     , input
+                    , paste
                     , delete
                     , backspace
                     , moveCursor
@@ -45,6 +46,7 @@ import Quark.Types
 import Quark.History ( fromString
                      , toString )
 import Quark.Colors
+import Quark.IOHelpers ( autoComplete )
 
 
 prompt :: Int -> Window -> ByteString -> IO ()
@@ -116,16 +118,27 @@ translateChar :: Char -> String
 translateChar '\ESC' = "ESC"
 translateChar c = [toUpper c]
 
--- TODO: This repeats a subset of what's in Main.hs - overload?
+promptAutoComplete :: Window -> Buffer -> Int -> IO (String)
+promptAutoComplete u@(UtilityBar w _) buffer@(Buffer h cursor _) k = do
+    s <- autoComplete k $ B.unpack $ toString h
+    prompt 1 u $ (toString h) ~~ (B.pack s)
+    updateCursor u (1, length s) cursor
+    Curses.wRefresh w
+    c <- Curses.getCh
+    if c == Curses.KeyChar '\t'
+        then promptAutoComplete u buffer (k + 1)
+        else handleKey c u (paste (B.pack s) buffer)
+
 handleKey :: Curses.Key -> Window -> Buffer -> IO (String)
 handleKey (Curses.KeyChar c) u buffer@(Buffer h _ _)
-    | c == '\ESC' = return $ "\ESC"
+    | c == '\ESC' = return "\ESC"
     | c == '\r'   = return $ B.unpack $ toString h
     | c == '\DEL' = cGetLine u $ backspace buffer
     | c == '\SUB' = cGetLine u $ undo buffer
     | c == '\EM'  = cGetLine u $ redo buffer
+    | c == '\t'   = promptAutoComplete u buffer 0
     | isPrint c   = cGetLine u $ input c buffer
-    | otherwise   = cGetLine u $ buffer
+    | otherwise   = cGetLine u buffer
 handleKey k u buffer
     | k == Curses.KeyDC = cGetLine u $ delete buffer
     | k == Curses.KeyLeft = cGetLine u $ (moveCursor Backward) buffer

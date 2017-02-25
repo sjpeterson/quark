@@ -19,15 +19,27 @@
 --
 ---------------------------------------------------------------
 
-module Quark.Project where
+module Quark.Project ( Project
+                     , projectRoot
+                     , setRoot
+                     , assumeRoot
+                     , activeP ) where
 
-import qualified Quark.Buffer as QB
+import System.FilePath ( takeDirectory )
 
-type Project = (FilePath, Flipper QB.ExtendedBuffer)
+import Quark.Buffer
+import Quark.Flipper
+
+type Project = (Flipper ExtendedBuffer, FilePath)
 
 projectRoot :: Project -> FilePath
-projectRoot (path, _) = path
+projectRoot (_, path) = path
 
 setRoot :: FilePath -> Project -> Project
-setRoot newPath (_, buffers) = (newPath, buffers)
+setRoot newPath (buffers, _) = (buffers, newPath)
 
+assumeRoot :: FilePath -> FilePath
+assumeRoot = takeDirectory
+
+activeP :: Project -> ExtendedBuffer
+activeP (buffers, _) = active buffers

@@ -32,5 +32,5 @@ data Window = TitleBar Curses.Window Size
 updateCursor :: Window -> Offset -> Cursor -> IO ()
 updateCursor (TextView w _ _) (x0, y0) (x, y) =
     Curses.wMove w (x - x0) (y - y0) >> Curses.wRefresh w
-updateCursor (UtilityBar w _) (r, _) (_, y) =
-    Curses.wMove w r y >> Curses.wRefresh w
+updateCursor (UtilityBar w (rr, cc)) (r, c) (_, y) =
+    Curses.wMove w (min r rr) (min (y + c) cc) >> Curses.wRefresh w
