@@ -66,3 +66,11 @@ data Token = Comment B.ByteString
            | Newline B.ByteString
            | Decorator B.ByteString
            | Unclassified B.ByteString deriving (Show, Eq)
+
+-- A universal type for keys
+data Key = CharKey Char
+         | CtrlKey Char
+         | FnKey Int
+         | SpecialKey String
+         | ResizeKey
+         | InvalidKey String deriving (Show, Eq)

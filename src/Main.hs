@@ -24,7 +24,7 @@ import System.Directory ( doesFileExist
                         , makeAbsolute )
 import System.FilePath ( addTrailingPathSeparator )
 import System.Clipboard
--- import Control.Exception (bracket_)
+import Control.Exception (bracket_)
 import Data.Char ( isPrint )
 import Data.List ( findIndices )
 import Data.Bifunctor ( first )
@@ -33,6 +33,8 @@ import qualified Data.ByteString.Char8 as B
 
 import qualified UI.HSCurses.Curses as Curses
 -- import qualified UI.HSCurses.CursesHelper as CursesH
+
+import qualified Quark.Frontend.HSCurses as QFE
 
 import Quark.Window.Core
 import Quark.Window.TitleBar
@@ -69,7 +71,7 @@ initProject path = do
     return ((extendedBuffer, [], []), assumeRoot path)
 
 saveAndQuit :: [Int] -> Layout -> Project -> IO ()
-saveAndQuit [] _ _ = end
+saveAndQuit [] _ _ = return ()
 saveAndQuit (x:xs) layout project' = do
     let w = primaryPane layout
     let project = first (flipTo x) project'
@@ -199,63 +201,61 @@ resizeLayout layout' project = do
   where
     (_, (path, _, _)) = activeP project
 
-handleKey :: Curses.Key -> Layout -> Project -> IO ()
-handleKey k layout project
-    | k == translateKey "C-q"       = saveAndQuit unsavedIndices layout project
-    | k == translateKey "C-w"       = saveAndClose layout project
-    | k == translateKey "C-s"       = do
+handleKey :: Layout -> Project -> Key -> IO ()
+handleKey layout project (CharKey c) =
+    mainLoop layout $ first (firstF $ first $ input c) project
+handleKey layout project k
+    | k == CtrlKey 'q' = saveAndQuit unsavedIndices layout project
+    | k == CtrlKey 'w' = saveAndClose layout project
+    | k == CtrlKey 's' = do
         (newProject, _) <- promptSave layout project
         mainLoop layout newProject
-    | k == translateKey "C-x"       = do
+    | k == CtrlKey 'x' = do
         setClipboardString $ B.unpack $ selection $ condense $ activeP project
         action delete
-    | k == translateKey "C-c"       = do
+    | k == CtrlKey 'c' = do
         setClipboardString $ B.unpack $ selection $ condense $ activeP project
         mainLoop layout project
-    | k == translateKey "C-v"       = do
+    | k == CtrlKey 'v' = do
         s <- getClipboardString
         case s of Nothing -> mainLoop layout project
                   Just s' -> action (paste $ B.pack s')
-    | k == translateKey "C-z"       = action undo
-    | k == translateKey "C-y"       = action redo
-    | k == translateKey "C-a"       = action selectAll
-    | k == translateKey "C-n"       = newBuffer layout project
-    | k == translateKey "C-o"       = do
+    | k == CtrlKey 'z' = action undo
+    | k == CtrlKey 'y' = action redo
+    | k == CtrlKey 'a' = action selectAll
+    | k == CtrlKey 'n' = newBuffer layout project
+    | k == CtrlKey 'o' = do
         newProject <- promptOpen layout project
         mainLoop layout newProject
-    | k == translateKey "Backspace" = action backspace
-    | k == translateKey "Delete"    = action delete
-    | k == translateKey "Return"    = action nlAutoIndent
-    | k == translateKey "Tab"       = action (tab 4)
-    | k == translateKey "^Tab"      = action (unTab 4)
-    | k == translateKey "Up"        = action (moveCursor Up)
-    | k == translateKey "Down"      = action (moveCursor Down)
-    | k == translateKey "Left"      = action (moveCursor Backward)
-    | k == translateKey "Right"     = action (moveCursor Forward)
-    | k == translateKey "^PgUp"     = action (selectMoveCursor Up)
-    | k == translateKey "^PgDn"     = action (selectMoveCursor Down)
-    | k == translateKey "^Left"     = action (selectMoveCursor Backward)
-    | k == translateKey "^Right"    = action (selectMoveCursor Forward)
-    | k == translateKey "PgUp"      = action (moveCursorN (r - 1) Up)
-    | k == translateKey "PgDn"      = action (moveCursorN (r - 1) Down)
-    | k == translateKey "End"       = action (endOfLine True)
-    | k == translateKey "Home"      = action (startOfLine True)
-    | k == translateKey "^End"      = action (endOfLine False)
-    | k == translateKey "^Home"     = action (startOfLine False)
-    | k == translateKey "C-End"     = action (endOfFile True)
-    | k == translateKey "C-Home"    = action (startOfFile True)
-    | k == translateKey "C-^End"    = action (endOfFile False)
-    | k == translateKey "C-^Home"   = action (startOfFile False)
-    | k == translateKey "C-Left"    = actionF flipPrevious
-    | k == translateKey "C-Right"   = actionF flipNext
-    | k == Curses.KeyResize         = resizeLayout layout project
-    | otherwise                     = case k of
-          (Curses.KeyChar c) -> case isPrint c of
-                                    True -> action (input c)
-                                    False -> do debug u $ B.pack $ show k
-                                                continue
-          _ -> do debug (utilityBar layout) $ B.pack $ show k
-                  continue
+    | k == SpecialKey "Backspace" = action backspace
+    | k == SpecialKey "Delete"    = action delete
+    | k == SpecialKey "Return"    = action nlAutoIndent
+    | k == SpecialKey "Tab"       = action (tab 4)
+    | k == SpecialKey "Shift-Tab"      = action (unTab 4)
+    | k == SpecialKey "Up"        = action (moveCursor Up)
+    | k == SpecialKey "Down"      = action (moveCursor Down)
+    | k == SpecialKey "Left"      = action (moveCursor Backward)
+    | k == SpecialKey "Right"     = action (moveCursor Forward)
+    | k == SpecialKey "Shift-PgUp"     = action (selectMoveCursor Up)
+    | k == SpecialKey "Shift-PgDn"     = action (selectMoveCursor Down)
+    | k == SpecialKey "Shift-Left"     = action (selectMoveCursor Backward)
+    | k == SpecialKey "Shift-Right"    = action (selectMoveCursor Forward)
+    | k == SpecialKey "PgUp"      = action (moveCursorN (r - 1) Up)
+    | k == SpecialKey "PgDn"      = action (moveCursorN (r - 1) Down)
+    | k == SpecialKey "End"       = action (endOfLine True)
+    | k == SpecialKey "Home"      = action (startOfLine True)
+    | k == SpecialKey "Shift-End"      = action (endOfLine False)
+    | k == SpecialKey "Shift-Home"     = action (startOfLine False)
+    | k == SpecialKey "Ctrl-End"     = action (endOfFile True)
+    | k == SpecialKey "Ctrl-Home"    = action (startOfFile True)
+    | k == SpecialKey "Ctrl-Shift-End"    = action (endOfFile False)
+    | k == SpecialKey "Ctrl-Shift-Home"   = action (startOfFile False)
+    | k == SpecialKey "Ctrl-Left"    = actionF flipPrevious
+    | k == SpecialKey "Ctrl-Right"   = actionF flipNext
+    | k == ResizeKey         = resizeLayout layout project
+    | otherwise = do
+                      debug (utilityBar layout) $ B.pack $ show k
+                      continue
   where
     unsavedIndices = findIndices unsavedXB $ (\(x, _) -> toList x) project
     ((Buffer h _ _), _) = activeP project
@@ -265,17 +265,8 @@ handleKey k layout project
     continue = mainLoop layout project
     u = utilityBar layout
 
-start :: String -> IO ()
-start path = do
-    Curses.initScr
-    hasColors <- Curses.hasColors
-    if hasColors then do Curses.startColor
-                         Curses.useDefaultColors
-                         defineColors
-                 else return ()
-    Curses.resetParams
-    Curses.wclear Curses.stdScr
-    Curses.refresh
+quarkStart :: String -> IO ()
+quarkStart path = do
     absPath <- makeAbsolute path
     layout <- initLayout
     project <- initProject absPath
@@ -290,14 +281,11 @@ mainLoop layout project = do
     setTitle (titleBar layout') $ path ++ (show crs)
     printText language w cursors (ebToString activeBuffer)
     updateCursor w (rr, cc - lnOffset) crs
-    c <- Curses.getCh
-    handleKey c layout' project
+    QFE.getKey >>= handleKey layout' project
   where
     activeBuffer = activeP project
     cursors = ebCursors activeBuffer
 
-end :: IO ()
-end = Curses.endWin
-
 main :: IO ()
-main = (\x -> if (length x) == 0 then "" else head x) <$> getArgs >>= start
+main = bracket_ QFE.start QFE.end $
+    (\x -> if (length x) == 0 then "" else head x) <$> getArgs >>= quarkStart
