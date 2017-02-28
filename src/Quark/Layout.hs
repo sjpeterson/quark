@@ -21,6 +21,7 @@ module Quark.Layout ( Layout ( MinimalLayout
                     , firstL
                     , secondL
                     , bimapL
+                    , clearLayout
                     , titleBar
                     , utilityBar
                     , directoryPane
@@ -70,6 +71,29 @@ secondL f (HSplitLayout t u d p s) = HSplitLayout t u d p (f s)
 bimapL :: (Window -> Window) -> (Window -> Window) -> Layout -> Layout
 bimapL f0 f1 (VSplitLayout t u d p s) = VSplitLayout t u d (f0 p) (f1 s)
 bimapL f0 f1 (HSplitLayout t u d p s) = HSplitLayout t u d (f0 p) (f1 s)
+
+clearLayout :: Layout -> IO ()
+clearLayout (MinimalLayout t u p) = do
+    Curses.wclear $ cursesWin t
+    Curses.wclear $ cursesWin u
+    Curses.wclear $ cursesWin p
+clearLayout (BasicLayout t u d p) = do
+    Curses.wclear $ cursesWin t
+    Curses.wclear $ cursesWin u
+    Curses.wclear $ cursesWin d
+    Curses.wclear $ cursesWin p
+clearLayout (VSplitLayout t u d p s) = do
+    Curses.wclear $ cursesWin t
+    Curses.wclear $ cursesWin u
+    Curses.wclear $ cursesWin d
+    Curses.wclear $ cursesWin p
+    Curses.wclear $ cursesWin s
+clearLayout (HSplitLayout t u d p s) = do
+    Curses.wclear $ cursesWin t
+    Curses.wclear $ cursesWin u
+    Curses.wclear $ cursesWin d
+    Curses.wclear $ cursesWin p
+    Curses.wclear $ cursesWin s
 
 basicLayout :: Int -> Int -> IO (Layout)
 basicLayout r c = do

@@ -189,8 +189,10 @@ writeBuffer path (Buffer h@(n, p, f) c s) = do
   where
     nlEnd s  = if nlTail s then s else s ~~ "\n"
 
-resizeLayout :: Project -> IO ()
-resizeLayout project = do
+resizeLayout :: Layout -> Project -> IO ()
+resizeLayout layout' project = do
+    --clearLayout layout'
+    --Curses.refresh
     layout <- defaultLayout
     fillBackground (titleBar layout) titleBarColor
     mainLoop layout project
@@ -246,7 +248,7 @@ handleKey k layout project
     | k == translateKey "C-^Home"   = action (startOfFile False)
     | k == translateKey "C-Left"    = actionF flipPrevious
     | k == translateKey "C-Right"   = actionF flipNext
-    | k == Curses.KeyResize         = resizeLayout project
+    | k == Curses.KeyResize         = resizeLayout layout project
     | otherwise                     = case k of
           (Curses.KeyChar c) -> case isPrint c of
                                     True -> action (input c)

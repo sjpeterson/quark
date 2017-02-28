@@ -18,7 +18,8 @@ module Quark.Window.Core ( Window ( TitleBar
                                   , UtilityBar
                                   , TextView
                                   , DirectoryView )
-                         , updateCursor ) where
+                         , updateCursor
+                         , cursesWin ) where
 
 import qualified UI.HSCurses.Curses as Curses
 
@@ -34,3 +35,9 @@ updateCursor (TextView w _ _) (x0, y0) (x, y) =
     Curses.wMove w (x - x0) (y - y0) >> Curses.wRefresh w
 updateCursor (UtilityBar w (rr, cc)) (r, c) (_, y) =
     Curses.wMove w (min r rr) (min (y + c) cc) >> Curses.wRefresh w
+
+cursesWin :: Window -> Curses.Window
+cursesWin (TitleBar w _)        = w
+cursesWin (UtilityBar w _)      = w
+cursesWin (TextView w _ _)      = w
+cursesWin (DirectoryView w _ _) = w
