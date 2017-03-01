@@ -132,7 +132,7 @@ translateKey k = case k of
     Curses.KeyNPage       -> SpecialKey "PgDn"
     Curses.KeySNext       -> SpecialKey "Shift-PgDn"
     Curses.KeyIC          -> SpecialKey "Insert"
-    Curses.KeyUp          -> SpecialKey "Arrow-Up"
+    Curses.KeyUp          -> SpecialKey "Up"
     Curses.KeyUnknown 569 -> SpecialKey "Ctrl-Up"
     Curses.KeyUnknown 570 -> SpecialKey "Ctrl-Shift-Up"
     Curses.KeyDown        -> SpecialKey "Down"
