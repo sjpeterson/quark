@@ -14,20 +14,52 @@
 --
 ---------------------------------------------------------------
 
-module Quark.Frontend.HSCurses ( start
+module Quark.Frontend.HSCurses ( Window ( TitleBar
+                                        , UtilityBar
+                                        , TextView
+                                        , DirectoryView )
+                               , setTextColor
+                               , addString
+                               , mvAddString
+                               , move
+                               , clear
+                               , refresh
+                               , Layout ( MinimalLayout
+                                        , BasicLayout
+                                        , HSplitLayout
+                                        , VSplitLayout )
+                               , titleBar
+                               , utilityBar
+                               , primaryPane
+                               , secondaryPane
+                               , directoryPane
+                               , start
                                , end
-                               , getKey ) where
+                               , getKey
+                               , updateCursor
+                               , defaultLayout
+                               , basicLayout
+                               , minimalLayout ) where
 
 import qualified UI.HSCurses.Curses as Curses
 
 import Data.Char ( isPrint )
 
+import Quark.Colors
 import Quark.Types ( Key ( CharKey
                          , CtrlKey
                          , FnKey
                          , SpecialKey
                          , ResizeKey
-                         , InvalidKey ) )
+                         , InvalidKey )
+                   , ColorPair
+                   , Cursor
+                   , Offset
+                   , Size )
+
+-----------------------------
+-- Start and end functions --
+-----------------------------
 
 start :: IO ()
 start = do
@@ -43,6 +75,10 @@ start = do
 
 end :: IO ()
 end = Curses.endWin
+
+------------
+-- getKey --
+------------
 
 getKey :: IO (Key)
 getKey = translateKey <$> Curses.getCh
@@ -114,44 +150,130 @@ translateKey k = case k of
     Curses.KeyResize      -> ResizeKey
     _                     -> InvalidKey $ show k
 
--- Color pair indices
-defaultColor = 0 :: Int
-red          = 1 :: Int
-green        = 2 :: Int
-orange       = 3 :: Int
-blue         = 4 :: Int
-purple       = 5 :: Int
-teal         = 6 :: Int
-lightGray    = 7 :: Int
-darkGray     = 8 :: Int
-lightRed     = 9 :: Int
-lightGreen   = 10 :: Int
-yellow       = 11 :: Int
-lightBlue    = 12 :: Int
-lightPurple  = 13 :: Int
-cyan         = 14 :: Int
-white        = 15 :: Int
-black        = 16 :: Int
--- 17 through 33 are for selections (red + 17 is selected red)
-titleBarColor   = 34 :: Int
-lineNumberColor = 35 :: Int
+---------------------
+-- Color functions --
+---------------------
 
--- selection color and an alternative text color to use if they match
-selectionColor = darkGray
-backupColor    = lightGray
+cursesPair :: ColorPair -> Int
+cursesPair (x, y)
+    | (x, y) == lineNumberPair = 34
+    | (x, y) == titleBarPair   = 35
+    | y == (-1)                = x
+    | y == selectionColor      = x + 17
+    | otherwise                = x
 
 defineColors :: IO ()
 defineColors = do
-  mapM_ (\n -> defineColor n n (-1)) [1..16]
-  defineColor 17 (-1) selectionColor
-  mapM_ (\n -> if n == selectionColor
-                   then defineColor (n + 17) backupColor selectionColor
-                   else defineColor (n + 17) n selectionColor) [1..16]
-  defineColor titleBarColor black orange
-  defineColor lineNumberColor lightGray (-1)
+    mapM_ (\n -> defineColor n n (-1)) [1..16]
+    defineColor 17 (-1) selectionColor
+    mapM_ (\n -> if n == selectionColor
+                     then defineColor (n + 17) backupColor selectionColor
+                     else defineColor (n + 17) n selectionColor) [1..16]
+    defineColorPair 34 lineNumberPair
+    defineColorPair 35 titleBarPair
+  where
+    defineColorPair n = (\(x, y) -> defineColor n x y)
 
--- neat shorthand for initializing foreground color f and background color b
--- as color pair n
 defineColor :: Int -> Int -> Int -> IO ()
 defineColor n f b =
   Curses.initPair (Curses.Pair n) (Curses.Color f) (Curses.Color b)
+
+----------------------
+-- Cursor functions --
+----------------------
+
+updateCursor :: Window -> Offset -> Cursor -> IO ()
+updateCursor (TextView w _ _) (x0, y0) (x, y) =
+    Curses.wMove w (x - x0) (y - y0) >> Curses.wRefresh w
+updateCursor (UtilityBar w (rr, cc)) (r, c) (_, y) =
+    Curses.wMove w (min r rr) (min (y + c) cc) >> Curses.wRefresh w
+
+-------------------------------
+-- Window type and functions --
+-------------------------------
+
+data Window = TitleBar Curses.Window Size
+            | UtilityBar Curses.Window Size
+            | TextView Curses.Window Size Offset
+            | DirectoryView Curses.Window Size Int deriving Show
+
+cursesWindow :: Window -> Curses.Window
+cursesWindow (TitleBar w _)        = w
+cursesWindow (UtilityBar w _)      = w
+cursesWindow (TextView w _ _)      = w
+cursesWindow (DirectoryView w _ _) = w
+
+setTextColor :: Window -> ColorPair -> IO ()
+setTextColor w pair =
+    Curses.wAttrSet (cursesWindow w) ( Curses.attr0
+                                     , Curses.Pair $ cursesPair pair )
+
+addString :: Window -> String -> IO ()
+addString = Curses.wAddStr . cursesWindow
+
+mvAddString :: Window -> Int -> Int -> String -> IO ()
+mvAddString = Curses.mvWAddStr . cursesWindow
+
+move :: Window -> Int -> Int -> IO ()
+move = Curses.wMove . cursesWindow
+
+refresh :: Window -> IO ()
+refresh = Curses.wRefresh . cursesWindow
+
+clear :: Window -> IO ()
+clear = Curses.wclear . cursesWindow
+
+-------------------------------
+-- Layout type and functions --
+-------------------------------
+
+data Layout = MinimalLayout { titleBar :: Window
+                            , utilityBar :: Window
+                            , primaryPane :: Window }
+            | BasicLayout { titleBar :: Window
+                          , utilityBar :: Window
+                          , directoryPane :: Window
+                          , primaryPane :: Window }
+            | VSplitLayout { titleBar :: Window
+                           , utilityBar :: Window
+                           , directoryPane :: Window
+                           , primaryPane :: Window
+                           , secondaryPane :: Window }
+            | HSplitLayout { titleBar :: Window
+                           , utilityBar :: Window
+                           , directoryPane :: Window
+                           , primaryPane :: Window
+                           , secondaryPane :: Window } deriving Show
+
+defaultLayout :: IO (Layout)
+defaultLayout = do
+    (r, c) <- Curses.scrSize
+    layout <- if c > 85 + 16 then (basicLayout r c)
+                             else (minimalLayout r c)
+    return layout
+
+basicLayout :: Int -> Int -> IO (Layout)
+basicLayout r c = do
+    let dpWidth = min 24 (c - 32)
+    let mainHeight = r - 3
+    let mainWidth = c - dpWidth
+    cTitleBar <- Curses.newWin 2 c 0 0
+    cUtilityBar <- Curses.newWin 2 c (r - 3) 0
+    cDirectoryPane <- Curses.newWin (mainHeight + 1) dpWidth 0 1
+    cMainView <- Curses.newWin (mainHeight + 1) mainWidth 1 dpWidth
+    let qTitleBar = TitleBar cTitleBar (1, c)
+    let qUtilityBar = UtilityBar cUtilityBar (1, c)
+    let qDirectoryPane = DirectoryView cDirectoryPane (mainHeight, dpWidth) 0
+    let qPrimaryPane = TextView cMainView (mainHeight, (c - dpWidth)) (0, 0)
+    return $ BasicLayout qTitleBar qUtilityBar qDirectoryPane qPrimaryPane
+
+minimalLayout :: Int -> Int -> IO (Layout)
+minimalLayout r c = do
+    let mainHeight = r - 3
+    cTitleBar <- Curses.newWin 2 c 0 0
+    cUtilityBar <- Curses.newWin 2 c (r - 2) 0
+    cMainView <- Curses.newWin (mainHeight + 1) c 2 0
+    let qTitleBar = TitleBar cTitleBar (1, c)
+    let qUtilityBar = UtilityBar cUtilityBar (1, c)
+    let qPrimaryPane = TextView cMainView (mainHeight, c) (0, 0)
+    return $ MinimalLayout qTitleBar qUtilityBar qPrimaryPane

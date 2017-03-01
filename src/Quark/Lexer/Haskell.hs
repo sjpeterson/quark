@@ -77,9 +77,9 @@ haskellGrammar = [ (Newline, "\\A\n")
                                             , "as"
                                             , "qualified"
                                             , "_" ])
-                 , (TypeIdent, "\\A(([A-Z][A-Za-z0-9]*)+)(\\.[A-Z][A-Za-z0-9]*)*\
+                 , (TypeIdent, "\\A(([A-Z]\\w*)+)(\\.[A-Z]\\w*)*\
                                  \(?![a-zA-Z0-9\\.])")
-                 , (VarIdent, "\\A([A-Z][\\w]*\\.)?([a-z][A-Za-z0-9]*)") ]
+                 , (VarIdent, "\\A([A-Z]\\w*\\.)*([a-z]\\w*)") ]
 
 haskellColors :: Token -> Int
 haskellColors (ReservedIdent _) = orange

@@ -5,8 +5,6 @@ module Quark.Helpers where
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B
 
-import qualified UI.HSCurses.Curses as Curses
-
 import Quark.Types (Size)
 
 -- ByteString version of (++)

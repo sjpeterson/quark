@@ -16,7 +16,10 @@
 --
 ---------------------------------------------------------------
 
-module Quark.Lexer.Core ( lexer
+module Quark.Lexer.Core ( RegexString
+                        , Grammar
+                        , CompiledGrammar
+                        , lexer
                         , tokenString
                         , tokenLines
                         , tokenLength
@@ -42,6 +45,13 @@ import Text.Regex.PCRE.ByteString
 import Quark.Types
 import Quark.Helpers ((~~))
 import Quark.Colors (defaultColor)
+
+type RegexString = B.ByteString
+
+{- A grammar is a list of (Token data constructor, regex) tuples in order of
+   precedence, see for example Quark.Lexer.Haskell -}
+type Grammar = [(B.ByteString -> Token, RegexString)]
+type CompiledGrammar = [(B.ByteString -> Token, B.ByteString -> B.ByteString)]
 
 mapT :: (ByteString -> a) -> Token -> a
 mapT f (Comment s)       = f s

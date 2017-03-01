@@ -19,7 +19,7 @@
 module Quark.Buffer ( Buffer ( Buffer
                              , LockedBuffer )
                     , ExtendedBuffer
-                    , emptyXB
+                    , ebEmpty
                     , ebToString
                     , ebSelection
                     , ebCursors
@@ -45,7 +45,7 @@ module Quark.Buffer ( Buffer ( Buffer
                     , endOfFile
                     , startOfFile
                     , selectAll
-                    , unsavedXB ) where
+                    , ebUnsaved ) where
 
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B
@@ -93,8 +93,8 @@ data Buffer = LockedBuffer String
 type BufferMetaData = (FilePath, Language, Bool)
 type ExtendedBuffer = (Buffer, BufferMetaData)
 
-emptyXB :: ExtendedBuffer
-emptyXB = ( (Buffer (fromString "") (0, 0) (0, 0))
+ebEmpty :: ExtendedBuffer
+ebEmpty = ( (Buffer (fromString "") (0, 0) (0, 0))
           , ("Untitled", "Undefined", False) )
 
 ebToString :: ExtendedBuffer -> ByteString
@@ -118,8 +118,8 @@ unsaved (Buffer (k, _, _) _ _) = case k of
     0 -> False
     _ -> True
 
-unsavedXB :: ExtendedBuffer -> Bool
-unsavedXB (b, _) = unsaved b
+ebUnsaved :: ExtendedBuffer -> Bool
+ebUnsaved (b, _) = unsaved b
 
 -- Input single character
 input :: Char -> Buffer -> Buffer

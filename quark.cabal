@@ -25,10 +25,8 @@ library
                  , Quark.History
                  , Quark.Cursor
                  , Quark.Buffer
-                 , Quark.Layout
                  , Quark.Flipper
                  , Quark.Colors
-                 , Quark.Window.Core
                  , Quark.Window.UtilityBar
                  , Quark.Window.TextView
                  , Quark.Window.TitleBar

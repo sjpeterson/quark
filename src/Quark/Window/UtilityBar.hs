@@ -25,10 +25,15 @@ import qualified Data.ByteString.Char8 as B
 import Data.Char ( isPrint
                  , toUpper )
 
-import qualified UI.HSCurses.Curses as Curses
+import Quark.Frontend.HSCurses ( Window ( UtilityBar )
+                               , updateCursor
+                               , setTextColor
+                               , move
+                               , addString
+                               , mvAddString
+                               , refresh
+                               , getKey )
 
-import Quark.Window.Core ( Window ( UtilityBar )
-                         , updateCursor )
 import Quark.Helpers ( padToLen
                      , padToLen'
                      , (~~))
@@ -50,10 +55,10 @@ import Quark.IOHelpers ( autoComplete )
 
 
 prompt :: Int -> Window -> ByteString -> IO ()
-prompt r (UtilityBar w (_, c)) text = do
-    Curses.wAttrSet w (Curses.attr0, Curses.Pair red)
-    Curses.mvWAddStr w r 0 $ B.unpack $ padToLen (c - 1) text
-    Curses.wRefresh w
+prompt r w@(UtilityBar _ (_, c)) text = do
+    setTextColor w (red, defaultBg)
+    mvAddString w r 0 $ B.unpack $ padToLen (c - 1) text
+    refresh w
 
 debug = prompt 0
 
@@ -78,38 +83,38 @@ promptChoice u s options = do
     return x
 
 cGetLine :: Window -> Buffer -> IO (String)
-cGetLine u@(UtilityBar w _) buffer@(Buffer h cursor _) = do
-    prompt 1 u $ toString h
-    updateCursor u (1, 0) cursor
-    Curses.wRefresh w
-    c <- Curses.getCh
-    handleKey c u buffer
+cGetLine w buffer@(Buffer h cursor _) = do
+    prompt 1 w $ toString h
+    updateCursor w (1, 0) cursor
+    refresh w
+    k <- getKey
+    handleKey k w buffer
 
 cGetOption :: (Show a) => Window -> [Option a] -> IO (a)
-cGetOption u@(UtilityBar w _) options = do
+cGetOption w options = do
     let n = maximum $ map optionLength options
-    Curses.wMove w 1 0
+    move w 1 0
     mapM (printOption w n) options
-    Curses.wRefresh w
-    c' <- Curses.getCh
-    case checkOption c' options of Nothing -> cGetOption u options
-                                   Just x  -> return x
+    refresh w
+    k <- getKey
+    case checkOption k options of Nothing -> cGetOption w options
+                                  Just x  -> return x
   where
     optionLength = \(c, s, _) -> length (translateChar c) + B.length s + 1
 
-checkOption :: Curses.Key -> [Option a] -> Maybe a
+checkOption :: Key -> [Option a] -> Maybe a
 checkOption _ [] = Nothing
-checkOption k@(Curses.KeyChar c) ((c', _, x):xs)
+checkOption k@(CharKey c) ((c', _, x):xs)
     | toUpper c == toUpper c' = Just x
     | otherwise               = checkOption k xs
 checkOption _ _ = Nothing
 
-printOption :: (Show a) => Curses.Window -> Int -> Option a -> IO ()
+printOption :: (Show a) => Window -> Int -> Option a -> IO ()
 printOption w n (c, s, _) = do
-    Curses.wAttrSet w (Curses.attr0, Curses.Pair 0)
-    Curses.wAddStr w sc
-    Curses.wAttrSet w (Curses.attr0, Curses.Pair 1)
-    Curses.wAddStr w $ B.unpack (padToLen' (n - length sc) s) ++ " "
+    setTextColor w (defaultColor, defaultBg)
+    addString w sc
+    setTextColor w (red, defaultBg)
+    addString w $ B.unpack (padToLen' (n - length sc) s) ++ " "
   where
     sc = translateChar c
 
@@ -119,32 +124,32 @@ translateChar '\ESC' = "ESC"
 translateChar c = [toUpper c]
 
 promptAutoComplete :: Window -> Buffer -> Int -> IO (String)
-promptAutoComplete u@(UtilityBar w _) buffer@(Buffer h cursor _) k = do
-    s <- autoComplete k $ B.unpack $ toString h
-    prompt 1 u $ (toString h) ~~ (B.pack s)
-    updateCursor u (1, length s) cursor
-    Curses.wRefresh w
-    c <- Curses.getCh
-    if c == Curses.KeyChar '\t'
-        then promptAutoComplete u buffer (k + 1)
-        else handleKey c u (paste (B.pack s) buffer)
+promptAutoComplete w buffer@(Buffer h cursor _) n = do
+    s <- autoComplete n $ B.unpack $ toString h
+    prompt 1 w $ (toString h) ~~ (B.pack s)
+    updateCursor w (1, length s) cursor
+    refresh w
+    k <- getKey
+    if k == SpecialKey "Tab"
+        then promptAutoComplete w buffer (n + 1)
+        else handleKey k w (paste (B.pack s) buffer)
 
-handleKey :: Curses.Key -> Window -> Buffer -> IO (String)
-handleKey (Curses.KeyChar c) u buffer@(Buffer h _ _)
-    | c == '\ESC' = return "\ESC"
-    | c == '\r'   = return $ B.unpack $ toString h
-    | c == '\DEL' = cGetLine u $ backspace buffer
-    | c == '\SUB' = cGetLine u $ undo buffer
-    | c == '\EM'  = cGetLine u $ redo buffer
-    | c == '\t'   = promptAutoComplete u buffer 0
-    | isPrint c   = cGetLine u $ input c buffer
-    | otherwise   = cGetLine u buffer
-handleKey k u buffer
-    | k == Curses.KeyDC = cGetLine u $ delete buffer
-    | k == Curses.KeyLeft = cGetLine u $ (moveCursor Backward) buffer
-    | k == Curses.KeyRight = cGetLine u $ (moveCursor Forward) buffer
-    | k == Curses.KeyEnd = cGetLine u $ endOfLine True buffer
-    | k == Curses.KeyHome = cGetLine u $ startOfLine True buffer
-    | k == Curses.KeyUnknown 532 = cGetLine u $ endOfLine True buffer
-    | k == Curses.KeyUnknown 537 = cGetLine u $ startOfLine True buffer
-    | otherwise = cGetLine u $ buffer
+handleKey :: Key -> Window -> Buffer -> IO (String)
+handleKey (CharKey c) w buffer = cGetLine w $ input c buffer
+handleKey k w buffer@(Buffer h _ _)
+    | k == SpecialKey "Esc"        = return "\ESC"
+    | k == SpecialKey "Return"     = return $ B.unpack $ toString h
+    | k == SpecialKey "Backspace"  = action backspace
+    | k == CtrlKey 'z'             = action undo
+    | k == CtrlKey 'y'             = action redo
+    | k == SpecialKey "Tab"        = promptAutoComplete w buffer 0
+    | k == SpecialKey "Delete"     = action delete
+    | k == SpecialKey "Left"       = action $ moveCursor Backward
+    | k == SpecialKey "Right"      = action $ moveCursor Forward
+    | k == SpecialKey "End"        = action $ endOfLine True
+    | k == SpecialKey "Home"       = action $ startOfLine True
+    | k == SpecialKey "Shift-Home" = action $ endOfLine False
+    | k == SpecialKey "Shift-End"  = action $ startOfLine False
+    | otherwise = cGetLine w buffer
+  where
+    action a = cGetLine w $ a buffer

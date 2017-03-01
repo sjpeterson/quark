@@ -19,10 +19,15 @@
 module Quark.Window.TextView ( printText
                              , updateOffset ) where
 
-import qualified UI.HSCurses.Curses as Curses
-
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B
+
+import Quark.Frontend.HSCurses ( Window ( TextView )
+                               , setTextColor
+                               , move
+                               , addString
+                               , clear
+                               , refresh )
 
 import Quark.Lexer.Core ( tokenLength
                         , tokenString
@@ -31,7 +36,6 @@ import Quark.Lexer.Core ( tokenLength
                         , dropTL
                         , takeTL )
 import Quark.Lexer.Language
-import Quark.Window.Core
 import Quark.Helpers
 import Quark.Colors
 import Quark.Types
@@ -39,11 +43,11 @@ import Quark.Cursor (orderTwo)
 
 -- TODO: add text overflow hints
 printText :: Language -> Window -> (Cursor, Cursor) -> ByteString -> IO ()
-printText language w'@(TextView w (r, c) (rr, cc)) cursors text = do
-    Curses.wclear w
-    mapM_ (\(k, l, t, s) -> printTokenLine language k l t s w') $
+printText language w@(TextView _ (r, c) (rr, cc)) cursors text = do
+    clear w
+    mapM_ (\(k, l, t, s) -> printTokenLine language k l t s w) $
         zip4 [0..(r - 2)] lineNumbers tokens selections
-    Curses.wRefresh w
+    refresh w
   where
     n =  (length $ B.lines text) + if nlTail text then 1 else 0
     lnc = (length $ show n) + 1
@@ -82,9 +86,9 @@ printTokenLine :: Language
                -> Window
                -> IO ()
 printTokenLine language k lNo tokens (cIn, cOut) w' = do
-    Curses.wMove w k 0
-    Curses.wAttrSet w (Curses.attr0, Curses.Pair lineNumberColor)
-    Curses.wAddStr w $ B.unpack lNo
+    move w' k 0
+    setTextColor w' lineNumberPair
+    addString w' $ B.unpack lNo
     mapM_ printToken $ selOnTokenLine adjustedSel $
         takeTL (c - B.length lNo) $ dropTL c0 tokens
   where
@@ -125,11 +129,11 @@ selOnTokenLine (cIn, cOut) (t:ts)
 selOnTokenLine _ ts = zip ts $ repeat False
 
 printToken' :: Token -> Window -> IO ()
-printToken' t (TextView w _ _) = Curses.wAddStr w $ B.unpack $ tokenString t
+printToken' t w = addString w $ B.unpack $ tokenString t
 
 setTokenColor :: Language -> Token -> Bool -> Window -> IO ()
-setTokenColor language t selected (TextView w _ _) =
-    Curses.wAttrSet w ( Curses.attr0
-                      , Curses.Pair $ colorize language t + selOffset)
+setTokenColor language t selected w =
+    setTextColor w (colorize language t, tokenBg)
   where
-    selOffset = if selected then 17 else 0
+    tokenBg = case selected of False -> defaultBg
+                               True  -> selectionColor

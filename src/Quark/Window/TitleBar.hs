@@ -16,28 +16,34 @@
 --
 --------
 
-module Quark.Window.TitleBar where
+module Quark.Window.TitleBar ( setTitle
+                             , fillBackground ) where
 
--- import Data.ByteString (ByteString)
+import Quark.Frontend.HSCurses ( Window ( TitleBar )
+                               , setTextColor
+                               , mvAddString
+                               , move
+                               , refresh )
 
-import qualified UI.HSCurses.Curses as Curses
-
-import Quark.Window.Core
 import Quark.Colors
 import Quark.Helpers
+import Quark.Types
 
 setTitle :: Window -> String -> IO ()
-setTitle (TitleBar w (_, c)) title = do
-    Curses.attrSet Curses.attr0 (Curses.Pair titleBarColor)
-    Curses.mvWAddStr w 0 0 (padMidToLen c leftText rightText)
-    Curses.wRefresh w
+setTitle w title = do
+    setTextColor w titleBarPair
+    mvAddString w 0 0 (padMidToLen c leftText rightText)
+    refresh w
   where
+    (TitleBar _ (_, c)) = w
     leftText = " quark - " ++ title
     rightText = "0.0.1a "
 
-fillBackground :: Window -> Int -> IO ()
-fillBackground (TitleBar cTitleBar (h, w)) colorId = do
-    Curses.wAttrSet cTitleBar (Curses.attr0, Curses.Pair colorId)
-    Curses.mvWAddStr cTitleBar 0 0 (take w $ repeat ' ')
-    Curses.wMove cTitleBar 1 0
-    Curses.wRefresh cTitleBar
+fillBackground :: Window -> IO ()
+fillBackground w = do
+    setTextColor w titleBarPair
+    mvAddString w 0 0 (take c $ repeat ' ')
+    move w 0 0
+    refresh w
+  where
+    (TitleBar _ (_, c)) = w
