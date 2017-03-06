@@ -1,15 +1,15 @@
 Functionality:
+  - unselect on Esc
+  - debug should not persist, primary pane should not overwrite
+
   - find
     - ...and replace
   - Show overflow hints (~)
   - indicate 80 column width
   - better handle terminal resize
   - shell script lexer
-  - tab completion/hints for file open
   - some form of interface showing open buffers
   - layout switching
-
-type Project = (FilePath, Flipper ExtendedBuffer)
 
 Possible functional or stylistic improvements:
   - Make Flipper foldable and traversable
