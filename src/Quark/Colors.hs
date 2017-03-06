@@ -26,5 +26,5 @@ selectionColor = darkGray
 backupColor    = lightGray
 
 -- Color pairs
-titleBarPair   = (black, orange)
+titleBarPair   = (black, lightGray)
 lineNumberPair = (lightGray, defaultBg)

@@ -33,8 +33,7 @@ import qualified Data.ByteString.Char8 as B
 
 import qualified Quark.Frontend.HSCurses as QFE
 
-import Quark.Window.TitleBar ( setTitle
-                             , fillBackground )
+import Quark.Window.TitleBar ( setTitle )
 import Quark.Window.UtilityBar ( promptString
                                , promptChoice
                                , debug )
@@ -96,7 +95,6 @@ import Quark.Types (Key ( CharKey
 initLayout :: IO (QFE.Layout)
 initLayout = do
     layout <- QFE.defaultLayout
-    fillBackground $ QFE.titleBar layout
     return layout
 
 initBuffer :: String -> IO (ExtendedBuffer)
@@ -106,7 +104,7 @@ initBuffer path = do
         then do contents <- B.readFile path
                 return ( (Buffer (fromString contents) (0, 0) (0, 0))
                        , (path, assumeLanguage path, False) )
-        else return ebEmpty
+        else return $ ebEmpty path $ assumeLanguage path
 
 initProject :: String -> IO (Project)
 initProject path = do
@@ -133,12 +131,12 @@ saveAndClose layout project = do
     case remove newBuffers of
         Just newerBuffers -> mainLoop layout ( newerBuffers
                                              , projectRoot project)
-        Nothing           -> mainLoop layout ( (ebEmpty, [], [])
+        Nothing           -> mainLoop layout ( (ebEmpty "" "", [], [])
                                              , projectRoot project )
 
 
 newBuffer :: QFE.Layout -> Project -> IO ()
-newBuffer layout project = mainLoop layout $ first (add ebEmpty) project
+newBuffer layout project = mainLoop layout $ first (add $ ebEmpty "" "") project
 
 promptOpen :: QFE.Layout -> Project -> IO (Project)
 promptOpen layout project = do
@@ -237,7 +235,6 @@ writeBuffer path (Buffer h@(n, p, f) c s) = do
 resizeLayout :: QFE.Layout -> Project -> IO ()
 resizeLayout layout' project = do
     layout <- QFE.defaultLayout
-    fillBackground $ QFE.titleBar layout
     mainLoop layout project
   where
     (_, (path, _, _)) = activeP project

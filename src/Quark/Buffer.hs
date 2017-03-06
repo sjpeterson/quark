@@ -93,9 +93,12 @@ data Buffer = LockedBuffer String
 type BufferMetaData = (FilePath, Language, Bool)
 type ExtendedBuffer = (Buffer, BufferMetaData)
 
-ebEmpty :: ExtendedBuffer
-ebEmpty = ( (Buffer (fromString "") (0, 0) (0, 0))
-          , ("Untitled", "Undefined", False) )
+ebEmpty :: FilePath -> Language -> ExtendedBuffer
+ebEmpty path language = ( (Buffer (fromString "") (0, 0) (0, 0))
+                        , (path', language', False) )
+  where
+    path' = if path == "" then "Untitled" else path
+    language' = if language == "" then "Unknown" else language
 
 ebToString :: ExtendedBuffer -> ByteString
 ebToString ((Buffer h _ _), _) = toString h

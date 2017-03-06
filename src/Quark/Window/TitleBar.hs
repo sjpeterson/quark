@@ -16,8 +16,7 @@
 --
 --------
 
-module Quark.Window.TitleBar ( setTitle
-                             , fillBackground ) where
+module Quark.Window.TitleBar ( setTitle ) where
 
 import Quark.Frontend.HSCurses ( Window ( TitleBar )
                                , setTextColor
@@ -33,17 +32,9 @@ setTitle :: Window -> String -> IO ()
 setTitle w title = do
     setTextColor w titleBarPair
     mvAddString w 0 0 (padMidToLen c leftText rightText)
+    move w 0 0
     refresh w
   where
     (TitleBar _ (_, c)) = w
     leftText = " quark - " ++ title
     rightText = "0.0.1a "
-
-fillBackground :: Window -> IO ()
-fillBackground w = do
-    setTextColor w titleBarPair
-    mvAddString w 0 0 (take c $ repeat ' ')
-    move w 0 0
-    refresh w
-  where
-    (TitleBar _ (_, c)) = w

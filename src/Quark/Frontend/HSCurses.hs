@@ -88,6 +88,7 @@ translateKey k@(Curses.KeyChar c)
     | c == '\r'   = SpecialKey "Return"
     | c == '\DEL' = SpecialKey "Backspace"
     | c == '\t'   = SpecialKey "Tab"
+    | c == '\ESC' = SpecialKey "Esc"
     | c == '\SOH' = CtrlKey 'a'
     | c == '\STX' = CtrlKey 'b'
     | c == '\ETX' = CtrlKey 'c'
