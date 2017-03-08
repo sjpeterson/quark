@@ -48,7 +48,8 @@ module Quark.Buffer ( Buffer ( Buffer
                     , deselect
                     , ebUnsaved ) where
 
-import Data.ByteString (ByteString)
+import Data.ByteString.UTF8 (ByteString)
+import qualified Data.ByteString.UTF8 as U
 import qualified Data.ByteString.Char8 as B
 
 import Quark.Types ( Clipboard
@@ -174,7 +175,7 @@ insert s fusible b@(Buffer h crs sel) = Buffer newH newCrs newCrs
     (ix, sel') = ixAndSel b
     s0 = toString h
     newCrs = ixToCursor newIx newS
-    newIx = (cursorToIx (minCursor crs sel) s0) + (B.length s)
+    newIx = (cursorToIx (minCursor crs sel) s0) + (U.length s)
     newS = toString newH
 
 -- Delete
@@ -199,7 +200,7 @@ genericDelete d (Buffer h crs sel) = Buffer newH newCrs newCrs
 
 -- Copy selection
 selection :: Buffer -> ByteString
-selection (Buffer h crs sel) = B.take l $ B.drop k s
+selection (Buffer h crs sel) = U.take l $ U.drop k s
   where
     l = abs $ distance crs sel s
     k = cursorToIx (minCursor crs sel) s
@@ -226,7 +227,7 @@ alignCursor True (Buffer h@(_, _, y:ys) _ _) = Buffer h newCrs newSel
 alignCursor False b@(Buffer h@(_, x:xs, _) crs sel) = Buffer h newCrs newSel
   where
     newCrs = case x of
-        (Edit (n, _) s ix _ _) -> ixToCursor (ix - n + B.length s) $ toString h
+        (Edit (n, _) s ix _ _) -> ixToCursor (ix - n + U.length s) $ toString h
         (IndentLine _ n ix _)  -> ixToCursor (ix + n) $ toString h
     newSel = case x of
         (Edit _ _ _ _ _)      -> newCrs
@@ -237,8 +238,8 @@ alignCursor _ b = b
 endOfLine :: Bool -> Buffer -> Buffer
 endOfLine moveSel (Buffer h (r, _) sel) = Buffer h newCrs newSel
   where
-    newCrs = case drop r $ B.lines s of (x:xs) -> (r, B.length x)
-                                        _      -> ixToCursor (B.length s - 1) s
+    newCrs = case drop r $ U.lines s of (x:xs) -> (r, U.length x)
+                                        _      -> ixToCursor (U.length s - 1) s
     newSel = case moveSel of True  -> newCrs
                              False -> sel
     s = toString h
@@ -252,7 +253,7 @@ startOfLine moveSel (Buffer h (r, _) sel) = Buffer h (r, 0) newSel
 endOfFile :: Bool -> Buffer -> Buffer
 endOfFile moveSel (Buffer h _ sel) = Buffer h newCrs newSel
   where
-    newCrs = ixToCursor (B.length s) s
+    newCrs = ixToCursor (U.length s) s
     newSel = case moveSel of True  -> newCrs
                              False -> sel
     s = toString h
@@ -264,7 +265,7 @@ startOfFile moveSel (Buffer h _ sel) = Buffer h (0, 0) newSel
                              False -> sel
 
 selectAll :: Buffer -> Buffer
-selectAll (Buffer h _ _) = Buffer h (0, 0) $ ixToCursor (B.length s) s
+selectAll (Buffer h _ _) = Buffer h (0, 0) $ ixToCursor (U.length s) s
   where
     s = toString h
 

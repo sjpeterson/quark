@@ -2,7 +2,8 @@
 
 module Quark.Helpers where
 
-import Data.ByteString (ByteString)
+import Data.ByteString.UTF8 (ByteString)
+import qualified Data.ByteString.UTF8 as U
 import qualified Data.ByteString.Char8 as B
 
 import Quark.Types (Size)
@@ -13,11 +14,11 @@ import Quark.Types (Size)
 
 -- Compute width of a string in number of columns
 strWidth :: ByteString -> Int
-strWidth s = maximum $ map B.length $ B.lines s
+strWidth s = maximum $ map U.length $ U.lines s
 
 -- Compute height of a string in number of rows
 strHeight :: ByteString -> Int
-strHeight s = length $ B.lines $ s ~~ " "
+strHeight s = length $ U.lines $ s ~~ " "
 
 -- Compute size of a string (height and width)
 strSize :: ByteString -> Size
@@ -26,15 +27,15 @@ strSize s = (strHeight s, strWidth s)
 -- Line number width
 lnWidth :: ByteString -> Int
 lnWidth s =
-    (length $ show $ (length $ B.lines s) + if nlTail s then 1 else 0) + 1
+    (length $ show $ (length $ U.lines s) + if nlTail s then 1 else 0) + 1
 
 lnIndent :: Int -> ByteString -> Int
-lnIndent r s = case drop r (B.lines s) of
-    (x:_) -> B.length $ B.takeWhile (\c -> c == ' ') x
+lnIndent r s = case drop r (U.lines s) of
+    (x:_) -> U.length $ B.takeWhile (\c -> c == ' ') x
     _     -> 0
 
 lineSplitIx :: Int -> ByteString -> Int
-lineSplitIx r s = min (B.length s) $ B.length $ B.unlines $ take r $ B.lines s
+lineSplitIx r s = min (U.length s) $ U.length $ B.unlines $ take r $ U.lines s
 
 -- Check is a string ends in newline or not
 nlTail :: ByteString -> Bool
@@ -44,12 +45,12 @@ nlTail s  = if B.last s == '\n' then True else False
 -- Pad a string with spaces at the end
 padToLen :: Int -> ByteString -> ByteString
 padToLen k a
-    | k <= B.length a = a
+    | k <= U.length a = a
     | otherwise     = padToLen k $ a ~~ " "
 
 padToLen' :: Int -> ByteString -> ByteString
 padToLen' k a
-    | k <= B.length a = a
+    | k <= U.length a = a
     | otherwise     = padToLen k (B.cons ' ' a)
 
 -- Concatenate two strings, padding with spaces in the middle
@@ -62,8 +63,8 @@ padMidToLen k a0 a1
 splitAt2 :: (Int, Int) -> ByteString -> (ByteString, ByteString, ByteString)
 splitAt2 (k0, k1) l = (x, y, z)
   where
-    (x, x') = B.splitAt k0 l
-    (y, z) = B.splitAt (k1 - k0) x'
+    (x, x') = U.splitAt k0 l
+    (y, z) = U.splitAt (k1 - k0) x'
 
 selectionLines :: (ByteString, ByteString, ByteString) -> [[(ByteString, Bool)]]
 selectionLines (x, y, z) = case (nlTail x, nlTail y) of
@@ -72,9 +73,9 @@ selectionLines (x, y, z) = case (nlTail x, nlTail y) of
     (False, True)  -> concat [fuseSL lx ly, lz]
     (False, False) -> fuseSL (fuseSL lx ly) lz
   where
-    lx = [[(s, False)] | s <- B.lines x]
-    ly = [[(s, True)] | s <- B.lines y]
-    lz = [[(s, False)] | s <- B.lines z]
+    lx = [[(s, False)] | s <- U.lines x]
+    ly = [[(s, True)] | s <- U.lines y]
+    lz = [[(s, False)] | s <- U.lines z]
     fuseSL ps [] = ps
     fuseSL [] qs = qs
     fuseSL ps (q:qs) = ps' ++ (concat [p, q]):qs
@@ -85,14 +86,14 @@ dropSL :: Int -> [(ByteString, Bool)] -> [(ByteString, Bool)]
 dropSL _ [] = []
 dropSL k x@((p, q):xs)
     | k <= 0    = x
-    | otherwise = case k < n of True  -> (B.drop k p, q):xs
+    | otherwise = case k < n of True  -> (U.drop k p, q):xs
                                 False -> dropSL (k - n) xs
   where
-    n = B.length p
+    n = U.length p
 
 padToLenSL :: Int -> [(ByteString, Bool)] -> [(ByteString, Bool)]
 padToLenSL k [] = [(B.replicate k ' ', False)]
-padToLenSL k (x@(p0, _):xs) = x:(padToLenSL (k - B.length p0) xs)
+padToLenSL k (x@(p0, _):xs) = x:(padToLenSL (k - U.length p0) xs)
 
 zip4 :: [a] -> [b] -> [c] -> [d] -> [(a, b, c, d)]
 zip4 (a:as') (b:bs) (c:cs) (d:ds) = (a, b, c, d):(zip4 as' bs cs ds)

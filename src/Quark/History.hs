@@ -22,7 +22,8 @@
 
 module Quark.History where
 
-import Data.ByteString (ByteString)
+import Data.ByteString.UTF8 (ByteString)
+import qualified Data.ByteString.UTF8 as U
 import qualified Data.ByteString.Char8 as B
 
 import Quark.Types
@@ -61,16 +62,16 @@ toString (_, x:xs, _) = doEdit x (toString (0, xs, []))
 
 -- Apply an edit to a string
 doEdit :: Edit -> ByteString -> ByteString
-doEdit (Edit (n, m) sx ix sel _) s = (B.take p s0) ~~ sx ~~ (B.drop q s1)
+doEdit (Edit (n, m) sx ix sel _) s = (U.take p s0) ~~ sx ~~ (U.drop q s1)
   where
-    p = (B.length s0) - n + (min 0 sel)
+    p = (U.length s0) - n + (min 0 sel)
     q = m + (max 0 sel)
-    (s0, s1)  = B.splitAt ix s
+    (s0, s1)  = U.splitAt ix s
 doEdit (IndentLine r n _ _) s =
-    s0 ~~ (B.replicate (max 0 n) ' ') ~~ (B.drop n' s1)
+    s0 ~~ (B.replicate (max 0 n) ' ') ~~ (U.drop n' s1)
   where
-    n' = min (B.length $ B.takeWhile (\c -> c == ' ') s1) $ max 0 (-n)
-    (s0, s1) = B.splitAt (lineSplitIx r s) s
+    n' = min (U.length $ B.takeWhile (\c -> c == ' ') s1) $ max 0 (-n)
+    (s0, s1) = U.splitAt (lineSplitIx r s) s
 
 -- Undo by moving the most recent edit to the head of future edits
 -- Second pattern is needed when loading files
@@ -95,8 +96,8 @@ addEditToHistory
   x0@(Edit (n0, m0) s0 ix0 sel0 f0) (k, x1@(Edit (n1, m1) s1 ix1 sel1 f1):xs, _)
     | p0 && p1  = (k, (Edit (n1 + n0, m1 + m0) (s1 ~~ s0) (ix1) sel1 f0):xs, [])
   where
-    p0 = k /= 0 && sel0 == 0 && ix0 == ix1 - n1 + (min 0 sel1) + (B.length s1)
-    p1 = f0 && f1 && (n0 == 0 || B.length s1 == 0)
+    p0 = k /= 0 && sel0 == 0 && ix0 == ix1 - n1 + (min 0 sel1) + (U.length s1)
+    p1 = f0 && f1 && (n0 == 0 || U.length s1 == 0)
 addEditToHistory x0@(IndentLine r0 n0 _ _) ( k
                                            , x1@(IndentLine r1 n1 ix sel):xs
                                            , _)

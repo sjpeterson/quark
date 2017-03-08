@@ -114,6 +114,8 @@ cursorUnitTests = testGroup "Unit tests for Cursors.hs"
       assertEqual "" (1, 6) $ ixToCursor 14 "test\nstring"
   , testCase "Negative index to cursor" $       -- not strictly required
       assertEqual "" (0, 0) $ ixToCursor (-3) "test\nstring"
+  , testCase "ixToCursor with special characters" $
+      assertEqual "" (0, 4) $ ixToCursor 4 "Mårdhund"
   ]
 
 {- Unit tests for History.hs -}

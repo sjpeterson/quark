@@ -28,7 +28,8 @@ import System.Clipboard ( setClipboardString
                         , getClipboardString )
 import Data.List ( findIndices )
 import Data.Bifunctor ( first )
-import Data.ByteString ( ByteString )
+import Data.ByteString.UTF8 ( ByteString )
+import qualified Data.ByteString.UTF8 as U
 import qualified Data.ByteString.Char8 as B
 
 import qualified Quark.Frontend.HSCurses as QFE
@@ -141,7 +142,7 @@ newBuffer layout project = mainLoop layout $ first (add $ ebEmpty "" "") project
 
 promptOpen :: QFE.Layout -> Project -> IO (Project)
 promptOpen layout project = do
-    path <- promptString u (B.pack "Open file:") $ B.pack defaultPath
+    path <- promptString u (U.fromString "Open file:") $ U.fromString defaultPath
     if path == "\ESC"
         then return project
         else do
@@ -162,7 +163,7 @@ chooseSave layout project =
         chooseSave' layout project
   where
     u = QFE.utilityBar layout
-    promptText = B.pack $ "Save changes to " ++ path ++ "?"
+    promptText = U.fromString $ "Save changes to " ++ path ++ "?"
     (_, (path, _, _)) = activeP project
 
 chooseSave' :: QFE.Layout -> Project -> Maybe Bool -> IO (Project, Bool)
@@ -185,12 +186,12 @@ chooseSave' layout project Nothing =
 promptSave :: QFE.Layout -> Project -> IO (Project, Bool)
 promptSave layout project = case activeP project of
     (b@(Buffer h _ _), (path, _, False)) -> do
-        newPath <- promptString u (B.pack "Save buffer to file:") $ B.pack path
+        newPath <- promptString u (U.fromString "Save buffer to file:") $ U.fromString path
         fileExists <- doesFileExist newPath
         let doConfirm = fileExists && path /= newPath
         dirExists <- doesDirectoryExist newPath
         if dirExists || newPath == ""
-            then do debug u $ B.pack $ if newPath == ""
+            then do debug u $ U.fromString $ if newPath == ""
                                            then "Buffer was not saved"
                                            else path ++ " is a directory"
                     return (project, False)
@@ -198,7 +199,7 @@ promptSave layout project = case activeP project of
                      then confirmSave newPath layout project
                      else if newPath == "\ESC"
                               then return (project, True)
-                              else do debug u $ B.pack $ "Saved " ++ newPath
+                              else do debug u $ U.fromString $ "Saved " ++ newPath
                                       writeP newPath project
     _                            -> do
         debug u "Can't save protected buffer"
@@ -210,13 +211,13 @@ confirmSave :: FilePath -> QFE.Layout -> Project -> IO (Project, Bool)
 confirmSave newPath layout project = do
     overwrite <- promptChoice u promptText [ ('y', "Yes", True)
                                            , ('n', "No", False) ]
-    if overwrite then do debug u $ "Saved " ~~ (B.pack newPath)
+    if overwrite then do debug u $ "Saved " ~~ (U.fromString newPath)
                          writeP newPath project
                  else do debug u "Buffer was not saved"
                          return (project, False)
   where
     u = QFE.utilityBar layout
-    promptText = (B.pack newPath) ~~ " already exists, overwrite?"
+    promptText = (U.fromString newPath) ~~ " already exists, overwrite?"
 
 writeP :: FilePath -> Project -> IO (Project, Bool)
 writeP path project = do
@@ -253,15 +254,15 @@ handleKey layout project k
         (newProject, _) <- promptSave layout project
         mainLoop layout newProject
     | k == CtrlKey 'x' = do
-        setClipboardString $ B.unpack $ selection $ condense $ activeP project
+        setClipboardString $ U.toString $ selection $ condense $ activeP project
         action delete
     | k == CtrlKey 'c' = do
-        setClipboardString $ B.unpack $ selection $ condense $ activeP project
+        setClipboardString $ U.toString $ selection $ condense $ activeP project
         mainLoop layout project
     | k == CtrlKey 'v' = do
         s <- getClipboardString
         case s of Nothing -> mainLoop layout project
-                  Just s' -> action (paste $ B.pack s')
+                  Just s' -> action (paste $ U.fromString s')
     | k == CtrlKey 'z' = action undo
     | k == CtrlKey 'y' = action redo
     | k == CtrlKey 'a' = action selectAll
@@ -297,7 +298,7 @@ handleKey layout project k
     | k == SpecialKey "Esc"             = action deselect
     | k == ResizeKey                    = resizeLayout layout project
     | otherwise = do
-          debug (QFE.utilityBar layout) $ B.pack $ show k
+          debug (QFE.utilityBar layout) $ U.fromString $ show k
           continue
   where
     unsavedIndices = findIndices ebUnsaved $ (\(x, _) -> toList x) project

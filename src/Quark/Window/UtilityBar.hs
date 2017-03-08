@@ -20,7 +20,8 @@ module Quark.Window.UtilityBar ( promptString
                                , promptChoice
                                , debug ) where
 
-import Data.ByteString (ByteString)
+import Data.ByteString.UTF8 (ByteString)
+import qualified Data.ByteString.UTF8 as U
 import qualified Data.ByteString.Char8 as B
 import Data.Char ( isPrint
                  , toUpper )
@@ -58,7 +59,7 @@ import Quark.IOHelpers ( autoComplete )
 prompt :: Int -> Window -> ByteString -> IO ()
 prompt r w@(UtilityBar _ (_, c)) text = do
     setTextColor w (red, defaultBg)
-    mvAddString w r 0 $ B.unpack $ padToLen (c - 1) text
+    mvAddString w r 0 $ U.toString $ padToLen (c - 1) text
     refresh w
 
 debug :: Window -> ByteString -> IO ()
@@ -97,7 +98,7 @@ cGetOption w options = do
     case checkOption k options of Nothing -> cGetOption w options
                                   Just x  -> return x
   where
-    optionLength = \(c, s, _) -> length (translateChar c) + B.length s + 1
+    optionLength = \(c, s, _) -> length (translateChar c) + U.length s + 1
 
 checkOption :: Key -> [Option a] -> Maybe a
 checkOption _ [] = Nothing
@@ -114,7 +115,7 @@ printOption w n (c, s, _) = do
     setTextColor w (defaultColor, defaultBg)
     addString w sc
     setTextColor w (red, defaultBg)
-    addString w $ B.unpack (padToLen' (n - length sc) s) ++ " "
+    addString w $ U.toString (padToLen' (n - length sc) s) ++ " "
   where
     sc = translateChar c
 
@@ -125,20 +126,20 @@ translateChar c = [toUpper c]
 
 promptAutoComplete :: Window -> Buffer -> Int -> IO (String)
 promptAutoComplete w buffer@(Buffer h cursor _) n = do
-    s <- autoComplete n $ B.unpack $ toString h
-    prompt 1 w $ (toString h) ~~ (B.pack s)
+    s <- autoComplete n $ U.toString $ toString h
+    prompt 1 w $ (toString h) ~~ (U.fromString s)
     updateCursor w (1, length s) cursor
     refresh w
     k <- getKey
     if k == SpecialKey "Tab"
         then promptAutoComplete w buffer (n + 1)
-        else handleKey k w (paste (B.pack s) buffer)
+        else handleKey k w (paste (U.fromString s) buffer)
 
 handleKey :: Key -> Window -> Buffer -> IO (String)
 handleKey (CharKey c) w buffer = cGetLine w $ input c buffer
 handleKey k w buffer@(Buffer h _ _)
     | k == SpecialKey "Esc"        = return "\ESC"
-    | k == SpecialKey "Return"     = return $ B.unpack $ toString h
+    | k == SpecialKey "Return"     = return $ U.toString $ toString h
     | k == SpecialKey "Backspace"  = action backspace
     | k == CtrlKey 'z'             = action undo
     | k == CtrlKey 'y'             = action redo

@@ -21,7 +21,7 @@ module Quark.Lexer.Language ( assumeLanguage
                             , colorize ) where
 
 import System.FilePath ( takeExtension )
-import Data.ByteString (ByteString)
+import Data.ByteString.UTF8 (ByteString)
 -- import qualified Data.ByteString.Char8 as B
 
 import Quark.Lexer.Core ( tokenizeNothing

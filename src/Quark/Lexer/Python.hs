@@ -18,7 +18,7 @@
 
 module Quark.Lexer.Python ( tokenizePython, pythonColors ) where
 
-import Data.ByteString (ByteString)
+import Data.ByteString.UTF8 (ByteString)
 
 import Quark.Types
 import Quark.Colors

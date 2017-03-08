@@ -36,8 +36,8 @@ import Data.List ( intersperse
                  , intercalate
                  , sortBy )
 
-import Data.ByteString (ByteString)
-import qualified Data.ByteString.Char8 as B
+import Data.ByteString.UTF8 (ByteString)
+import qualified Data.ByteString.UTF8 as U
 
 import Text.Regex.PCRE
 import Text.Regex.PCRE.ByteString
@@ -47,12 +47,12 @@ import Quark.Helpers ( (~~)
                      , nlTail )
 import Quark.Colors (defaultColor)
 
-type RegexString = B.ByteString
+type RegexString = ByteString
 
 {- A grammar is a list of (Token data constructor, regex) tuples in order of
    precedence, see for example Quark.Lexer.Haskell -}
-type Grammar = [(B.ByteString -> Token, RegexString)]
-type CompiledGrammar = [(B.ByteString -> Token, B.ByteString -> B.ByteString)]
+type Grammar = [(ByteString -> Token, RegexString)]
+type CompiledGrammar = [(ByteString -> Token, ByteString -> ByteString)]
 
 mapT :: (ByteString -> a) -> Token -> a
 mapT f (Comment s)       = f s
@@ -100,7 +100,7 @@ tokenString :: Token -> ByteString
 tokenString = mapT id
 
 tokenLength :: Token -> Int
-tokenLength = mapT B.length
+tokenLength = mapT U.length
 
 tokenLines :: [Token] -> [[Token]]
 tokenLines [] = []
@@ -115,14 +115,14 @@ splitT :: Token -> [Int] -> [Token]
 splitT t []     = [t]
 splitT t (s:ss) = t0:(splitT t1 $ map (\x -> x - s) ss)
   where
-    t0 = liftT (B.take s) t
-    t1 = liftT (B.drop s) t
+    t0 = liftT (U.take s) t
+    t1 = liftT (U.drop s) t
 
 takeTL :: Int -> [Token] -> [Token]
 takeTL _ []     = []
 takeTL n (t:ts) = case n > k of
     True  -> t:(takeTL (n-k) ts)
-    False -> [liftT (B.take n) t]
+    False -> [liftT (U.take n) t]
   where
     k = tokenLength t
 
@@ -130,7 +130,7 @@ dropTL :: Int -> [Token] -> [Token]
 dropTL _ [] = []
 dropTL n (t:ts) = case n >= k of
     True  -> dropTL (n-k) ts
-    False -> (liftT (B.drop n) t):ts
+    False -> (liftT (U.drop n) t):ts
   where
     k = tokenLength t
 
@@ -142,14 +142,14 @@ matchCompiledRe re = match (makeRegex re :: Regex)
 
 -- append word boundary check, suitable for reserved keywords
 listToRe :: [String] -> RegexString
-listToRe l = B.pack $ "\\A(" ++ intercalate "|" wbL ++ ")"
+listToRe l = U.fromString $ "\\A(" ++ intercalate "|" wbL ++ ")"
   where
     wbL = map (\s -> s ++ "\\b") sortedL
     sortedL = sortBy (\x y -> compare (length y) (length x)) l
 
 -- do not append word boundary check, suitable for operators
 listToRe' :: [String] -> RegexString
-listToRe' l = B.pack $ "\\A(" ++ intercalate "|" sortedL ++ ")"
+listToRe' l = U.fromString $ "\\A(" ++ intercalate "|" sortedL ++ ")"
   where
     sortedL = sortBy (\x y -> compare (length y) (length x)) l
 
@@ -162,23 +162,23 @@ lexer' _ "\n" = [[Newline "\n", Unclassified ""]]
 lexer' g s    = t:(lexer' g s')
   where
     t = nextTokens g s
-    s' = B.drop (sum (map tokenLength t)) s
+    s' = U.drop (sum (map tokenLength t)) s
 
 nextTokens :: CompiledGrammar -> ByteString -> [Token]
 nextTokens _ "" = []
-nextTokens [] (B.uncons -> Just (x, _)) = [Unclassified $ B.pack [x]]
+nextTokens [] (U.uncons -> Just (x, _)) = [Unclassified $ U.fromString [x]]
 nextTokens (g@(t, matchRe):gs) s = case matchRe s of
     "" -> nextTokens gs s
     s' -> case s' of
               "\n" -> [t s']
               _    -> intersperse (Newline "\n") [t s'' | s'' <- sLines]
                         where
-                          sLines = B.lines s'
+                          sLines = U.lines s'
 
 
 hatify :: RegexString -> RegexString
 hatify "" = ""
-hatify re = case re =~ (B.pack "\\\\A") :: Bool of
+hatify re = case re =~ (U.fromString "\\\\A") :: Bool of
     True  -> re
     False -> "\\A" ~~ re
 
@@ -194,7 +194,7 @@ fuseFold t ts = t:ts
 
 tokenizeNothing :: ByteString -> [Token]
 tokenizeNothing s = intersperse (Newline "\n") $
-    [Unclassified s' | s' <- B.lines s ++ if nlTail s then [""] else []]
+    [Unclassified s' | s' <- U.lines s ++ if nlTail s then [""] else []]
 
 nothingColors :: Token -> Int
 nothingColors _ = defaultColor -- 0

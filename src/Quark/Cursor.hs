@@ -2,8 +2,8 @@
 
 module Quark.Cursor where
 
-import Data.ByteString (ByteString)
-import qualified Data.ByteString.Char8 as B
+import Data.ByteString.UTF8 (ByteString)
+import qualified Data.ByteString.UTF8 as U
 
 import Quark.Types ( Cursor
                    , Index
@@ -19,17 +19,17 @@ import Quark.Helpers ( nlTail
 ixToCursor :: Index -> ByteString -> Cursor
 ixToCursor ix s = (row, col)
   where
-    row = (length $ B.lines $ s0 ~~ " ") - 1
-    col = (B.length $ last $ B.lines $ s0 ~~ " ") - 1
-    (s0, _) = B.splitAt ix s
+    row = (length $ U.lines $ s0 ~~ " ") - 1
+    col = (U.length $ last $ U.lines $ s0 ~~ " ") - 1
+    (s0, _) = U.splitAt ix s
 
 -- Convert a cursor on a string to a linear index
 cursorToIx :: Cursor -> ByteString -> Index
 cursorToIx _ "" = 0
-cursorToIx (0, col) (B.uncons -> Just (x, xs))
+cursorToIx (0, col) (U.uncons -> Just (x, xs))
     | col <= 0 || x == '\n' = 0
     | otherwise             = 1 + cursorToIx (0, col - 1) xs
-cursorToIx (row, col) (B.uncons -> Just (x, xs))
+cursorToIx (row, col) (U.uncons -> Just (x, xs))
     | row < 0   = 0
     | x == '\n' = 1 + cursorToIx (row - 1, col) xs
     | otherwise = 1 + cursorToIx (row, col) xs
@@ -52,6 +52,6 @@ orderTwo x y = case compare x y of
 -- Move a cursor on a string
 move :: Direction -> ByteString -> Cursor -> Cursor
 move Backward s crs = ixToCursor (max ((cursorToIx crs s) - 1) 0) s
-move Forward s crs = ixToCursor (min ((cursorToIx crs s) + 1) (B.length s)) s
+move Forward s crs = ixToCursor (min ((cursorToIx crs s) + 1) (U.length      s)) s
 move Up _ (row, col) = (max (row - 1) 0, col)
 move Down s (row, col) = (min (row + 1) $ strHeight s - 1, col)
