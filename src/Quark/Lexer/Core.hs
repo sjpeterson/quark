@@ -43,7 +43,8 @@ import Text.Regex.PCRE
 import Text.Regex.PCRE.ByteString
 
 import Quark.Types
-import Quark.Helpers ((~~))
+import Quark.Helpers ( (~~)
+                     , nlTail )
 import Quark.Colors (defaultColor)
 
 type RegexString = B.ByteString
@@ -104,9 +105,9 @@ tokenLength = mapT B.length
 tokenLines :: [Token] -> [[Token]]
 tokenLines [] = []
 tokenLines t = cons (case break (== (Newline "\n")) t of
-                        (l, t') -> (l, case t' of
-                                        [] -> []
-                                        _:t'' -> tokenLines t''))
+                         (l, t') -> (l, case t' of
+                                            [] -> []
+                                            _:t'' -> tokenLines t''))
   where
     cons ~(p, q) = p:q
 
@@ -156,8 +157,9 @@ lexer :: CompiledGrammar -> ByteString -> [Token]
 lexer g s = (fuseUnclassified . concat) $ lexer' g s
 
 lexer' :: CompiledGrammar -> ByteString -> [[Token]]
-lexer' _ "" = []
-lexer' g s = t:(lexer' g s')
+lexer' _ ""   = []
+lexer' _ "\n" = [[Newline "\n", Unclassified ""]]
+lexer' g s    = t:(lexer' g s')
   where
     t = nextTokens g s
     s' = B.drop (sum (map tokenLength t)) s
@@ -192,7 +194,7 @@ fuseFold t ts = t:ts
 
 tokenizeNothing :: ByteString -> [Token]
 tokenizeNothing s = intersperse (Newline "\n") $
-    [Unclassified s' | s' <- B.lines s]
+    [Unclassified s' | s' <- B.lines s ++ if nlTail s then [""] else []]
 
 nothingColors :: Token -> Int
 nothingColors _ = defaultColor -- 0

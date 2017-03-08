@@ -51,6 +51,7 @@ import Quark.Buffer ( Buffer ( Buffer )
                     , moveCursorN
                     , selectMoveCursor
                     , selectAll
+                    , deselect
                     , selection
                     , input
                     , backspace
@@ -154,29 +155,32 @@ promptOpen layout project = do
     u = QFE.utilityBar layout
 
 chooseSave :: QFE.Layout -> Project -> IO (Project, Bool)
-chooseSave layout project = do
-    save <- promptChoice u promptText [ ('y', "Yes", Just True)
-                                      , ('n', "No", Just False)
-                                      , ('\ESC', "Cancel", Nothing) ]
-    chooseSave' save layout project
+chooseSave layout project =
+    promptChoice u promptText [ ('y', "Yes", Just True)
+                              , ('n', "No", Just False)
+                              , ('\ESC', "Cancel", Nothing) ] >>=
+        chooseSave' layout project
   where
     u = QFE.utilityBar layout
     promptText = B.pack $ "Save changes to " ++ path ++ "?"
     (_, (path, _, _)) = activeP project
 
-chooseSave' :: Maybe Bool -> QFE.Layout -> Project -> IO (Project, Bool)
-chooseSave' (Just True) layout project = do
+chooseSave' :: QFE.Layout -> Project -> Maybe Bool -> IO (Project, Bool)
+chooseSave' layout project (Just True) = do
     (newProject, canceled) <- if path == "" then promptSave layout project
                                             else writeP path project
     if canceled
         then chooseSave layout project
         else if newProject == project
-                 then chooseSave' (Just True) layout project
+                 then chooseSave' layout project (Just True)
                  else return (newProject, False)
   where
     (_, (path, _, _)) = activeP project
-chooseSave' (Just False) _ project = return (project, False)
-chooseSave' Nothing _ project = return (project, True)
+chooseSave' _ project (Just False) = return (project, False)
+chooseSave' layout project Nothing =
+    QFE.clear u *> QFE.refresh u *> return (project, True)
+  where
+    u = QFE.utilityBar layout
 
 promptSave :: QFE.Layout -> Project -> IO (Project, Bool)
 promptSave layout project = case activeP project of
@@ -265,35 +269,36 @@ handleKey layout project k
     | k == CtrlKey 'o' = do
         newProject <- promptOpen layout project
         mainLoop layout newProject
-    | k == SpecialKey "Backspace" = action backspace
-    | k == SpecialKey "Delete"    = action delete
-    | k == SpecialKey "Return"    = action nlAutoIndent
-    | k == SpecialKey "Tab"       = action (tab 4)
-    | k == SpecialKey "Shift-Tab"      = action (unTab 4)
-    | k == SpecialKey "Up"        = action (moveCursor Up)
-    | k == SpecialKey "Down"      = action (moveCursor Down)
-    | k == SpecialKey "Left"      = action (moveCursor Backward)
-    | k == SpecialKey "Right"     = action (moveCursor Forward)
-    | k == SpecialKey "Shift-PgUp"     = action (selectMoveCursor Up)
-    | k == SpecialKey "Shift-PgDn"     = action (selectMoveCursor Down)
-    | k == SpecialKey "Shift-Left"     = action (selectMoveCursor Backward)
-    | k == SpecialKey "Shift-Right"    = action (selectMoveCursor Forward)
-    | k == SpecialKey "PgUp"      = action (moveCursorN (r - 1) Up)
-    | k == SpecialKey "PgDn"      = action (moveCursorN (r - 1) Down)
-    | k == SpecialKey "End"       = action (endOfLine True)
-    | k == SpecialKey "Home"      = action (startOfLine True)
-    | k == SpecialKey "Shift-End"      = action (endOfLine False)
-    | k == SpecialKey "Shift-Home"     = action (startOfLine False)
-    | k == SpecialKey "Ctrl-End"     = action (endOfFile True)
-    | k == SpecialKey "Ctrl-Home"    = action (startOfFile True)
-    | k == SpecialKey "Ctrl-Shift-End"    = action (endOfFile False)
-    | k == SpecialKey "Ctrl-Shift-Home"   = action (startOfFile False)
-    | k == SpecialKey "Ctrl-Left"    = actionF flipPrevious
-    | k == SpecialKey "Ctrl-Right"   = actionF flipNext
-    | k == ResizeKey         = resizeLayout layout project
+    | k == SpecialKey "Backspace"       = action backspace
+    | k == SpecialKey "Delete"          = action delete
+    | k == SpecialKey "Return"          = action nlAutoIndent
+    | k == SpecialKey "Tab"             = action (tab 4)
+    | k == SpecialKey "Shift-Tab"       = action (unTab 4)
+    | k == SpecialKey "Up"              = action (moveCursor Up)
+    | k == SpecialKey "Down"            = action (moveCursor Down)
+    | k == SpecialKey "Left"            = action (moveCursor Backward)
+    | k == SpecialKey "Right"           = action (moveCursor Forward)
+    | k == SpecialKey "Shift-PgUp"      = action (selectMoveCursor Up)
+    | k == SpecialKey "Shift-PgDn"      = action (selectMoveCursor Down)
+    | k == SpecialKey "Shift-Left"      = action (selectMoveCursor Backward)
+    | k == SpecialKey "Shift-Right"     = action (selectMoveCursor Forward)
+    | k == SpecialKey "PgUp"            = action (moveCursorN (r - 1) Up)
+    | k == SpecialKey "PgDn"            = action (moveCursorN (r - 1) Down)
+    | k == SpecialKey "End"             = action (endOfLine True)
+    | k == SpecialKey "Home"            = action (startOfLine True)
+    | k == SpecialKey "Shift-End"       = action (endOfLine False)
+    | k == SpecialKey "Shift-Home"      = action (startOfLine False)
+    | k == SpecialKey "Ctrl-End"        = action (endOfFile True)
+    | k == SpecialKey "Ctrl-Home"       = action (startOfFile True)
+    | k == SpecialKey "Ctrl-Shift-End"  = action (endOfFile False)
+    | k == SpecialKey "Ctrl-Shift-Home" = action (startOfFile False)
+    | k == SpecialKey "Ctrl-Left"       = actionF flipPrevious
+    | k == SpecialKey "Ctrl-Right"      = actionF flipNext
+    | k == SpecialKey "Esc"             = action deselect
+    | k == ResizeKey                    = resizeLayout layout project
     | otherwise = do
-                      debug (QFE.utilityBar layout) $ B.pack $ show k
-                      continue
+          debug (QFE.utilityBar layout) $ B.pack $ show k
+          continue
   where
     unsavedIndices = findIndices ebUnsaved $ (\(x, _) -> toList x) project
     ((Buffer h _ _), _) = activeP project
@@ -316,10 +321,16 @@ mainLoop layout project = do
     let ((Buffer h crs sel), (path, language, _)) = activeBuffer
     let layout' = firstL (updateOffset crs lnOffset) layout
     let w@(QFE.TextView _ _ (rr, cc)) = QFE.primaryPane layout'
-    setTitle (QFE.titleBar layout') path
+    setTitle (QFE.titleBar layout') $ if ebUnsaved activeBuffer
+                                          then path ++ "*"
+                                          else path
     printText language w cursors (ebToString activeBuffer)
     QFE.updateCursor w (rr, cc - lnOffset) crs
-    QFE.getKey >>= handleKey layout' project
+    -- QFE.getKey >>= handleKey layout' project
+    k <- QFE.getKey
+    QFE.clear $ QFE.utilityBar layout'
+    QFE.refresh $ QFE.utilityBar layout'
+    handleKey layout' project k
   where
     activeBuffer = activeP project
     cursors = ebCursors activeBuffer

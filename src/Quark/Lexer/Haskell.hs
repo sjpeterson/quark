@@ -31,7 +31,7 @@ haskellGrammar = [ (Newline, "\\A\n")
                  , (Pragma, "\\A\\{-#.*?#-\\}")
                  , (Comment, "\\A\\{-[\\S\\s]*?-\\}")
                  , (Comment, "\\A--[^\n]*")
-                 , (CharLiteral, "\\A'[^']'")
+                 , (CharLiteral, "\\A'([^'\n]|\\\\[a-z]|\\\\[A-Z0-9]+)'")
                  , (NumLiteral, "\\A[0-9]+\\.?[0-9]*")
                  , (Operator, listToRe' [ "::"
                                         , "=>"

@@ -32,7 +32,8 @@ import Quark.Frontend.HSCurses ( Window ( UtilityBar )
                                , addString
                                , mvAddString
                                , refresh
-                               , getKey )
+                               , getKey
+                               , clear )
 
 import Quark.Helpers ( padToLen
                      , padToLen'
@@ -60,12 +61,8 @@ prompt r w@(UtilityBar _ (_, c)) text = do
     mvAddString w r 0 $ B.unpack $ padToLen (c - 1) text
     refresh w
 
+debug :: Window -> ByteString -> IO ()
 debug = prompt 0
-
-clear :: Window -> IO ()
-clear u = do
-    prompt 0 u ""
-    prompt 1 u ""
 
 promptString :: Window -> ByteString -> ByteString -> IO (String)
 promptString u s def = do
@@ -104,6 +101,9 @@ cGetOption w options = do
 
 checkOption :: Key -> [Option a] -> Maybe a
 checkOption _ [] = Nothing
+checkOption k@(SpecialKey "Esc") ((c', _, x):xs)
+    | c' == '\ESC' = Just x
+    | otherwise    = checkOption k xs
 checkOption k@(CharKey c) ((c', _, x):xs)
     | toUpper c == toUpper c' = Just x
     | otherwise               = checkOption k xs

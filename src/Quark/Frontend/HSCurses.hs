@@ -256,12 +256,12 @@ defaultLayout = do
 basicLayout :: Int -> Int -> IO (Layout)
 basicLayout r c = do
     let dpWidth = min 24 (c - 32)
-    let mainHeight = r - 3
+    let mainHeight = r - 4
     let mainWidth = c - dpWidth
     cTitleBar <- Curses.newWin 2 c 0 0
-    cUtilityBar <- Curses.newWin 2 c (r - 3) 0
-    cDirectoryPane <- Curses.newWin (mainHeight + 1) dpWidth 0 1
-    cMainView <- Curses.newWin (mainHeight + 1) mainWidth 1 dpWidth
+    cUtilityBar <- Curses.newWin 2 c (r - 2) 0
+    cDirectoryPane <- Curses.newWin mainHeight dpWidth 2 0
+    cMainView <- Curses.newWin mainHeight mainWidth 2 dpWidth
     let qTitleBar = TitleBar cTitleBar (1, c)
     let qUtilityBar = UtilityBar cUtilityBar (1, c)
     let qDirectoryPane = DirectoryView cDirectoryPane (mainHeight, dpWidth) 0
@@ -270,10 +270,10 @@ basicLayout r c = do
 
 minimalLayout :: Int -> Int -> IO (Layout)
 minimalLayout r c = do
-    let mainHeight = r - 3
+    let mainHeight = r - 4
     cTitleBar <- Curses.newWin 2 c 0 0
     cUtilityBar <- Curses.newWin 2 c (r - 2) 0
-    cMainView <- Curses.newWin (mainHeight + 1) c 2 0
+    cMainView <- Curses.newWin mainHeight c 2 0
     let qTitleBar = TitleBar cTitleBar (1, c)
     let qUtilityBar = UtilityBar cUtilityBar (1, c)
     let qPrimaryPane = TextView cMainView (mainHeight, c) (0, 0)

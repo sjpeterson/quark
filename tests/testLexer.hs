@@ -14,7 +14,9 @@ main = defaultMain tests
 
 tests :: TestTree
 tests = testGroup "Tests" [ lexerCoreUnitTests
-                          , hsLexerUnitTests ]
+                          , lexerLanguageUnitTests
+                          , hsLexerUnitTests
+                          , nothingLexerUnitTests]
 
 lexerCoreUnitTests = testGroup "Unit tests for Lexer/Core.hs"
   [ testCase "splitT t []" $
@@ -32,7 +34,7 @@ lexerCoreUnitTests = testGroup "Unit tests for Lexer/Core.hs"
   , testCase "Dummy" $
         assertEqual "" 1 1]
 
-lexerLanguageUnitTess = testGroup "Unit tests for Lexer/Language.hs"
+lexerLanguageUnitTests = testGroup "Unit tests for Lexer/Language.hs"
   [ testCase "assumeLanguage haskell" $
       assertEqual "" "Haskell" $ assumeLanguage "/home/test/File.hs"]
 
@@ -63,16 +65,16 @@ hsLexerUnitTests = testGroup "Unit tests for Lexer/Haskell.hs"
   , testCase "Block comment with newline" $
       assertEqual "" [ Comment "{- Block"
                      , Newline "\n"
-                     , Comment "comment -}"
-                     , Newline "\n" ] $
-        tokenizeHaskell "{- Block\ncomment -}\n"
+                     , Comment "comment -}" ] $
+        tokenizeHaskell "{- Block\ncomment -}"
   , testCase "Simple Line comment" $
       assertEqual "" [Comment "-- Line comment"] $
         tokenizeHaskell "-- Line comment"
   , testCase "Line comment terminated by newline" $
       assertEqual "" [ Comment "-- Line comment"
-                     , Newline "\n" ] $
-        tokenizeHaskell "-- Line comment\n"
+                     , Newline "\n"
+                     , VarIdent "myFunction"] $
+        tokenizeHaskell "-- Line comment\nmyFunction"
   , testCase "Line comment with in-line block comment" $
       assertEqual "" [ Comment "-- Line {- comment -}"] $
         tokenizeHaskell "-- Line {- comment -}"
@@ -171,3 +173,11 @@ hsLexerUnitTests = testGroup "Unit tests for Lexer/Haskell.hs"
         tokenizeHaskell ","
   , testCase "Dummy" $
       assertEqual "" 1 1]
+
+nothingLexerUnitTests = testGroup "Unit tests for tokenizeNothing"
+  [ testCase "Handle trailing newline" $
+      assertEqual "" [ Unclassified "test"
+                     , Newline "\n"
+                     , Unclassified "string"
+                     , Newline "\n"
+                     , Unclassified "" ] $ tokenizeNothing "test\nstring\n"]

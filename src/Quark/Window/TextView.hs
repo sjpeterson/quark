@@ -51,7 +51,8 @@ printText language w@(TextView _ (r, c) (rr, cc)) cursors text = do
   where
     n =  (length $ B.lines text) + if nlTail text then 1 else 0
     lnc = (length $ show n) + 1
-    lineNumbers = map (padToLen lnc) (map (B.pack . show) $ [rr + 1..n]) ++ repeat ""
+    lineNumbers =
+        map (padToLen lnc) (map (B.pack . show) $ [rr + 1..n]) ++ repeat ""
     tokens = drop rr $ tokenLines $ tokenize language text
     selections = map (selOnLine cursors) [rr + 0..n]
 

@@ -12,20 +12,21 @@ import Quark.Types (Size)
 (~~) = B.append
 
 -- Compute width of a string in number of columns
-strWidth :: String -> Int
-strWidth s = maximum $ map length $ lines s
+strWidth :: ByteString -> Int
+strWidth s = maximum $ map B.length $ B.lines s
 
 -- Compute height of a string in number of rows
-strHeight :: String -> Int
-strHeight s = length $ lines $ s ++ " "
+strHeight :: ByteString -> Int
+strHeight s = length $ B.lines $ s ~~ " "
 
 -- Compute size of a string (height and width)
-strSize :: String -> Size
+strSize :: ByteString -> Size
 strSize s = (strHeight s, strWidth s)
 
 -- Line number width
 lnWidth :: ByteString -> Int
-lnWidth s = (length $ show $ length $ B.lines s) + 1
+lnWidth s =
+    (length $ show $ (length $ B.lines s) + if nlTail s then 1 else 0) + 1
 
 lnIndent :: Int -> ByteString -> Int
 lnIndent r s = case drop r (B.lines s) of

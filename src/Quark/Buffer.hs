@@ -45,6 +45,7 @@ module Quark.Buffer ( Buffer ( Buffer
                     , endOfFile
                     , startOfFile
                     , selectAll
+                    , deselect
                     , ebUnsaved ) where
 
 import Data.ByteString (ByteString)
@@ -266,6 +267,9 @@ selectAll :: Buffer -> Buffer
 selectAll (Buffer h _ _) = Buffer h (0, 0) $ ixToCursor (B.length s) s
   where
     s = toString h
+
+deselect :: Buffer -> Buffer
+deselect (Buffer h crs _) = Buffer h crs crs
 
 -- Move the cursor one step, set selection cursor to same
 moveCursor :: Direction -> Buffer -> Buffer

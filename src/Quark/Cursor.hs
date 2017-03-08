@@ -12,6 +12,7 @@ import Quark.Types ( Cursor
                                , Up
                                , Down ) )
 import Quark.Helpers ( nlTail
+                     , strHeight
                      , (~~) )
 
 -- Convert a linear index of a string to a cursor
@@ -53,5 +54,4 @@ move :: Direction -> ByteString -> Cursor -> Cursor
 move Backward s crs = ixToCursor (max ((cursorToIx crs s) - 1) 0) s
 move Forward s crs = ixToCursor (min ((cursorToIx crs s) + 1) (B.length s)) s
 move Up _ (row, col) = (max (row - 1) 0, col)
-move Down s (row, col) = (min (row + 1) rMax, col)
-  where rMax = length (B.lines s) - if nlTail s then 0 else 1
+move Down s (row, col) = (min (row + 1) $ strHeight s - 1, col)

@@ -1,7 +1,4 @@
 Functionality:
-  - unselect on Esc
-  - debug should not persist, primary pane should not overwrite
-
   - find
     - ...and replace
   - Show overflow hints (~)
