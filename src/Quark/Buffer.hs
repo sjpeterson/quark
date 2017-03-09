@@ -28,6 +28,7 @@ module Quark.Buffer ( Buffer ( Buffer
                     , cursor
                     , selectionCursor
                     , input
+                    , insert
                     , nlAutoIndent
                     , paste
                     , tab

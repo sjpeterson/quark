@@ -55,6 +55,7 @@ import Quark.Buffer ( Buffer ( Buffer )
                     , deselect
                     , selection
                     , input
+                    , insert
                     , backspace
                     , delete
                     , tab
@@ -86,6 +87,7 @@ import Quark.Helpers ( (~~)
                      , lnWidth
                      , nlTail )
 import Quark.Types (Key ( CharKey
+                        , WideCharKey
                         , SpecialKey
                         , CtrlKey
                         , ResizeKey )
@@ -247,6 +249,8 @@ resizeLayout layout' project = do
 handleKey :: QFE.Layout -> Project -> Key -> IO ()
 handleKey layout project (CharKey c) =
     mainLoop layout $ first (firstF $ first $ input c) project
+handleKey layout project (WideCharKey s) =
+    mainLoop layout $ first (firstF $ first $ insert (B.pack s) True) project
 handleKey layout project k
     | k == CtrlKey 'q' = saveAndQuit unsavedIndices layout project
     | k == CtrlKey 'w' = saveAndClose layout project

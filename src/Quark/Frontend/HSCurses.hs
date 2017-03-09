@@ -43,10 +43,12 @@ module Quark.Frontend.HSCurses ( Window ( TitleBar
 
 import qualified UI.HSCurses.Curses as Curses
 
-import Data.Char ( isPrint )
+import Data.Char ( isPrint
+                 , ord )
 
 import Quark.Colors
 import Quark.Types ( Key ( CharKey
+                         , WideCharKey
                          , CtrlKey
                          , FnKey
                          , SpecialKey
@@ -80,8 +82,24 @@ end = Curses.endWin
 -- getKey --
 ------------
 
-getKey :: IO (Key)
-getKey = translateKey <$> Curses.getCh
+getKey :: IO Key
+getKey = translateKey' =<< Curses.getCh
+
+translateKey' :: Curses.Key -> IO Key
+translateKey' (Curses.KeyChar c)
+    | ord c >= 240 = WideCharKey <$> (c:) <$> getMoreChars 3
+    | ord c >= 224 = WideCharKey <$> (c:) <$> getMoreChars 2
+    | ord c >= 192 = WideCharKey <$> (c:) <$> getMoreChars 1
+translateKey' k = return $ translateKey k
+
+getMoreChars :: Int -> IO String
+getMoreChars n
+    | n <= 0    = return ""
+    | otherwise = do
+        k <- Curses.getCh
+        case k of
+            (Curses.KeyChar c) -> (c:) <$> (getMoreChars (n - 1))
+            _                  -> Curses.ungetCh 1 >> return ""
 
 translateKey :: Curses.Key -> Key
 translateKey k@(Curses.KeyChar c)
@@ -246,14 +264,14 @@ data Layout = MinimalLayout { titleBar :: Window
                            , primaryPane :: Window
                            , secondaryPane :: Window } deriving Show
 
-defaultLayout :: IO (Layout)
+defaultLayout :: IO Layout
 defaultLayout = do
     (r, c) <- Curses.scrSize
     layout <- if c > 85 + 16 then (basicLayout r c)
                              else (minimalLayout r c)
     return layout
 
-basicLayout :: Int -> Int -> IO (Layout)
+basicLayout :: Int -> Int -> IO Layout
 basicLayout r c = do
     let dpWidth = min 24 (c - 32)
     let mainHeight = r - 4
@@ -268,7 +286,7 @@ basicLayout r c = do
     let qPrimaryPane = TextView cMainView (mainHeight, (c - dpWidth)) (0, 0)
     return $ BasicLayout qTitleBar qUtilityBar qDirectoryPane qPrimaryPane
 
-minimalLayout :: Int -> Int -> IO (Layout)
+minimalLayout :: Int -> Int -> IO Layout
 minimalLayout r c = do
     let mainHeight = r - 4
     cTitleBar <- Curses.newWin 2 c 0 0

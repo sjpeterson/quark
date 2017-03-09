@@ -42,6 +42,7 @@ type ColorPair = (ColorId, ColorId)     -- (foreground, background)
 data Direction = Backward | Forward | Up | Down deriving (Show, Eq)
 
 data Key = CharKey Char
+         | WideCharKey String
          | CtrlKey Char
          | FnKey Int
          | SpecialKey String
