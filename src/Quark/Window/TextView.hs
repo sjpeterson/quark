@@ -41,19 +41,18 @@ import Quark.Colors
 import Quark.Types
 import Quark.Cursor (orderTwo)
 
--- TODO: add text overflow hints
-printText :: Language -> Window -> (Cursor, Cursor) -> ByteString -> IO ()
-printText language w@(TextView _ (r, c) (rr, cc)) cursors text = do
+printText :: Language -> Window -> (Cursor, Cursor) -> [[Token]] -> IO ()
+printText language w@(TextView _ (r, c) (rr, cc)) cursors tokenLines' = do
     clear' w lnc
     mapM_ (\(k, l, t, s) -> printTokenLine language k l t s w) $
         zip4 [0..(r - 2)] lineNumbers tokens selections
     refresh w
   where
-    n =  (length $ U.lines text) + if nlTail text then 1 else 0
+    n = length tokenLines'
     lnc = (length $ show n) + 1
     lineNumbers =
         map (padToLen lnc) (map (U.fromString . show) $ [rr + 1..n]) ++ repeat ""
-    tokens = drop rr $ tokenLines $ tokenize language text
+    tokens = drop rr tokenLines'
     selections = map (selOnLine cursors) [rr + 0..n]
 
 updateOffset :: Cursor -> Int -> Window -> Window

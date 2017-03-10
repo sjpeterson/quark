@@ -23,6 +23,13 @@ module Quark.Buffer ( Buffer ( Buffer
                     , ebToString
                     , ebSelection
                     , ebCursors
+                    , ebNew
+                    , ebFirst
+                    , setPath
+                    , path
+                    , language
+                    , tokens
+                    , writeProtected
                     , condense
                     , editHistory
                     , cursor
@@ -49,6 +56,8 @@ module Quark.Buffer ( Buffer ( Buffer
                     , deselect
                     , ebUnsaved
                     , bufferFind ) where
+
+import Data.Bifunctor ( second )
 
 import Data.ByteString.UTF8 (ByteString)
 import qualified Data.ByteString.UTF8 as U
@@ -82,6 +91,8 @@ import Quark.Cursor ( move
                      , orderTwo
                      , ixToCursor
                      , cursorToIx )
+import Quark.Lexer.Core ( tokenLines )
+import Quark.Lexer.Language ( tokenize )
 import Quark.Helpers ( lnIndent
                      , lineSplitIx
                      , findIx
@@ -97,15 +108,40 @@ data Buffer = LockedBuffer String
 -- another buffer, but is non-editable. The low-tech version of this would be
 -- to clone a Buffer to a LockedBuffer
 
-type BufferMetaData = (FilePath, Language, [[Token]], Bool)
+data BufferMetaData = BufferMetaData { path' :: FilePath
+                                     , language' :: Language
+                                     , tokenLines' :: [[Token]]
+                                     , writeProtected' :: Bool } deriving Eq
 type ExtendedBuffer = (Buffer, BufferMetaData)
+
+language :: ExtendedBuffer -> Language
+language (_, bufferMetaData) = language' bufferMetaData
+
+writeProtected :: ExtendedBuffer -> Bool
+writeProtected (_, bufferMetaData) = writeProtected' bufferMetaData
+
+path :: ExtendedBuffer -> FilePath
+path (_, bufferMetaData) = path' bufferMetaData
+
+setPath :: FilePath -> ExtendedBuffer -> ExtendedBuffer
+setPath path'' b = second (setPath' path'') b
+
+setPath' :: FilePath -> BufferMetaData -> BufferMetaData
+setPath' path'' (BufferMetaData _ a b c) = BufferMetaData path'' a b c
+
+setTokenLines' :: [[Token]] -> BufferMetaData -> BufferMetaData
+setTokenLines' tokenLines'' (BufferMetaData a b _ c) =
+    BufferMetaData a b tokenLines'' c
+
+tokens :: ExtendedBuffer -> [[Token]]
+tokens (_, bufferMetaData) = tokenLines' bufferMetaData
 
 ebEmpty :: FilePath -> Language -> ExtendedBuffer
 ebEmpty path language = ( (Buffer (fromString "") (0, 0) (0, 0))
-                        , (path', language', [], False) )
+                        , BufferMetaData path'' language'' [] False )
   where
-    path' = if path == "" then "Untitled" else path
-    language' = if language == "" then "Unknown" else language
+    path'' = if path == "" then "Untitled" else path
+    language'' = if language == "" then "Unknown" else language
 
 ebToString :: ExtendedBuffer -> ByteString
 ebToString ((Buffer h _ _), _) = toString h
@@ -117,8 +153,26 @@ ebSelection ((Buffer h crs sel), _) =
     (selectionStart, selectionEnd) = orderTwo crs sel
     s = toString h
 
+
+ebNew :: FilePath -> ByteString -> Language -> ExtendedBuffer
+ebNew path'' contents language'' =
+    ( Buffer (fromString contents) (0, 0) (0, 0)
+    , BufferMetaData path'' language'' tokenLines' False)
+  where
+    tokenLines' = tokenLines $ tokenize language'' contents
+
 ebCursors :: ExtendedBuffer -> (Cursor, Cursor)
 ebCursors ((Buffer h crs sel), _) = (crs, sel)
+
+ebFirst :: (Buffer -> Buffer) -> ExtendedBuffer -> ExtendedBuffer
+ebFirst f (b, bufferMetaData) = (b', bufferMetaData')
+  where
+    b' = f b
+    bufferMetaData' = if editHistory b' == editHistory b
+                          then bufferMetaData
+                          else setTokenLines' tokenLines' bufferMetaData
+    tokenLines' =
+        tokenLines $ tokenize (language' bufferMetaData') (toString $ editHistory b')
 
 condense :: ExtendedBuffer -> Buffer
 condense (b, _) = b
