@@ -1,3 +1,5 @@
+- Run lexer only when history has been updated
+
 Functionality:
   - Show overflow hints (~)
   - better handle terminal resize

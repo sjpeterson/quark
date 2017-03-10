@@ -63,7 +63,8 @@ import Quark.Types ( Clipboard
                    , Name
                    , Index
                    , Selection
-                   , Language )
+                   , Language
+                   , Token )
 import Quark.History ( Edit ( Edit
                             , IndentLine )
                      , EditHistory
@@ -96,12 +97,12 @@ data Buffer = LockedBuffer String
 -- another buffer, but is non-editable. The low-tech version of this would be
 -- to clone a Buffer to a LockedBuffer
 
-type BufferMetaData = (FilePath, Language, Bool)
+type BufferMetaData = (FilePath, Language, [[Token]], Bool)
 type ExtendedBuffer = (Buffer, BufferMetaData)
 
 ebEmpty :: FilePath -> Language -> ExtendedBuffer
 ebEmpty path language = ( (Buffer (fromString "") (0, 0) (0, 0))
-                        , (path', language', False) )
+                        , (path', language', [], False) )
   where
     path' = if path == "" then "Untitled" else path
     language' = if language == "" then "Unknown" else language

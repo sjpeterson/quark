@@ -117,7 +117,7 @@ initBuffer path = do
     if fileExists
         then do contents <- B.readFile path
                 return ( (Buffer (fromString contents) (0, 0) (0, 0))
-                       , (path, assumeLanguage path, False) )
+                       , (path, assumeLanguage path, [], False) )
         else return $ ebEmpty path $ assumeLanguage path
 
 initProject :: String -> IO (Project)
@@ -131,7 +131,7 @@ saveAndQuit [] _ _ = return ()
 saveAndQuit (x:xs) layout project' = do
     let w = QFE.primaryPane layout
     let project = first (flipTo x) project'
-    let activeBuffer@(_, (_, language, _)) = activeP project
+    let activeBuffer@(_, (_, language, _, _)) = activeP project
     let cursors = ebCursors $ activeBuffer
     printText language w cursors (ebToString activeBuffer)
     (newProject, cancel) <- chooseSave layout project
@@ -163,7 +163,7 @@ promptOpen layout project = do
             fileExists <- doesFileExist path
             contents <- if fileExists then B.readFile path else return ""
             let newBuffer' = ( (Buffer (fromString contents) (0, 0) (0, 0))
-                             , (path, assumeLanguage path, False) )
+                             , (path, assumeLanguage path, [], False) )
             return $ first (add newBuffer') project
   where
     defaultPath = addTrailingPathSeparator $ projectRoot project
@@ -178,7 +178,7 @@ chooseSave layout project =
   where
     u = QFE.utilityBar layout
     promptText = U.fromString $ "Save changes to " ++ path ++ "?"
-    (_, (path, _, _)) = activeP project
+    (_, (path, _, _, _)) = activeP project
 
 chooseSave' :: QFE.Layout -> Project -> Maybe Bool -> IO (Project, Bool)
 chooseSave' layout project (Just True) = do
@@ -190,7 +190,7 @@ chooseSave' layout project (Just True) = do
                  then chooseSave' layout project (Just True)
                  else return (newProject, False)
   where
-    (_, (path, _, _)) = activeP project
+    (_, (path, _, _, _)) = activeP project
 chooseSave' _ project (Just False) = return (project, False)
 chooseSave' layout project Nothing =
     QFE.clear u *> QFE.refresh u *> return (project, True)
@@ -199,7 +199,7 @@ chooseSave' layout project Nothing =
 
 promptSave :: QFE.Layout -> Project -> IO (Project, Bool)
 promptSave layout project = case activeP project of
-    (b@(Buffer h _ _), (path, _, False)) -> do
+    (b@(Buffer h _ _), (path, _, _, False)) -> do
         newPath <- liftM U.toString $
                        promptString u (U.fromString "Save buffer to file:") $
                            U.fromString path
@@ -242,10 +242,10 @@ writeP path project = do
     return (first (replace newXB) project, False)
 
 writeXB :: FilePath -> ExtendedBuffer -> IO ExtendedBuffer
-writeXB path (b, (_, language, False)) = do
+writeXB path (b, (_, language, tokenLines, False)) = do
     newB <- writeBuffer path b
-    return $ (newB, (path, language, False))
-writeXB _ xb@(_, (_, _, True)) = return xb
+    return $ (newB, (path, language, tokenLines, False))
+writeXB _ xb@(_, (_, _, _, True)) = return xb
 
 writeBuffer :: FilePath -> Buffer -> IO Buffer
 writeBuffer path (Buffer h@(n, p, f) c s) = do
@@ -298,7 +298,7 @@ resizeLayout layout' project = do
     layout <- QFE.defaultLayout
     mainLoop layout project
   where
-    (_, (path, _, _)) = activeP project
+    (_, (path, _, _, _)) = activeP project
 
 handleKey :: QFE.Layout -> Project -> Key -> IO ()
 handleKey layout project (CharKey c) =
@@ -382,7 +382,7 @@ quarkStart path = do
 mainLoop :: QFE.Layout -> Project -> IO ()
 mainLoop layout project = do
     let lnOffset = lnWidth $ ebToString activeBuffer
-    let ((Buffer _ crs _), (path, _, _)) = activeBuffer
+    let ((Buffer _ crs _), (path, _, _, _)) = activeBuffer
     let layout' = firstL (updateOffset crs lnOffset) layout
     setTitle (QFE.titleBar layout') $ if ebUnsaved activeBuffer
                                           then path ++ "*"
@@ -403,7 +403,7 @@ refreshText layout project = do
     QFE.updateCursor w (rr, cc - lnOffset) crs
   where
     w@(QFE.TextView _ _ (rr, cc)) = QFE.primaryPane layout
-    activeBuffer@((Buffer _ crs _), (_, language, _)) = activeP project
+    activeBuffer@((Buffer _ crs _), (_, language, _, _)) = activeP project
     cursors = ebCursors activeBuffer
     lnOffset = lnWidth $ ebToString activeBuffer
 
