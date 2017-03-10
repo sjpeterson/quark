@@ -26,7 +26,7 @@ import Quark.Frontend.HSCurses ( Window ( TextView )
                                , setTextColor
                                , move
                                , addString
-                               , clear
+                               , clear'
                                , refresh )
 
 import Quark.Lexer.Core ( tokenLength
@@ -44,7 +44,7 @@ import Quark.Cursor (orderTwo)
 -- TODO: add text overflow hints
 printText :: Language -> Window -> (Cursor, Cursor) -> ByteString -> IO ()
 printText language w@(TextView _ (r, c) (rr, cc)) cursors text = do
-    clear w
+    clear' w lnc
     mapM_ (\(k, l, t, s) -> printTokenLine language k l t s w) $
         zip4 [0..(r - 2)] lineNumbers tokens selections
     refresh w

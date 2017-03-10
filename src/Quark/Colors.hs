@@ -28,3 +28,4 @@ backupColor    = lightGray
 -- Color pairs
 titleBarPair   = (black, lightGray)
 lineNumberPair = (lightGray, defaultBg)
+rulerPair      = (darkGray, defaultBg)

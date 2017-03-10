@@ -1,6 +1,5 @@
 Functionality:
   - Show overflow hints (~)
-  - indicate 80 column width
   - better handle terminal resize
   - shell script lexer
   - some form of interface showing open buffers

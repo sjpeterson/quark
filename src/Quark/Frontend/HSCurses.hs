@@ -23,6 +23,7 @@ module Quark.Frontend.HSCurses ( Window ( TitleBar
                                , mvAddString
                                , move
                                , clear
+                               , clear'
                                , refresh
                                , Layout ( MinimalLayout
                                         , BasicLayout
@@ -242,6 +243,18 @@ refresh = Curses.wRefresh . cursesWindow
 
 clear :: Window -> IO ()
 clear = Curses.wclear . cursesWindow
+
+clear' :: Window -> Int -> IO ()
+clear' t@(TextView w (r, c) (_, cc)) k
+    | rulerCol >= c + cc || rulerCol < cc = Curses.wclear w
+    | otherwise                = do
+          setTextColor t rulerPair
+          mapM_ (\x -> Curses.mvWAddStr w x 0 rulerLine) $
+              take r [0..]
+          Curses.wMove w 0 0
+  where
+    rulerCol = length rulerLine
+    rulerLine = drop cc (replicate (80 + k) ' ') ++ "|"
 
 -------------------------------
 -- Layout type and functions --
