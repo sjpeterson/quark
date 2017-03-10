@@ -13,6 +13,10 @@ import Quark.Types ( Size
 (~~) :: B.ByteString -> B.ByteString -> B.ByteString
 (~~) = B.append
 
+-- XNOR
+xnor :: Bool -> Bool -> Bool
+xnor a b = (a && b) || (not a && not b)
+
 -- Compute width of a string in number of columns
 strWidth :: ByteString -> Int
 strWidth s = maximum $ map U.length $ U.lines s

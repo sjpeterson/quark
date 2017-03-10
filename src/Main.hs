@@ -263,8 +263,9 @@ find doReplace next doPrompt layout project = do
         then mainLoop layout project
         else if B.isInfixOf findString (ebToString $ activeP project)
                  then nextFunction $
-                          first (firstF $ first $ bufferFind next findString) $
-                              setFindDefault findString project
+                          first (firstF $ first $
+                              bufferFind next (not doReplace) findString) $
+                                  setFindDefault findString project
                  else do debug u $ "No match for \"" ~~ findString ~~ "\""
                          mainLoop layout $ setFindDefault findString project
   where
@@ -285,7 +286,8 @@ replace' next doPrompt layout project = do
                        then project
                        else first (firstF $ first $ paste replaceString) $
                                 setReplaceDefault replaceString project
-    mainLoop layout project'
+    -- mainLoop layout project'
+    find False next False layout project'
   where
     replaceDefault' = replaceDefault project
     s = B.pack "Replace by: "

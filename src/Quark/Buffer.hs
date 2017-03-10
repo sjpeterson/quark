@@ -83,7 +83,8 @@ import Quark.Cursor ( move
                      , cursorToIx )
 import Quark.Helpers ( lnIndent
                      , lineSplitIx
-                     , findIx )
+                     , findIx
+                     , xnor )
 
 -- The Buffer data type
 data Buffer = LockedBuffer String
@@ -304,12 +305,13 @@ genericMoveCursor moveSel n d (Buffer h crs sel)
     s = toString h
     (minCrs, maxCrs) = orderTwo crs sel
 
-bufferFind :: Bool -> ByteString -> Buffer -> Buffer
-bufferFind next findString b@(Buffer h crs sel) = Buffer h foundCrs foundSel
+bufferFind :: Bool -> Bool -> ByteString -> Buffer -> Buffer
+bufferFind next doStep findString b@(Buffer h crs sel) =
+    Buffer h foundCrs foundSel
   where
     foundIx = findIx k next findString s
     foundCrs = ixToCursor foundIx s
     foundSel = ixToCursor (foundIx + U.length findString) s
     s = toString h
     k = (cursorToIx crs s) + ixStep
-    ixStep = if (selection b == findString) && next == True then 1 else 0
+    ixStep = if (selection b == findString) && (xnor next doStep) then 1 else 0
