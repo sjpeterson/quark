@@ -43,6 +43,7 @@ import Quark.Buffer ( Buffer ( Buffer )
                     , endOfLine
                     , startOfLine
                     , input
+                    , insert
                     , paste
                     , delete
                     , backspace
@@ -65,7 +66,7 @@ prompt r w@(UtilityBar _ (_, c)) text = do
 debug :: Window -> ByteString -> IO ()
 debug = prompt 0
 
-promptString :: Window -> ByteString -> ByteString -> IO (String)
+promptString :: Window -> ByteString -> ByteString -> IO (ByteString)
 promptString u s def = do
     prompt 0 u s
     let b = endOfLine True $ Buffer (fromString def) (0, 0) (0, 0)
@@ -80,7 +81,7 @@ promptChoice u s options = do
     clear u
     return x
 
-cGetLine :: Window -> Buffer -> IO (String)
+cGetLine :: Window -> Buffer -> IO (ByteString)
 cGetLine w buffer@(Buffer h cursor _) = do
     prompt 1 w $ toString h
     updateCursor w (1, 0) cursor
@@ -124,7 +125,7 @@ translateChar :: Char -> String
 translateChar '\ESC' = "ESC"
 translateChar c = [toUpper c]
 
-promptAutoComplete :: Window -> Buffer -> Int -> IO (String)
+promptAutoComplete :: Window -> Buffer -> Int -> IO (ByteString)
 promptAutoComplete w buffer@(Buffer h cursor _) n = do
     s <- autoComplete n $ U.toString $ toString h
     prompt 1 w $ (toString h) ~~ (U.fromString s)
@@ -135,11 +136,12 @@ promptAutoComplete w buffer@(Buffer h cursor _) n = do
         then promptAutoComplete w buffer (n + 1)
         else handleKey k w (paste (U.fromString s) buffer)
 
-handleKey :: Key -> Window -> Buffer -> IO (String)
+handleKey :: Key -> Window -> Buffer -> IO (ByteString)
 handleKey (CharKey c) w buffer = cGetLine w $ input c buffer
+handleKey (WideCharKey s) w buffer = cGetLine w $ insert (B.pack s) True buffer
 handleKey k w buffer@(Buffer h _ _)
     | k == SpecialKey "Esc"        = return "\ESC"
-    | k == SpecialKey "Return"     = return $ U.toString $ toString h
+    | k == SpecialKey "Return"     = return $ toString h
     | k == SpecialKey "Backspace"  = action backspace
     | k == CtrlKey 'z'             = action undo
     | k == CtrlKey 'y'             = action redo

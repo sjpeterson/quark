@@ -47,7 +47,8 @@ module Quark.Buffer ( Buffer ( Buffer
                     , startOfFile
                     , selectAll
                     , deselect
-                    , ebUnsaved ) where
+                    , ebUnsaved
+                    , bufferFind ) where
 
 import Data.ByteString.UTF8 (ByteString)
 import qualified Data.ByteString.UTF8 as U
@@ -81,7 +82,8 @@ import Quark.Cursor ( move
                      , ixToCursor
                      , cursorToIx )
 import Quark.Helpers ( lnIndent
-                     , lineSplitIx )
+                     , lineSplitIx
+                     , findIx )
 
 -- The Buffer data type
 data Buffer = LockedBuffer String
@@ -302,18 +304,12 @@ genericMoveCursor moveSel n d (Buffer h crs sel)
     s = toString h
     (minCrs, maxCrs) = orderTwo crs sel
 
--- Load a buffer from a file
--- loadString :: FilePath -> String -> Buffer
--- loadString path s = Buffer (fromString s) (0, 0) (0, 0) "" path
-
--- load :: FilePath -> IO (Buffer)
--- load path = do
---     s <- readFile path
---     return $ Buffer (fromString s) (0, 0) (0, 0) "" path
-
--- Save a buffer to it's path
--- save :: Buffer -> IO ()
--- save buffer@(Buffer h _ _ _ path) = writeFile path $ toString h
-
--- Buffer offset shift by +/- 5
--- Always show line above/below cursor and character before/after if any
+bufferFind :: Bool -> ByteString -> Buffer -> Buffer
+bufferFind next findString b@(Buffer h crs sel) = Buffer h foundCrs foundSel
+  where
+    foundIx = findIx k next findString s
+    foundCrs = ixToCursor foundIx s
+    foundSel = ixToCursor (foundIx + U.length findString) s
+    s = toString h
+    k = (cursorToIx crs s) + ixStep
+    ixStep = if (selection b == findString) && next == True then 1 else 0

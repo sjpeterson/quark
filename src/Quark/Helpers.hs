@@ -6,7 +6,8 @@ import Data.ByteString.UTF8 (ByteString)
 import qualified Data.ByteString.UTF8 as U
 import qualified Data.ByteString.Char8 as B
 
-import Quark.Types (Size)
+import Quark.Types ( Size
+                   , Index )
 
 -- ByteString version of (++)
 (~~) :: B.ByteString -> B.ByteString -> B.ByteString
@@ -98,3 +99,23 @@ padToLenSL k (x@(p0, _):xs) = x:(padToLenSL (k - U.length p0) xs)
 zip4 :: [a] -> [b] -> [c] -> [d] -> [(a, b, c, d)]
 zip4 (a:as') (b:bs) (c:cs) (d:ds) = (a, b, c, d):(zip4 as' bs cs ds)
 zip4 _       _      _      _      = []
+
+findIx :: Index -> Bool -> ByteString -> ByteString -> Index
+findIx _ _ findString s
+    | B.isInfixOf findString s == False = (-1)
+findIx k True findString s = if s1b == ""
+                                 then U.length s0a
+                                 else U.length s0 + U.length s1a
+  where
+    (s0a, s0b) = B.breakSubstring findString s0
+    (s1a, s1b) = B.breakSubstring findString s1
+    (s0, s1) = U.splitAt k s
+findIx k False findString s = if s0b == ""
+                                  then U.length s0 + lastIx s1
+                                  else lastIx s0
+  where
+    (s0a, s0b) = B.breakSubstring findString s0
+    (s0, s1) = U.splitAt k s
+    lastIx s' = case B.breakSubstring findString s' of
+        (s'', "")  -> (-1)
+        (s0', s1') -> U.length s0' + 1 + (lastIx $ U.drop 1 s1')

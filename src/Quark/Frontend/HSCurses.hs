@@ -167,6 +167,7 @@ translateKey k = case k of
     Curses.KeyUnknown 564 -> SpecialKey "Ctrl-Shift-Right"
     Curses.KeyBackspace   -> CtrlKey 'h'
     Curses.KeyResize      -> ResizeKey
+    Curses.KeyF k         -> FnKey k
     _                     -> InvalidKey $ show k
 
 ---------------------

@@ -18,7 +18,8 @@
 
 module Main where
 
-import Control.Exception (bracket_)
+import Control.Exception ( bracket_ )
+import Control.Monad ( liftM )
 import System.Environment ( getArgs )
 import System.Directory ( doesFileExist
                         , doesDirectoryExist
@@ -68,7 +69,8 @@ import Quark.Buffer ( Buffer ( Buffer )
                     , startOfLine
                     , endOfLine
                     , startOfFile
-                    , endOfFile )
+                    , endOfFile
+                    , bufferFind )
 import Quark.Flipper ( add
                      , remove
                      , replace
@@ -78,8 +80,15 @@ import Quark.Flipper ( add
                      , toList
                      , firstF )
 import Quark.Project ( Project
+                     , emptyProjectMeta
+                     , findDefault
+                     , replaceDefault
                      , assumeRoot
+                     , setRoot
+                     , setFindDefault
+                     , setReplaceDefault
                      , projectRoot
+                     , setBuffers
                      , activeP )
 import Quark.History ( fromString
                      , toString )
@@ -90,6 +99,7 @@ import Quark.Types (Key ( CharKey
                         , WideCharKey
                         , SpecialKey
                         , CtrlKey
+                        , FnKey
                         , ResizeKey )
                    , Direction ( Forward
                                , Backward
@@ -113,7 +123,8 @@ initBuffer path = do
 initProject :: String -> IO (Project)
 initProject path = do
     extendedBuffer <- initBuffer path
-    return ((extendedBuffer, [], []), assumeRoot path)
+    return $ setRoot (assumeRoot path) ( (extendedBuffer, [], [])
+                                       ,  emptyProjectMeta)
 
 saveAndQuit :: [Int] -> QFE.Layout -> Project -> IO ()
 saveAndQuit [] _ _ = return ()
@@ -133,18 +144,19 @@ saveAndClose layout project = do
                                 then chooseSave layout project
                                 else return (project, False)
     case remove newBuffers of
-        Just newerBuffers -> mainLoop layout ( newerBuffers
-                                             , projectRoot project)
-        Nothing           -> mainLoop layout ( (ebEmpty "" "", [], [])
-                                             , projectRoot project )
-
+        Just newerBuffers -> mainLoop layout $ setBuffers newerBuffers project
+        Nothing           -> mainLoop layout $ setBuffers ( ebEmpty "" ""
+                                                          , []
+                                                          , []) project
 
 newBuffer :: QFE.Layout -> Project -> IO ()
 newBuffer layout project = mainLoop layout $ first (add $ ebEmpty "" "") project
 
 promptOpen :: QFE.Layout -> Project -> IO (Project)
 promptOpen layout project = do
-    path <- promptString u (U.fromString "Open file:") $ U.fromString defaultPath
+    path <- liftM U.toString $
+                promptString u (U.fromString "Open file:") $
+                U.fromString defaultPath
     if path == "\ESC"
         then return project
         else do
@@ -188,7 +200,9 @@ chooseSave' layout project Nothing =
 promptSave :: QFE.Layout -> Project -> IO (Project, Bool)
 promptSave layout project = case activeP project of
     (b@(Buffer h _ _), (path, _, False)) -> do
-        newPath <- promptString u (U.fromString "Save buffer to file:") $ U.fromString path
+        newPath <- liftM U.toString $
+                       promptString u (U.fromString "Save buffer to file:") $
+                           U.fromString path
         fileExists <- doesFileExist newPath
         let doConfirm = fileExists && path /= newPath
         dirExists <- doesDirectoryExist newPath
@@ -201,7 +215,8 @@ promptSave layout project = case activeP project of
                      then confirmSave newPath layout project
                      else if newPath == "\ESC"
                               then return (project, True)
-                              else do debug u $ U.fromString $ "Saved " ++ newPath
+                              else do debug u $ U.fromString $
+                                          "Saved " ++ newPath
                                       writeP newPath project
     _                            -> do
         debug u "Can't save protected buffer"
@@ -239,6 +254,43 @@ writeBuffer path (Buffer h@(n, p, f) c s) = do
   where
     nlEnd s  = if nlTail s then s else s ~~ "\n"
 
+find :: Bool -> Bool -> Bool -> QFE.Layout -> Project -> IO ()
+find doReplace next doPrompt layout project = do
+    findString <- if doPrompt
+                      then promptString u s findDefault'
+                      else return findDefault'
+    if findString == "\ESC" || findString == ""
+        then mainLoop layout project
+        else if B.isInfixOf findString (ebToString $ activeP project)
+                 then nextFunction $
+                          first (firstF $ first $ bufferFind next findString) $
+                              setFindDefault findString project
+                 else do debug u $ "No match for \"" ~~ findString ~~ "\""
+                         mainLoop layout $ setFindDefault findString project
+  where
+    nextFunction = if doReplace
+                       then replace' next doPrompt layout
+                       else mainLoop layout
+    findDefault' = findDefault project
+    s = B.pack "Find:"
+    u = (QFE.utilityBar layout)
+
+replace' :: Bool -> Bool -> QFE.Layout -> Project -> IO ()
+replace' next doPrompt layout project = do
+    refreshText layout project
+    replaceString <- if doPrompt
+                         then promptString u s replaceDefault'
+                         else return replaceDefault'
+    let project' = if replaceString == "\ESC"
+                       then project
+                       else first (firstF $ first $ paste replaceString) $
+                                setReplaceDefault replaceString project
+    mainLoop layout project'
+  where
+    replaceDefault' = replaceDefault project
+    s = B.pack "Replace by: "
+    u = (QFE.utilityBar layout)
+
 resizeLayout :: QFE.Layout -> Project -> IO ()
 resizeLayout layout' project = do
     layout <- QFE.defaultLayout
@@ -271,9 +323,14 @@ handleKey layout project k
     | k == CtrlKey 'y' = action redo
     | k == CtrlKey 'a' = action selectAll
     | k == CtrlKey 'n' = newBuffer layout project
-    | k == CtrlKey 'o' = do
-        newProject <- promptOpen layout project
-        mainLoop layout newProject
+    | k == CtrlKey 'o' = mainLoop layout =<< (promptOpen layout project)
+    | k == CtrlKey 'p' = continue -- prompt
+    | k == CtrlKey 'f' = find False True True layout project
+    | k == CtrlKey 'r' = find True True True layout project
+    | k == FnKey 3     = find False True False layout project
+    | k == FnKey 2     = find False False False layout project
+    | k == FnKey 15    = find True True False layout project
+    | k == FnKey 14    = find True False False layout project
     | k == SpecialKey "Backspace"       = action backspace
     | k == SpecialKey "Delete"          = action delete
     | k == SpecialKey "Return"          = action nlAutoIndent
@@ -323,15 +380,12 @@ quarkStart path = do
 mainLoop :: QFE.Layout -> Project -> IO ()
 mainLoop layout project = do
     let lnOffset = lnWidth $ ebToString activeBuffer
-    let ((Buffer h crs sel), (path, language, _)) = activeBuffer
+    let ((Buffer _ crs _), (path, _, _)) = activeBuffer
     let layout' = firstL (updateOffset crs lnOffset) layout
-    let w@(QFE.TextView _ _ (rr, cc)) = QFE.primaryPane layout'
     setTitle (QFE.titleBar layout') $ if ebUnsaved activeBuffer
                                           then path ++ "*"
                                           else path
-    printText language w cursors (ebToString activeBuffer)
-    QFE.updateCursor w (rr, cc - lnOffset) crs
-    -- QFE.getKey >>= handleKey layout' project
+    refreshText layout' project
     k <- QFE.getKey
     QFE.clear $ QFE.utilityBar layout'
     QFE.refresh $ QFE.utilityBar layout'
@@ -340,6 +394,16 @@ mainLoop layout project = do
     activeBuffer = activeP project
     cursors = ebCursors activeBuffer
     frontendFunctions = (QFE.setTextColor, QFE.mvAddString, QFE.refresh)
+
+refreshText :: QFE.Layout -> Project -> IO ()
+refreshText layout project = do
+    printText language w cursors (ebToString activeBuffer)
+    QFE.updateCursor w (rr, cc - lnOffset) crs
+  where
+    w@(QFE.TextView _ _ (rr, cc)) = QFE.primaryPane layout
+    activeBuffer@((Buffer _ crs _), (_, language, _)) = activeP project
+    cursors = ebCursors activeBuffer
+    lnOffset = lnWidth $ ebToString activeBuffer
 
 main :: IO ()
 main = bracket_ QFE.start QFE.end $

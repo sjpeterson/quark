@@ -1,6 +1,4 @@
 Functionality:
-  - find
-    - ...and replace
   - Show overflow hints (~)
   - indicate 80 column width
   - better handle terminal resize
