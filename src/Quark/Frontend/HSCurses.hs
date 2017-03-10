@@ -248,6 +248,7 @@ clear' :: Window -> Int -> IO ()
 clear' t@(TextView w (r, c) (_, cc)) k
     | rulerCol >= c + cc || rulerCol < cc = Curses.wclear w
     | otherwise                = do
+          Curses.wclear w
           setTextColor t rulerPair
           mapM_ (\x -> Curses.mvWAddStr w x 0 rulerLine) $
               take r [0..]
