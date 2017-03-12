@@ -94,6 +94,7 @@ import Quark.Project ( Project
                      , setRoot
                      , setFindDefault
                      , setReplaceDefault
+                     , setProjectTree
                      , projectRoot
                      , setBuffers
                      , activeP )
@@ -102,6 +103,7 @@ import Quark.History ( fromString
 import Quark.Helpers ( (~~)
                      , lnWidth
                      , nlTail )
+import Quark.IOHelpers ( listDirectory' )
 import Quark.Types (Key ( CharKey
                         , WideCharKey
                         , SpecialKey
@@ -111,7 +113,8 @@ import Quark.Types (Key ( CharKey
                    , Direction ( Forward
                                , Backward
                                , Up
-                               , Down ) )
+                               , Down )
+                   , ProjectTreeElement ( RootElement ) )
 
 initLayout :: IO (QFE.Layout)
 initLayout = do
@@ -131,8 +134,9 @@ initBuffer path' = do
 initProject :: String -> IO (Project)
 initProject path = do
     extendedBuffer <- initBuffer path
-    return $ setRoot (assumeRoot path) ( (extendedBuffer, [], [])
-                                       ,  emptyProjectMeta)
+    rootContents <- listDirectory' path
+    return $ setProjectTree (RootElement path, [], rootContents) $
+        setRoot (assumeRoot path) ( (extendedBuffer, [], []) , emptyProjectMeta)
 
 saveAndQuit :: [Int] -> QFE.Layout -> Project -> IO ()
 saveAndQuit [] _ _ = return ()

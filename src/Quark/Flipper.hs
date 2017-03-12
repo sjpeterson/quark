@@ -23,11 +23,15 @@ module Quark.Flipper ( Flipper
                      , flipNext
                      , flipPrevious
                      , flipTo
+                     , flipToLast
                      , nudge
                      , nudgeBack
                      , nudgeTo
                      , firstF
-                     , toList ) where
+                     , toList
+                     , fromList
+                     , nextEmpty
+                     , previousEmpty ) where
 
 -- (current, previous, next)
 type Flipper a = (a, [a], [a])
@@ -60,6 +64,9 @@ flipTo k f@(x, y, z) = case compare (mod k $ length' f) (length y) of
     LT -> flipTo k $ flipPrevious f
     _  -> flipTo k $ flipNext f
 
+flipToLast :: Flipper a -> Flipper a
+flipToLast f = flipTo (length' f) f
+
 nudge :: Flipper a -> Flipper a
 nudge (x, [], []) = (x, [], [])
 nudge (x, y, []) = (x, [], reverse y)
@@ -80,5 +87,17 @@ firstF f (x, y, z) = (f x, y, z)
 toList :: Flipper a -> [a]
 toList (x, y, z) = (reverse y) ++ x:z
 
+fromList :: [a] -> Maybe (Flipper a)
+fromList []     = Nothing
+fromList (x:xs) = Just ((x, [], xs))
+
 length' :: Flipper a -> Int
 length' (x, y, z) = 1 + (length y) + (length z)
+
+nextEmpty :: Flipper a -> Bool
+nextEmpty (_, _, []) = True
+nextEmpty _          = False
+
+previousEmpty :: Flipper a -> Bool
+previousEmpty (_, [], _) = True
+previousEmpty _          = False

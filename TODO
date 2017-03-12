@@ -1,13 +1,18 @@
-- Run lexer only when history has been updated
-
-Functionality:
-  - Show overflow hints (~)
-  - better handle terminal resize
-  - shell script lexer
-  - some form of interface showing open buffers
-  - layout switching
+Wanted functionality
+  - Better (more timely) handling of terminal resize
+  - More lexers
+      - Shell script
+      - C
+      - Rust
+      - Go
+      - ...
+  - UI for open buffers
+  - Layout switching
+  - Project View
 
 Possible functional or stylistic improvements:
   - Make Flipper foldable and traversable
   - Adapt colors to various terminal environments
   - Use State monad with Layout to track, for example, insert mode, project root
+
+U.toString "\226\149\145" is U2551
