@@ -313,10 +313,11 @@ replace' next doPrompt layout project = do
     s = B.pack "Replace by: "
     u = (QFE.utilityBar layout)
 
-resizeLayout :: QFE.Layout -> Project -> IO ()
-resizeLayout layout' project = do
+resizeLayout :: (QFE.Layout -> Project -> IO ())
+             -> QFE.Layout -> Project -> IO ()
+resizeLayout continueFunction layout' project = do
     layout <- QFE.defaultLayout
-    mainLoop layout project
+    continueFunction layout project
 
 handleKey :: QFE.Layout -> Project -> Key -> IO ()
 handleKey layout project (CharKey c) =
@@ -377,7 +378,7 @@ handleKey layout project k
     | k == SpecialKey "Ctrl-Left"       = actionF flipPrevious
     | k == SpecialKey "Ctrl-Right"      = actionF flipNext
     | k == SpecialKey "Esc"             = action deselect
-    | k == ResizeKey                    = resizeLayout layout project
+    | k == ResizeKey                    = resizeLayout mainLoop layout project
     | otherwise = do
           debug (QFE.utilityBar layout) $ U.fromString $ show k
           continue
@@ -428,6 +429,12 @@ refreshText layout project = do
     activeBuffer = activeP project
     cursors@(crs, _) = ebCursors activeBuffer
     lnOffset = lnWidth $ ebToString activeBuffer
+
+projectLoop :: QFE.Layout -> Project -> IO ()
+projectLoop layout project = do
+    printTree (QFE.projectPane layout) (projectTree project)
+    k <- QFE.getKey
+    handleKeyProject layout project k
 
 main :: IO ()
 main = bracket_ QFE.start QFE.end $
