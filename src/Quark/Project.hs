@@ -23,6 +23,7 @@ module Quark.Project ( Project
                      , ProjectTree
                      , emptyProjectMeta
                      , projectRoot
+                     , projectTree
                      , findDefault
                      , replaceDefault
                      , setBuffers
@@ -30,17 +31,20 @@ module Quark.Project ( Project
                      , setFindDefault
                      , setReplaceDefault
                      , setProjectTree
+                     , toLines
                      , assumeRoot
                      , activeP
                      , active' ) where
 
-import System.FilePath ( takeDirectory )
+import System.FilePath ( takeDirectory
+                       , takeFileName )
 import Data.Bifunctor ( second )
 import Data.List ( sort )
 
 import Data.ByteString.UTF8 ( ByteString )
+import qualified Data.ByteString.UTF8 as U
 
-import Quark.Buffer
+import Quark.Buffer ( ExtendedBuffer )
 import Quark.Flipper ( Flipper
                      , active
                      , firstF
@@ -48,15 +52,17 @@ import Quark.Flipper ( Flipper
                      , flipPrevious
                      , flipTo
                      , flipToLast
+                     , toList
                      , nextEmpty
                      , previousEmpty )
+import Quark.Helpers ( (~~) )
 import Quark.Types ( ProjectTree
                    , ProjectTreeElement ( RootElement
                                         , FileElement
                                         , DirectoryElement ) )
 
 data ProjectMeta = ProjectMeta { root' :: FilePath
-                               , projectTree :: ProjectTree
+                               , projectTree' :: ProjectTree
                                , findDefault' :: ByteString
                                , replaceDefault' :: ByteString } deriving Eq
 
@@ -71,6 +77,9 @@ emptyProjectMeta = ProjectMeta "" (RootElement "", [], []) "" ""
 
 projectRoot :: Project -> FilePath
 projectRoot (_, projectMeta) = root' projectMeta
+
+projectTree :: Project -> ProjectTree
+projectTree (_, projectMeta) = projectTree' projectMeta
 
 findDefault :: Project -> ByteString
 findDefault (_, projectMeta) = findDefault' projectMeta
@@ -153,3 +162,41 @@ contract (DirectoryElement t) = DirectoryElement (r, [], [])
   where
     (r, _, _) = flipTo 0 t
 contract x                    = x
+
+toLines :: ProjectTree -> [ByteString]
+toLines t = concat $ map (toLines' 0) (take k treeList) ++
+                map (toLines' 1) (drop k treeList)
+  where
+    (treeList, k) = treeListAndSplit t
+
+toLines' :: Int -> ProjectTreeElement -> [ByteString]
+toLines' headStyle x =  case x of
+    (RootElement path)   -> [U.fromString (takeFileName path) ~~ "/"]
+    (FileElement path)   -> [ownHead ~~ U.fromString path]
+    (DirectoryElement t) -> zipWith (~~) dirHead $ concat $
+                                map (toLines' 2) (take k treeList) ++
+                                    map (toLines' 3) (drop k treeList)
+                              where
+                                (treeList, k) = treeListAndSplit t
+  where
+    dirHead = ownHead:(repeat childHead)
+    ownHead
+        | headStyle == 0 = "\226\149\159\226\148\128"
+        | headStyle == 1 = "\226\149\153\226\148\128"
+        | headStyle == 2 = "\226\148\156\226\148\128"
+        | otherwise      = "\226\148\148\226\148\128"
+    childHead
+        | headStyle == 0 = "\226\149\145\226\148\128"
+        | headStyle == 2 = "\226\148\130\226\148\128"
+        | otherwise      = "  "
+
+treeListAndSplit :: ProjectTree -> ([ProjectTreeElement], Int)
+treeListAndSplit t = (treeList, length treeList - 1)
+  where
+    treeList = toList t
+
+branch :: Int -> ByteString -> ByteString -> [ByteString]
+branch k own last'
+    | k < 1     = []
+    | k == 1    = [""]
+    | otherwise = "":(replicate (k - 2) own) ++ [last']

@@ -79,13 +79,15 @@ type ProjectTree = Flipper ProjectTreeElement
 
 data ProjectTreeElement = RootElement FilePath
                         | FileElement FilePath
-                        | DirectoryElement ProjectTree deriving Eq
+                        | DirectoryElement ProjectTree deriving (Show, Eq)
 
 instance Ord ProjectTreeElement where
-    (RootElement a) `compare` (RootElement b) = a `compare` b
-    (RootElement _) `compare` _               = LT
+    (RootElement a)      `compare` (RootElement b)      = a `compare` b
+    (RootElement _)      `compare` _                    = LT
+    _                    `compare` (RootElement b)      = GT
     (DirectoryElement a) `compare` (DirectoryElement b) =
         (active $ flipTo 0 a) `compare` (active $ flipTo 0 b)
-    (DirectoryElement _) `compare` _          = LT
-    (FileElement a) `compare` (FileElement b) = a `compare` b
+    (DirectoryElement _) `compare` _                    = LT
+    _                    `compare` (DirectoryElement b) = GT
+    (FileElement a)      `compare` (FileElement b)      = a `compare` b
 

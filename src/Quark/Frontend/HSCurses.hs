@@ -17,7 +17,7 @@
 module Quark.Frontend.HSCurses ( Window ( TitleBar
                                         , UtilityBar
                                         , TextView
-                                        , DirectoryView )
+                                        , ProjectView )
                                , setTextColor
                                , addString
                                , mvAddString
@@ -33,7 +33,7 @@ module Quark.Frontend.HSCurses ( Window ( TitleBar
                                , utilityBar
                                , primaryPane
                                , secondaryPane
-                               , directoryPane
+                               , projectPane
                                , start
                                , end
                                , getKey
@@ -216,13 +216,13 @@ updateCursor (UtilityBar w (rr, cc)) (r, c) (_, y) =
 data Window = TitleBar Curses.Window Size
             | UtilityBar Curses.Window Size
             | TextView Curses.Window Size Offset
-            | DirectoryView Curses.Window Size Int deriving Show
+            | ProjectView Curses.Window Size Int deriving Show
 
 cursesWindow :: Window -> Curses.Window
 cursesWindow (TitleBar w _)        = w
 cursesWindow (UtilityBar w _)      = w
 cursesWindow (TextView w _ _)      = w
-cursesWindow (DirectoryView w _ _) = w
+cursesWindow (ProjectView w _ _) = w
 
 setTextColor :: Window -> ColorPair -> IO ()
 setTextColor w pair =
@@ -266,16 +266,16 @@ data Layout = MinimalLayout { titleBar :: Window
                             , primaryPane :: Window }
             | BasicLayout { titleBar :: Window
                           , utilityBar :: Window
-                          , directoryPane :: Window
+                          , projectPane :: Window
                           , primaryPane :: Window }
             | VSplitLayout { titleBar :: Window
                            , utilityBar :: Window
-                           , directoryPane :: Window
+                           , projectPane :: Window
                            , primaryPane :: Window
                            , secondaryPane :: Window }
             | HSplitLayout { titleBar :: Window
                            , utilityBar :: Window
-                           , directoryPane :: Window
+                           , projectPane :: Window
                            , primaryPane :: Window
                            , secondaryPane :: Window } deriving Show
 
@@ -297,7 +297,7 @@ basicLayout r c = do
     cMainView <- Curses.newWin mainHeight mainWidth 2 dpWidth
     let qTitleBar = TitleBar cTitleBar (1, c)
     let qUtilityBar = UtilityBar cUtilityBar (1, c)
-    let qDirectoryPane = DirectoryView cDirectoryPane (mainHeight, dpWidth) 0
+    let qDirectoryPane = ProjectView cDirectoryPane (mainHeight, dpWidth) 0
     let qPrimaryPane = TextView cMainView (mainHeight, (c - dpWidth)) (0, 0)
     return $ BasicLayout qTitleBar qUtilityBar qDirectoryPane qPrimaryPane
 

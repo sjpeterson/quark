@@ -30,6 +30,7 @@ library
                  , Quark.Window.UtilityBar
                  , Quark.Window.TextView
                  , Quark.Window.TitleBar
+                 , Quark.Window.ProjectView
                  , Quark.Lexer.Core
                  , Quark.Lexer.Language
                  , Quark.Lexer.Haskell

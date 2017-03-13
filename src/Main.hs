@@ -27,7 +27,8 @@ import System.Directory ( doesFileExist
 import System.FilePath ( addTrailingPathSeparator )
 import System.Clipboard ( setClipboardString
                         , getClipboardString )
-import Data.List ( findIndices )
+import Data.List ( findIndices
+                 , sort )
 import Data.Bifunctor ( first )
 import Data.ByteString.UTF8 ( ByteString )
 import qualified Data.ByteString.UTF8 as U
@@ -41,6 +42,7 @@ import Quark.Window.UtilityBar ( promptString
                                , debug )
 import Quark.Window.TextView ( printText
                              , updateOffset )
+import Quark.Window.ProjectView ( printTree )
 import Quark.Layout ( firstL )
 import Quark.Lexer.Language ( assumeLanguage )
 import Quark.Buffer ( Buffer ( Buffer )
@@ -88,6 +90,8 @@ import Quark.Flipper ( add
                      , firstF )
 import Quark.Project ( Project
                      , emptyProjectMeta
+                     , projectRoot
+                     , projectTree
                      , findDefault
                      , replaceDefault
                      , assumeRoot
@@ -95,7 +99,6 @@ import Quark.Project ( Project
                      , setFindDefault
                      , setReplaceDefault
                      , setProjectTree
-                     , projectRoot
                      , setBuffers
                      , activeP )
 import Quark.History ( fromString
@@ -134,9 +137,11 @@ initBuffer path' = do
 initProject :: String -> IO (Project)
 initProject path = do
     extendedBuffer <- initBuffer path
-    rootContents <- listDirectory' path
-    return $ setProjectTree (RootElement path, [], rootContents) $
-        setRoot (assumeRoot path) ( (extendedBuffer, [], []) , emptyProjectMeta)
+    let root = assumeRoot path
+    rootContents <- listDirectory' root
+    let projectTree = (RootElement root, [], sort rootContents)
+    return $ setProjectTree projectTree $
+        setRoot root ( (extendedBuffer, [], []) , emptyProjectMeta)
 
 saveAndQuit :: [Int] -> QFE.Layout -> Project -> IO ()
 saveAndQuit [] _ _ = return ()
@@ -203,6 +208,7 @@ chooseSave' layout project (Just True) = do
                  else return (newProject, False)
   where
     path' = path $ activeP project
+
 chooseSave' _ project (Just False) = return (project, False)
 chooseSave' layout project Nothing =
     QFE.clear u *> QFE.refresh u *> return (project, True)
@@ -219,9 +225,10 @@ promptSave layout project = case writeProtected activeBuffer of
         let doConfirm = fileExists && path' /= newPath
         dirExists <- doesDirectoryExist newPath
         if dirExists || newPath == ""
-            then do debug u $ U.fromString $ if newPath == ""
-                                           then "Buffer was not saved"
-                                           else path' ++ " is a directory"
+            then do debug u $ U.fromString $
+                        if newPath == ""
+                            then "Buffer was not saved"
+                            else path' ++ " is a directory"
                     return (project, False)
             else if doConfirm
                      then confirmSave newPath layout project
@@ -232,7 +239,7 @@ promptSave layout project = case writeProtected activeBuffer of
                                       writeP newPath project
     True  -> do
         debug u "Can't save protected buffer"
-        return (project, True)
+        return (project, False)
   where
     activeBuffer = activeP project
     path' = path $ activeBuffer
@@ -257,9 +264,9 @@ writeP path project = do
 
 writeXB :: FilePath -> ExtendedBuffer -> IO ExtendedBuffer
 writeXB path xb@(b, bufferMetaData) = case writeProtected xb of
-    True  -> do newB <- writeBuffer path b
+    False -> do newB <- writeBuffer path b
                 return $ setPath path (newB, bufferMetaData)
-    False -> return xb
+    True  -> return xb
 
 writeBuffer :: FilePath -> Buffer -> IO Buffer
 writeBuffer path (Buffer h@(n, p, f) c s) = do
@@ -388,6 +395,10 @@ quarkStart path = do
     absPath <- makeAbsolute path
     layout <- initLayout
     project <- initProject absPath
+    case layout of
+        (QFE.MinimalLayout _ _ _) -> return ()
+        _                         ->
+            printTree (QFE.projectPane layout) (projectTree project)
     mainLoop layout project
 
 mainLoop :: QFE.Layout -> Project -> IO ()

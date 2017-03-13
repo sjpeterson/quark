@@ -9,6 +9,7 @@ Wanted functionality
   - UI for open buffers
   - Layout switching
   - Project View
+  - Sensible handling of write protected files, overwriting and such
 
 Possible functional or stylistic improvements:
   - Make Flipper foldable and traversable
