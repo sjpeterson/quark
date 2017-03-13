@@ -22,15 +22,30 @@ import Data.ByteString.UTF8 (ByteString)
 import qualified Data.ByteString.UTF8 as U
 
 import Quark.Frontend.HSCurses ( Window ( ProjectView )
+                               , setTextColor
                                , mvAddString
                                , clear
                                , refresh )
-import Quark.Types ( ProjectTree )
-import Quark.Project ( toLines )
+import Quark.Types ( ProjectTree
+                   , Row )
+import Quark.Project ( toLines
+                     , idxOfActive' )
+import Quark.Colors ( treeActivePair
+                    , treeDefaultPair )
+import Quark.Helpers ( fixTo )
 
 printTree :: Window -> ProjectTree -> IO ()
 printTree w@(ProjectView _ (r, c) rr) t = do
     clear w
-    mapM_ (\(k, s) -> mvAddString w k 0 s) $ zip [0..] $ drop rr $
-                          map (U.toString . (U.take c)) $ toLines t
+    mapM_ (\(k, a, s) -> printTreeLine w k a s) treeList
     refresh w
+  where
+    treeList = zip3 [0..] isActive (drop rr $
+                   map (fixTo c. U.toString . (U.take c)) $ toLines t)
+    isActive = drop rr [(\x -> if x == n then True else False) x | x <- [0..]]
+    n = idxOfActive' t
+
+printTreeLine :: Window -> Row -> Bool -> String -> IO ()
+printTreeLine w k isActive s = do
+    setTextColor w $ if isActive then treeActivePair else treeDefaultPair
+    mvAddString w k 0 s

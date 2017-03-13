@@ -293,7 +293,7 @@ basicLayout r c = do
     let mainWidth = c - dpWidth
     cTitleBar <- Curses.newWin 2 c 0 0
     cUtilityBar <- Curses.newWin 2 c (r - 2) 0
-    cDirectoryPane <- Curses.newWin mainHeight dpWidth 2 0
+    cDirectoryPane <- Curses.newWin mainHeight (dpWidth - 1) 2 0
     cMainView <- Curses.newWin mainHeight mainWidth 2 dpWidth
     let qTitleBar = TitleBar cTitleBar (1, c)
     let qUtilityBar = UtilityBar cUtilityBar (1, c)

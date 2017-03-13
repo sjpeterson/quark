@@ -26,6 +26,8 @@ selectionColor = darkGray
 backupColor    = lightGray
 
 -- Color pairs
-titleBarPair   = (black, lightGray)
-lineNumberPair = (lightGray, defaultBg)
-rulerPair      = (darkGray, defaultBg)
+titleBarPair    = (black, lightGray)
+lineNumberPair  = (lightGray, defaultBg)
+rulerPair       = (darkGray, defaultBg)
+treeDefaultPair = (defaultColor, defaultBg)
+treeActivePair  = (defaultColor, selectionColor)

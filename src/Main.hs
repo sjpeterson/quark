@@ -100,6 +100,7 @@ import Quark.Project ( Project
                      , setReplaceDefault
                      , setProjectTree
                      , setBuffers
+                     , flipToPath
                      , activeP )
 import Quark.History ( fromString
                      , toString )
@@ -139,7 +140,7 @@ initProject path = do
     extendedBuffer <- initBuffer path
     let root = assumeRoot path
     rootContents <- listDirectory' root
-    let projectTree = (RootElement root, [], sort rootContents)
+    let projectTree = flipToPath path (RootElement root, [], sort rootContents)
     return $ setProjectTree projectTree $
         setRoot root ( (extendedBuffer, [], []) , emptyProjectMeta)
 
@@ -390,6 +391,9 @@ handleKey layout project k
     actionF a = mainLoop layout $ first a project
     continue = mainLoop layout project
     u = QFE.utilityBar layout
+
+handleKeyProject :: QFE.Layout -> Project -> Key -> IO ()
+handleKeyProject = undefined
 
 quarkStart :: String -> IO ()
 quarkStart path = do

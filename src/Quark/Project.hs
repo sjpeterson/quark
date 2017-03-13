@@ -31,15 +31,20 @@ module Quark.Project ( Project
                      , setFindDefault
                      , setReplaceDefault
                      , setProjectTree
+                     , flipNext'
+                     , flipPrevious'
+                     , flipToPath
                      , toLines
                      , assumeRoot
                      , activeP
-                     , active' ) where
+                     , active'
+                     , idxOfActive' ) where
 
 import System.FilePath ( takeDirectory
                        , takeFileName )
 import Data.Bifunctor ( second )
-import Data.List ( sort )
+import Data.List ( sort
+                 , isPrefixOf )
 
 import Data.ByteString.UTF8 ( ByteString )
 import qualified Data.ByteString.UTF8 as U
@@ -129,6 +134,18 @@ active' t = case active t of
     DirectoryElement t' -> active' t'
     x                   -> x
 
+idxOfActive' :: ProjectTree -> Int
+idxOfActive' t = case active t of
+    DirectoryElement t' -> lengthPrevious t + idxOfActive' t'
+    _                   -> lengthPrevious t
+
+lengthPrevious :: ProjectTree -> Int
+lengthPrevious (_, p, _) = sum $ map length' p
+
+length' :: ProjectTreeElement -> Int
+length' (DirectoryElement t') = sum $ map length' $ toList t'
+length' _                     = 1
+
 flipNext' :: ProjectTree -> ProjectTree
 flipNext' t@(a, p, n) = case a of
     DirectoryElement t' -> if nextEmpty t'
@@ -150,6 +167,14 @@ flipToLast' x = case x of
     DirectoryElement (a, p, []) -> DirectoryElement (flipToLast' a, p, [])
     DirectoryElement t          -> flipToLast' (DirectoryElement $ flipToLast t)
     _                           -> x
+
+-- Placeholder
+flipToPath :: FilePath -> ProjectTree -> ProjectTree
+flipToPath path t
+    | not $ rootPath `isPrefixOf` path = t
+    | otherwise = t
+  where
+    (RootElement rootPath, _, _) = flipTo 0 t
 
 expand :: ProjectTreeElement -> [ProjectTreeElement] -> ProjectTreeElement
 expand (DirectoryElement t) p = DirectoryElement $ flipNext (r, [], sort p)

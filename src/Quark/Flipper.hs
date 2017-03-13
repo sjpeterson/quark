@@ -17,6 +17,7 @@
 
 module Quark.Flipper ( Flipper
                      , active
+                     , idxOfActive
                      , add
                      , remove
                      , replace
@@ -38,6 +39,9 @@ type Flipper a = (a, [a], [a])
 
 active :: Flipper a -> a
 active (x, _, _) = x
+
+idxOfActive :: Flipper a -> Int
+idxOfActive (_, p, _) = length p
 
 add :: a -> Flipper a -> Flipper a
 add newX (x, y, z) = (newX, (reverse z) ++ x:y, [])

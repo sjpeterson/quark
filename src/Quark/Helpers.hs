@@ -100,6 +100,14 @@ padToLenSL :: Int -> [(ByteString, Bool)] -> [(ByteString, Bool)]
 padToLenSL k [] = [(B.replicate k ' ', False)]
 padToLenSL k (x@(p0, _):xs) = x:(padToLenSL (k - U.length p0) xs)
 
+fixTo :: Int -> String -> String
+fixTo k s = padToLenWith k ' ' $ take k s
+
+padToLenWith :: Int -> a -> [a] -> [a]
+padToLenWith k p x
+    | k <= length x = x
+    | otherwise     = padToLenWith k p (x ++ [p])
+
 zip4 :: [a] -> [b] -> [c] -> [d] -> [(a, b, c, d)]
 zip4 (a:as') (b:bs) (c:cs) (d:ds) = (a, b, c, d):(zip4 as' bs cs ds)
 zip4 _       _      _      _      = []
