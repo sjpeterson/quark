@@ -33,15 +33,18 @@ module Quark.Project ( Project
                      , setProjectTree
                      , flipNext'
                      , flipPrevious'
-                     , flipToPath
                      , toLines
                      , assumeRoot
                      , activeP
                      , active'
+                     , activePath
+                     , firstF'
+                     , firstTree
                      , idxOfActive' ) where
 
 import System.FilePath ( takeDirectory
-                       , takeFileName )
+                       , takeFileName
+                       , joinPath )
 import Data.Bifunctor ( second )
 import Data.List ( sort
                  , isPrefixOf )
@@ -119,6 +122,9 @@ setProjectTree t project = second (setProjectTree' t) project
 setProjectTree' :: ProjectTree -> ProjectMeta -> ProjectMeta
 setProjectTree' t (ProjectMeta a _ b c) = ProjectMeta a t b c
 
+firstTree :: (ProjectTree -> ProjectTree) -> Project -> Project
+firstTree f project = setProjectTree (f $ projectTree project) project
+
 assumeRoot :: FilePath -> FilePath
 assumeRoot = takeDirectory
 
@@ -134,6 +140,14 @@ active' t = case active t of
     DirectoryElement t' -> active' t'
     x                   -> x
 
+activePath :: ProjectTree -> FilePath
+activePath t = case active t of
+    RootElement _       -> rootPath
+    DirectoryElement t' -> activePath t'
+    FileElement path    -> joinPath [rootPath, path]
+  where
+    (RootElement rootPath, _, _) = flipTo 0 t
+
 idxOfActive' :: ProjectTree -> Int
 idxOfActive' t = case active t of
     DirectoryElement t' -> lengthPrevious t + idxOfActive' t'
@@ -146,18 +160,30 @@ length' :: ProjectTreeElement -> Int
 length' (DirectoryElement t') = sum $ map length' $ toList t'
 length' _                     = 1
 
-flipNext' :: ProjectTree -> ProjectTree
-flipNext' t@(a, p, n) = case a of
+firstF' :: (ProjectTreeElement -> ProjectTreeElement)
+        -> ProjectTree -> ProjectTree
+firstF' f (a, p, n) = case a of
+    DirectoryElement t' -> (DirectoryElement $ firstF' f t', p, n)
+    _                   -> (f a, p, n)
+
+flipNext' :: Project -> Project
+flipNext' = firstTree flipNext''
+
+flipPrevious' :: Project -> Project
+flipPrevious' = firstTree flipPrevious''
+
+flipNext'' :: ProjectTree -> ProjectTree
+flipNext'' t@(a, p, n) = case a of
     DirectoryElement t' -> if nextEmpty t'
                                then flipNext t
-                               else (DirectoryElement $ flipNext' t', p, n)
+                               else (DirectoryElement $ flipNext'' t', p, n)
     _                   -> flipNext t
 
-flipPrevious' :: ProjectTree -> ProjectTree
-flipPrevious' t@(a, p, n) = case a of
+flipPrevious'' :: ProjectTree -> ProjectTree
+flipPrevious'' t@(a, p, n) = case a of
     DirectoryElement t' -> if previousEmpty t'
                                then (flipToLast' a', p', n')
-                               else (DirectoryElement $ flipPrevious' t', p, n)
+                               else (DirectoryElement $ flipPrevious'' t', p, n)
     _                   -> (flipToLast' a', p', n')
   where
     (a', p', n') = flipPrevious t
@@ -167,14 +193,6 @@ flipToLast' x = case x of
     DirectoryElement (a, p, []) -> DirectoryElement (flipToLast' a, p, [])
     DirectoryElement t          -> flipToLast' (DirectoryElement $ flipToLast t)
     _                           -> x
-
--- Placeholder
-flipToPath :: FilePath -> ProjectTree -> ProjectTree
-flipToPath path t
-    | not $ rootPath `isPrefixOf` path = t
-    | otherwise = t
-  where
-    (RootElement rootPath, _, _) = flipTo 0 t
 
 expand :: ProjectTreeElement -> [ProjectTreeElement] -> ProjectTreeElement
 expand (DirectoryElement t) p = DirectoryElement $ flipNext (r, [], sort p)

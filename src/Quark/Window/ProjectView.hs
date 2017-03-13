@@ -34,15 +34,16 @@ import Quark.Colors ( treeActivePair
                     , treeDefaultPair )
 import Quark.Helpers ( fixTo )
 
-printTree :: Window -> ProjectTree -> IO ()
-printTree w@(ProjectView _ (r, c) rr) t = do
+printTree :: Bool -> Window -> ProjectTree -> IO ()
+printTree indicateActive w@(ProjectView _ (r, c) rr) t = do
     clear w
     mapM_ (\(k, a, s) -> printTreeLine w k a s) treeList
     refresh w
   where
     treeList = zip3 [0..] isActive (drop rr $
                    map (fixTo c. U.toString . (U.take c)) $ toLines t)
-    isActive = drop rr [(\x -> if x == n then True else False) x | x <- [0..]]
+    isActive = drop rr [(\x -> if x == n then True && indicateActive
+                                         else False) x | x <- [0..]]
     n = idxOfActive' t
 
 printTreeLine :: Window -> Row -> Bool -> String -> IO ()

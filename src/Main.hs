@@ -100,8 +100,12 @@ import Quark.Project ( Project
                      , setReplaceDefault
                      , setProjectTree
                      , setBuffers
-                     , flipToPath
-                     , activeP )
+                     , activeP
+                     , active'
+                     , activePath
+                     , firstF'
+                     , flipNext'
+                     , flipPrevious' )
 import Quark.History ( fromString
                      , toString )
 import Quark.Helpers ( (~~)
@@ -118,7 +122,9 @@ import Quark.Types (Key ( CharKey
                                , Backward
                                , Up
                                , Down )
-                   , ProjectTreeElement ( RootElement ) )
+                   , ProjectTreeElement ( RootElement
+                                        , FileElement
+                                        , DirectoryElement ) )
 
 initLayout :: IO (QFE.Layout)
 initLayout = do
@@ -140,7 +146,7 @@ initProject path = do
     extendedBuffer <- initBuffer path
     let root = assumeRoot path
     rootContents <- listDirectory' root
-    let projectTree = flipToPath path (RootElement root, [], sort rootContents)
+    let projectTree = (RootElement root, [], sort rootContents)
     return $ setProjectTree projectTree $
         setRoot root ( (extendedBuffer, [], []) , emptyProjectMeta)
 
@@ -172,20 +178,23 @@ newBuffer layout project = mainLoop layout $ first (add $ ebEmpty "" "") project
 
 promptOpen :: QFE.Layout -> Project -> IO (Project)
 promptOpen layout project = do
-    path <- liftM U.toString $
-                promptString u (U.fromString "Open file:") $
-                U.fromString defaultPath
-    if path == "\ESC"
+    path' <- liftM U.toString $
+                 promptString u (U.fromString "Open file:") $
+                 U.fromString defaultPath
+    if path' == "\ESC"
         then return project
-        else do
-            fileExists <- doesFileExist path
-            contents <- if fileExists then B.readFile path else return ""
-            return $ first (add $ ebNew path' contents language') project
+        else openPath path' project
   where
     defaultPath = addTrailingPathSeparator $ projectRoot project
-    path' = path $ activeP project
-    language' = assumeLanguage path'
     u = QFE.utilityBar layout
+
+openPath :: FilePath -> Project -> IO (Project)
+openPath path' project = do
+    fileExists <- doesFileExist path'
+    contents <- if fileExists then B.readFile path' else return ""
+    return $ first (add $ ebNew path' contents language') project
+  where
+    language' = assumeLanguage path'
 
 chooseSave :: QFE.Layout -> Project -> IO (Project, Bool)
 chooseSave layout project =
@@ -347,6 +356,7 @@ handleKey layout project k
     | k == CtrlKey 'n' = newBuffer layout project
     | k == CtrlKey 'o' = mainLoop layout =<< (promptOpen layout project)
     | k == CtrlKey 'p' = continue -- prompt
+    | k == CtrlKey 't' = projectLoop layout project
     | k == CtrlKey 'f' = find False True True layout project
     | k == CtrlKey 'r' = find True True True layout project
     | k == FnKey 3     = find False True False layout project
@@ -393,7 +403,21 @@ handleKey layout project k
     u = QFE.utilityBar layout
 
 handleKeyProject :: QFE.Layout -> Project -> Key -> IO ()
-handleKeyProject = undefined
+handleKeyProject layout project k
+    | k == SpecialKey "Up"     = projectLoop layout $ flipPrevious' project
+    | k == SpecialKey "Down"   = projectLoop layout $ flipNext' project
+    | k == SpecialKey "Esc"    = do
+          dropFocus
+          mainLoop layout project
+    | k == SpecialKey "Return" = case active' t of
+          (RootElement t') -> projectLoop layout project
+          (FileElement s)  -> do
+              dropFocus
+              (mainLoop layout) =<< (openPath (activePath t) project)
+    | otherwise                = projectLoop layout project
+  where
+    t = projectTree project
+    dropFocus = printTree False (QFE.projectPane layout) (projectTree project)
 
 quarkStart :: String -> IO ()
 quarkStart path = do
@@ -403,7 +427,7 @@ quarkStart path = do
     case layout of
         (QFE.MinimalLayout _ _ _) -> return ()
         _                         ->
-            printTree (QFE.projectPane layout) (projectTree project)
+            printTree False (QFE.projectPane layout) (projectTree project)
     mainLoop layout project
 
 mainLoop :: QFE.Layout -> Project -> IO ()
@@ -436,7 +460,7 @@ refreshText layout project = do
 
 projectLoop :: QFE.Layout -> Project -> IO ()
 projectLoop layout project = do
-    printTree (QFE.projectPane layout) (projectTree project)
+    printTree True (QFE.projectPane layout) (projectTree project)
     k <- QFE.getKey
     handleKeyProject layout project k
 
