@@ -31,6 +31,7 @@ import System.FilePath ( addTrailingPathSeparator
 import System.Clipboard ( setClipboardString
                         , getClipboardString )
 import Data.List ( findIndices
+                 , findIndex
                  , sort )
 import Data.Bifunctor ( first )
 import Data.ByteString.UTF8 ( ByteString )
@@ -190,10 +191,14 @@ promptOpen layout project = do
     u = QFE.utilityBar layout
 
 openPath :: FilePath -> Project -> IO (Project)
-openPath path' project = do
-    fileExists <- doesFileExist path'
-    contents <- if fileExists then B.readFile path' else return ""
-    return $ first (add $ ebNew path' contents language') project
+openPath path' project@(buffers, _) = do
+    -- absPath <- makeAbsolute path'
+    case findIndex (\b -> path b == path') $ toList buffers of
+        Nothing -> do
+            fileExists <- doesFileExist path'
+            contents <- if fileExists then B.readFile path' else return ""
+            return $ first (add $ ebNew path' contents language') project
+        Just k  -> return $ first (flipTo k) project
   where
     language' = assumeLanguage path'
 
@@ -330,6 +335,29 @@ resizeLayout continueFunction layout' project = do
     layout <- QFE.defaultLayout
     continueFunction layout project
 
+expandIfDir :: QFE.Layout -> Project -> IO ()
+expandIfDir layout project = case active' $ projectTree project of
+    (RootElement root) -> do
+        contents <- listDirectory' root
+        projectLoop layout $ expand (sort contents) project
+    _                  -> projectLoop layout project
+
+setNewRoot :: Bool -> QFE.Layout -> Project -> IO ()
+setNewRoot parent layout project = case active' $ projectTree project of
+    (RootElement root) -> (projectLoop layout) =<< (setRoot' root' project)
+                            where
+                              root' = if parent then parentDir
+                                                else root
+                              parentDir = joinPath $ init $
+                                            splitDirectories root
+    _                  -> projectLoop layout project
+
+setRoot' :: FilePath -> Project -> IO Project
+setRoot' root project = do
+    rootContents <- listDirectory' root
+    let projectTree' = (RootElement root, [], sort rootContents)
+    return $ setProjectTree projectTree' $ setRoot root project
+
 handleKey :: QFE.Layout -> Project -> Key -> IO ()
 handleKey layout project (CharKey c) =
     mainLoop layout $ first (firstF $ ebFirst $ input c) project
@@ -402,30 +430,6 @@ handleKey layout project k
     actionF a = mainLoop layout $ first a project
     continue = mainLoop layout project
     u = QFE.utilityBar layout
-
-expandIfDir :: QFE.Layout -> Project -> IO ()
-expandIfDir layout project = case active' $ projectTree project of
-    (RootElement root) -> do
-        contents <- listDirectory' root
-        projectLoop layout $ expand (sort contents) project
-    _                  -> projectLoop layout project
-
-setNewRoot :: Bool -> QFE.Layout -> Project -> IO ()
-setNewRoot parent layout project = case active' $ projectTree project of
-    (RootElement root) -> (projectLoop layout) =<< (setRoot' root' project)
-                            where
-                              root' = if parent then parentDir
-                                                else root
-                              parentDir = joinPath $ init $
-                                            splitDirectories root
-    _                  -> projectLoop layout project
-
-setRoot' :: FilePath -> Project -> IO Project
-setRoot' root project = do
-    rootContents <- listDirectory' root
-    let projectTree' = (RootElement root, [], sort rootContents)
-    return $ setProjectTree projectTree' $ setRoot root project
-
 
 handleKeyProject :: QFE.Layout -> Project -> Key -> IO ()
 handleKeyProject layout project k
