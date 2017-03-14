@@ -26,11 +26,22 @@
 - Layout resizing
 - Improve handling of permissions, write protected files and such
 - Coloring in project view
+- Some (presumably tab-like) UI element that shows open buffers
 
 ### Editor functionality
 
 - Handle Insert key
+- Improved find and replace functionality
+  - Replace all
+  - Regex
 
 ## Other things
 
 - Code cleanup
+- Documentation
+
+## In the distant future (perhaps)
+
+- Context aware code completion
+- Macros (Haskell, Python and possibly other languages)
+- Customization support
