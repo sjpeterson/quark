@@ -40,7 +40,9 @@ module Quark.Project ( Project
                      , activePath
                      , firstF'
                      , firstTree
-                     , idxOfActive' ) where
+                     , idxOfActive'
+                     , expand
+                     , contract ) where
 
 import System.FilePath ( takeDirectory
                        , takeFileName
@@ -166,6 +168,14 @@ firstF' f (a, p, n) = case a of
     DirectoryElement t' -> (DirectoryElement $ firstF' f t', p, n)
     _                   -> (f a, p, n)
 
+-- this version stops at the parent DirectoryElement of an active RootElement
+firstF'' :: (ProjectTreeElement -> ProjectTreeElement)
+        -> ProjectTree -> ProjectTree
+firstF'' f (a, p, n) = case a of
+    DirectoryElement (RootElement _, _, _) ->(f a, p, n)
+    DirectoryElement t' -> (DirectoryElement $ firstF'' f t', p, n)
+    _                   -> (f a, p, n)
+
 flipNext' :: Project -> Project
 flipNext' = firstTree flipNext''
 
@@ -194,17 +204,27 @@ flipToLast' x = case x of
     DirectoryElement t          -> flipToLast' (DirectoryElement $ flipToLast t)
     _                           -> x
 
-expand :: ProjectTreeElement -> [ProjectTreeElement] -> ProjectTreeElement
-expand (DirectoryElement t) p = DirectoryElement $ flipNext (r, [], sort p)
-  where
-    (r, _, _) = flipTo 0 t
-expand x _                    = x
+expand :: [ProjectTreeElement] -> Project -> Project
+expand p project = case active' $ projectTree project of
+    RootElement _ -> firstTree (firstF'' (expand' p)) project
+    _             -> project
 
-contract :: ProjectTreeElement -> ProjectTreeElement
-contract (DirectoryElement t) = DirectoryElement (r, [], [])
+expand' :: [ProjectTreeElement] -> ProjectTreeElement -> ProjectTreeElement
+expand' p (DirectoryElement t) = DirectoryElement $ flipNext (r, [], sort p)
   where
     (r, _, _) = flipTo 0 t
-contract x                    = x
+expand' _ x                    = x
+
+contract :: Project -> Project
+contract project = case active' $ projectTree project of
+    RootElement _ -> firstTree (firstF'' contract') project
+    _             -> project
+
+contract' :: ProjectTreeElement -> ProjectTreeElement
+contract' (DirectoryElement t) = DirectoryElement (r, [], [])
+  where
+    (r, _, _) = flipTo 0 t
+contract' x                    = x
 
 toLines :: ProjectTree -> [ByteString]
 toLines t = concat $ map (toLines' 0) (take k treeList) ++
@@ -229,8 +249,8 @@ toLines' headStyle x =  case x of
         | headStyle == 2 = "\226\148\156\226\148\128"
         | otherwise      = "\226\148\148\226\148\128"
     childHead
-        | headStyle == 0 = "\226\149\145\226\148\128"
-        | headStyle == 2 = "\226\148\130\226\148\128"
+        | headStyle == 0 = "\226\149\145 "
+        | headStyle == 2 = "\226\148\130 "
         | otherwise      = "  "
 
 treeListAndSplit :: ProjectTree -> ([ProjectTreeElement], Int)

@@ -23,8 +23,11 @@ import Control.Monad ( liftM )
 import System.Environment ( getArgs )
 import System.Directory ( doesFileExist
                         , doesDirectoryExist
-                        , makeAbsolute )
-import System.FilePath ( addTrailingPathSeparator )
+                        , makeAbsolute
+                        , getCurrentDirectory )
+import System.FilePath ( addTrailingPathSeparator
+                       , joinPath
+                       , splitDirectories )
 import System.Clipboard ( setClipboardString
                         , getClipboardString )
 import Data.List ( findIndices
@@ -105,7 +108,9 @@ import Quark.Project ( Project
                      , activePath
                      , firstF'
                      , flipNext'
-                     , flipPrevious' )
+                     , flipPrevious'
+                     , expand
+                     , contract )
 import Quark.History ( fromString
                      , toString )
 import Quark.Helpers ( (~~)
@@ -131,7 +136,7 @@ initLayout = do
     layout <- QFE.defaultLayout
     return layout
 
-initBuffer :: String -> IO (ExtendedBuffer)
+initBuffer :: FilePath -> IO (ExtendedBuffer)
 initBuffer path' = do
     fileExists <- doesFileExist path'
     if fileExists
@@ -141,14 +146,10 @@ initBuffer path' = do
   where
     language' = assumeLanguage path'
 
-initProject :: String -> IO (Project)
-initProject path = do
-    extendedBuffer <- initBuffer path
-    let root = assumeRoot path
-    rootContents <- listDirectory' root
-    let projectTree = (RootElement root, [], sort rootContents)
-    return $ setProjectTree projectTree $
-        setRoot root ( (extendedBuffer, [], []) , emptyProjectMeta)
+initProject :: FilePath -> FilePath -> IO Project
+initProject root path' = do
+    extendedBuffer <- initBuffer path'
+    setRoot' root ((extendedBuffer, [], []) , emptyProjectMeta)
 
 saveAndQuit :: [Int] -> QFE.Layout -> Project -> IO ()
 saveAndQuit [] _ _ = return ()
@@ -268,19 +269,19 @@ confirmSave newPath layout project = do
     promptText = (U.fromString newPath) ~~ " already exists, overwrite?"
 
 writeP :: FilePath -> Project -> IO (Project, Bool)
-writeP path project = do
-    newXB <- writeXB path $ activeP project
+writeP path' project = do
+    newXB <- writeXB path' $ activeP project
     return (first (replace newXB) project, False)
 
 writeXB :: FilePath -> ExtendedBuffer -> IO ExtendedBuffer
-writeXB path xb@(b, bufferMetaData) = case writeProtected xb of
-    False -> do newB <- writeBuffer path b
-                return $ setPath path (newB, bufferMetaData)
+writeXB path' xb@(b, bufferMetaData) = case writeProtected xb of
+    False -> do newB <- writeBuffer path' b
+                return $ setPath path' (newB, bufferMetaData)
     True  -> return xb
 
 writeBuffer :: FilePath -> Buffer -> IO Buffer
-writeBuffer path (Buffer h@(n, p, f) c s) = do
-    B.writeFile path $ nlEnd $ toString h
+writeBuffer path' (Buffer h@(n, p, f) c s) = do
+    B.writeFile path' $ nlEnd $ toString h
     return $ Buffer (0, p, f) c s
   where
     nlEnd s  = if nlTail s then s else s ~~ "\n"
@@ -356,7 +357,7 @@ handleKey layout project k
     | k == CtrlKey 'n' = newBuffer layout project
     | k == CtrlKey 'o' = mainLoop layout =<< (promptOpen layout project)
     | k == CtrlKey 'p' = continue -- prompt
-    | k == CtrlKey 't' = projectLoop layout project
+    | k == CtrlKey 't' = QFE.hideCursor >> projectLoop layout project
     | k == CtrlKey 'f' = find False True True layout project
     | k == CtrlKey 'r' = find True True True layout project
     | k == FnKey 3     = find False True False layout project
@@ -402,28 +403,65 @@ handleKey layout project k
     continue = mainLoop layout project
     u = QFE.utilityBar layout
 
+expandIfDir :: QFE.Layout -> Project -> IO ()
+expandIfDir layout project = case active' $ projectTree project of
+    (RootElement root) -> do
+        contents <- listDirectory' root
+        projectLoop layout $ expand (sort contents) project
+    _                  -> projectLoop layout project
+
+setNewRoot :: Bool -> QFE.Layout -> Project -> IO ()
+setNewRoot parent layout project = case active' $ projectTree project of
+    (RootElement root) -> (projectLoop layout) =<< (setRoot' root' project)
+                            where
+                              root' = if parent then parentDir
+                                                else root
+                              parentDir = joinPath $ init $
+                                            splitDirectories root
+    _                  -> projectLoop layout project
+
+setRoot' :: FilePath -> Project -> IO Project
+setRoot' root project = do
+    rootContents <- listDirectory' root
+    let projectTree' = (RootElement root, [], sort rootContents)
+    return $ setProjectTree projectTree' $ setRoot root project
+
+
 handleKeyProject :: QFE.Layout -> Project -> Key -> IO ()
 handleKeyProject layout project k
     | k == SpecialKey "Up"     = projectLoop layout $ flipPrevious' project
     | k == SpecialKey "Down"   = projectLoop layout $ flipNext' project
     | k == SpecialKey "Esc"    = do
+          QFE.showCursor
           dropFocus
           mainLoop layout project
-    | k == SpecialKey "Return" = case active' t of
-          (RootElement t') -> projectLoop layout project
+    | k == SpecialKey "Right"  = expandIfDir layout project
+    | k == SpecialKey "Left"   = case a of
+          (RootElement _) -> projectLoop layout $ contract project
+          _               -> continue
+    | k == CharKey '+'         = setNewRoot False layout project
+    | k == CharKey '-'         = setNewRoot True layout project
+    | k == SpecialKey "Return" = case a of
           (FileElement s)  -> do
+              QFE.showCursor
               dropFocus
               (mainLoop layout) =<< (openPath (activePath t) project)
-    | otherwise                = projectLoop layout project
+          _                -> expandIfDir layout project
+    | k == CtrlKey 'q'         = saveAndQuit unsavedIndices layout project
+    | otherwise                = continue
   where
     t = projectTree project
-    dropFocus = printTree False (QFE.projectPane layout) (projectTree project)
+    a = active' t
+    dropFocus = printTree False (QFE.projectPane layout) t
+    continue = projectLoop layout project
+    unsavedIndices = findIndices ebUnsaved $ (\(x, _) -> toList x) project
 
-quarkStart :: String -> IO ()
-quarkStart path = do
-    absPath <- makeAbsolute path
+quarkStart :: (FilePath, FilePath) -> IO ()
+quarkStart (root, path') = do
+    absPath <- makeAbsolute path'
+    absRoot <- makeAbsolute root
     layout <- initLayout
-    project <- initProject absPath
+    project <- initProject absRoot absPath
     case layout of
         (QFE.MinimalLayout _ _ _) -> return ()
         _                         ->
@@ -466,4 +504,15 @@ projectLoop layout project = do
 
 main :: IO ()
 main = bracket_ QFE.start QFE.end $
-    (\x -> if (length x) == 0 then "" else head x) <$> getArgs >>= quarkStart
+    getArgs >>= rootAndPath >>= quarkStart
+
+rootAndPath :: [String] -> IO (FilePath, FilePath)
+rootAndPath []            = do
+    root <- getCurrentDirectory
+    return (root, joinPath [root, "Untitled"])
+rootAndPath [path']       = do
+    isDirectory <- doesDirectoryExist path'
+    if isDirectory then return (path', joinPath [path', "Untitled"])
+                   else return (assumeRoot path', path')
+rootAndPath (root':path':_) = do
+    return (root', path')

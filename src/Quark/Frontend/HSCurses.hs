@@ -38,6 +38,8 @@ module Quark.Frontend.HSCurses ( Window ( TitleBar
                                , end
                                , getKey
                                , updateCursor
+                               , showCursor
+                               , hideCursor
                                , defaultLayout
                                , basicLayout
                                , minimalLayout ) where
@@ -209,6 +211,12 @@ updateCursor (TextView w _ _) (x0, y0) (x, y) =
 updateCursor (UtilityBar w (rr, cc)) (r, c) (_, y) =
     Curses.wMove w (min r rr) (min (y + c) cc) >> Curses.wRefresh w
 
+showCursor :: IO Curses.CursorVisibility
+showCursor = Curses.cursSet Curses.CursorVisible
+
+hideCursor :: IO Curses.CursorVisibility
+hideCursor = Curses.cursSet Curses.CursorInvisible
+
 -------------------------------
 -- Window type and functions --
 -------------------------------
@@ -289,15 +297,16 @@ defaultLayout = do
 basicLayout :: Int -> Int -> IO Layout
 basicLayout r c = do
     let dpWidth = min 24 (c - 32)
+    let dpWidth' = dpWidth - 1
     let mainHeight = r - 4
     let mainWidth = c - dpWidth
     cTitleBar <- Curses.newWin 2 c 0 0
     cUtilityBar <- Curses.newWin 2 c (r - 2) 0
-    cDirectoryPane <- Curses.newWin mainHeight (dpWidth - 1) 2 0
+    cDirectoryPane <- Curses.newWin mainHeight dpWidth' 2 0
     cMainView <- Curses.newWin mainHeight mainWidth 2 dpWidth
     let qTitleBar = TitleBar cTitleBar (1, c)
     let qUtilityBar = UtilityBar cUtilityBar (1, c)
-    let qDirectoryPane = ProjectView cDirectoryPane (mainHeight, dpWidth) 0
+    let qDirectoryPane = ProjectView cDirectoryPane (mainHeight, dpWidth') 0
     let qPrimaryPane = TextView cMainView (mainHeight, (c - dpWidth)) (0, 0)
     return $ BasicLayout qTitleBar qUtilityBar qDirectoryPane qPrimaryPane
 
