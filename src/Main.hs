@@ -506,10 +506,12 @@ refreshTree layout project =
    printTree False (QFE.projectPane layout) (projectTree project)
 
 projectLoop :: QFE.Layout -> Project -> IO ()
-projectLoop layout project = do
-    printTree True (QFE.projectPane layout) (projectTree project)
-    k <- QFE.getKey
-    handleKeyProject layout project k
+projectLoop layout project = case layout of
+    (QFE.MinimalLayout _ _ _) -> mainLoop layout project
+    _                         -> do
+        printTree True (QFE.projectPane layout) (projectTree project)
+        k <- QFE.getKey
+        handleKeyProject layout project k
 
 main :: IO ()
 main = bracket_ QFE.start QFE.end $
