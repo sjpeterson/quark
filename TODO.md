@@ -2,7 +2,7 @@
 
 ## Bugs and the like
 
-- Resizing is delayed
+- Arrow keys are not handled correctly immediately following a terminal resize
 
 ## Missing functionality
 

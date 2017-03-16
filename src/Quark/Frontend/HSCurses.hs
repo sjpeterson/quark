@@ -36,6 +36,7 @@ module Quark.Frontend.HSCurses ( Window ( TitleBar
                                , projectPane
                                , start
                                , end
+                               , onResize
                                , getKey
                                , updateCursor
                                , showCursor
@@ -62,6 +63,9 @@ import Quark.Types ( Key ( CharKey
                    , Offset
                    , Size )
 
+import System.Posix.Signals ( Handler ( Catch )
+                            , installHandler )
+
 -----------------------------
 -- Start and end functions --
 -----------------------------
@@ -77,9 +81,26 @@ start = do
     Curses.resetParams
     Curses.wclear Curses.stdScr
     Curses.refresh
+    Curses.keypad Curses.stdScr True
+    case (Curses.cursesSigWinch, Curses.keyResizeCode) of
+        (Just sig, Just key) -> do
+            installHandler sig (Catch $ sigwinch sig key) Nothing
+            return ()
+        _                    -> return ()
+  where
+    sigwinch sig key = do
+        Curses.ungetCh key
+        -- installHandler sig (Catch $ sigwinch sig key) Nothing
+        return ()
 
 end :: IO ()
 end = Curses.endWin
+
+onResize :: IO ()
+onResize = do
+    Curses.endWin
+    Curses.wclear Curses.stdScr
+    Curses.refresh
 
 ------------
 -- getKey --

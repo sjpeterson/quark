@@ -332,7 +332,10 @@ replace' next doPrompt layout project = do
 resizeLayout :: (QFE.Layout -> Project -> IO ())
              -> QFE.Layout -> Project -> IO ()
 resizeLayout continueFunction layout' project = do
+    QFE.onResize
     layout <- QFE.defaultLayout
+    refreshText layout project
+    refreshTree layout project
     continueFunction layout project
 
 expandIfDir :: QFE.Layout -> Project -> IO ()
@@ -466,10 +469,7 @@ quarkStart (root, path') = do
     absRoot <- makeAbsolute root
     layout <- initLayout
     project <- initProject absRoot absPath
-    case layout of
-        (QFE.MinimalLayout _ _ _) -> return ()
-        _                         ->
-            printTree False (QFE.projectPane layout) (projectTree project)
+    refreshTree layout project
     mainLoop layout project
 
 mainLoop :: QFE.Layout -> Project -> IO ()
@@ -499,6 +499,11 @@ refreshText layout project = do
     activeBuffer = activeP project
     cursors@(crs, _) = ebCursors activeBuffer
     lnOffset = lnWidth $ ebToString activeBuffer
+
+refreshTree :: QFE.Layout -> Project -> IO ()
+refreshTree (QFE.MinimalLayout _ _ _) project = return ()
+refreshTree layout project =
+   printTree False (QFE.projectPane layout) (projectTree project)
 
 projectLoop :: QFE.Layout -> Project -> IO ()
 projectLoop layout project = do
