@@ -455,6 +455,7 @@ handleKeyProject layout project k
               (mainLoop layout) =<< (openPath (activePath t) project)
           _                -> expandIfDir layout project
     | k == CtrlKey 'q'         = saveAndQuit unsavedIndices layout project
+    | k == ResizeKey           = resizeLayout projectLoop layout project
     | otherwise                = continue
   where
     t = projectTree project
@@ -507,7 +508,7 @@ refreshTree layout project =
 
 projectLoop :: QFE.Layout -> Project -> IO ()
 projectLoop layout project = case layout of
-    (QFE.MinimalLayout _ _ _) -> mainLoop layout project
+    (QFE.MinimalLayout _ _ _) -> QFE.showCursor >> mainLoop layout project
     _                         -> do
         printTree True (QFE.projectPane layout) (projectTree project)
         k <- QFE.getKey
