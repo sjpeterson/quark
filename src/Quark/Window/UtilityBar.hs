@@ -137,8 +137,9 @@ promptAutoComplete w buffer@(Buffer h cursor _) n = do
         else handleKey k w (paste (U.fromString s) buffer)
 
 handleKey :: Key -> Window -> Buffer -> IO (ByteString)
-handleKey (CharKey c) w buffer = cGetLine w $ input c buffer
-handleKey (WideCharKey s) w buffer = cGetLine w $ insert (B.pack s) True buffer
+handleKey (CharKey c) w buffer = cGetLine w $ input c False buffer
+handleKey (WideCharKey s) w buffer =
+    cGetLine w $ insert (B.pack s) False True buffer
 handleKey k w buffer@(Buffer h _ _)
     | k == SpecialKey "Esc"        = return "\ESC"
     | k == SpecialKey "Return"     = return $ toString h

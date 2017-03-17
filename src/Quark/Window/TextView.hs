@@ -41,8 +41,9 @@ import Quark.Colors
 import Quark.Types
 import Quark.Cursor (orderTwo)
 
-printText :: Language -> Window -> (Cursor, Cursor) -> [[Token]] -> IO ()
-printText language w@(TextView _ (r, c) (rr, cc)) cursors tokenLines' = do
+printText :: Language -> Window -> (Cursor, Cursor) -> Bool -> [[Token]]
+          -> IO ()
+printText language w@(TextView _ (r, c) (rr, cc)) (crs, sel) m tokenLines' = do
     clear' w lnc
     mapM_ (\(k, l, t, s) -> printTokenLine language k l t s w) $
         zip4 [0..(r - 2)] lineNumbers tokens selections
@@ -51,9 +52,13 @@ printText language w@(TextView _ (r, c) (rr, cc)) cursors tokenLines' = do
     n = length tokenLines'
     lnc = (length $ show n) + 1
     lineNumbers =
-        map (padToLen lnc) (map (U.fromString . show) $ [rr + 1..n]) ++ repeat ""
+        map (padToLen lnc) (map (U.fromString . show) $
+            [rr + 1..n]) ++ repeat ""
     tokens = drop rr tokenLines'
-    selections = map (selOnLine cursors) [rr + 0..n]
+    selections = map (selOnLine (crs, sel')) [rr + 0..n]
+    sel' = if m && crs == sel then (rSel, cSel + 1) else sel
+    (rSel, cSel) = sel
+
 
 updateOffset :: Cursor -> Int -> Window -> Window
 updateOffset crs ccOffset t = case cursorDirection crs ccOffset t of

@@ -30,7 +30,6 @@
 
 ### Editor functionality
 
-- Handle Insert key
 - Improved find and replace functionality
   - Replace all
   - Regex

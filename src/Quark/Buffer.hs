@@ -186,15 +186,15 @@ ebUnsaved :: ExtendedBuffer -> Bool
 ebUnsaved (b, _) = unsaved b
 
 -- Input single character
-input :: Char -> Buffer -> Buffer
-input c = insert (B.cons c "") True
+input :: Char -> Bool -> Buffer -> Buffer
+input c m = insert (B.cons c "") m True
 
 paste :: ByteString -> Buffer -> Buffer
-paste s = insert s False
+paste s = insert s False False
 
 tab :: Int -> Buffer -> Buffer
 tab tabWidth b@(Buffer h crs@(r, c) sel@(rr, cc))
-    | crs == sel = insert (B.replicate n ' ') True b
+    | crs == sel = insert (B.replicate n ' ') False True b
     | otherwise  = Buffer newH (r, c + n') (rr, cc + n')
   where
     n = tabWidth - (mod c tabWidth)
@@ -215,7 +215,7 @@ unTab tabWidth b@(Buffer h (r, c) (rr, cc))
 
 nlAutoIndent :: Buffer -> Buffer
 nlAutoIndent b@(Buffer h crs sel) =
-    insert (B.cons '\n' (B.replicate n ' ')) True b
+    insert (B.cons '\n' (B.replicate n ' ')) False True b
   where
     n = lnIndent r (toString h)
     (r, _) = minCursor crs sel
@@ -226,13 +226,16 @@ ixAndSel (Buffer h crs sel) = ((cursorToIx crs s), (distance crs sel s))
     s = toString h
 
 -- Generic insert string at current selection
-insert :: ByteString -> Bool -> Buffer -> Buffer
-insert s fusible b@(Buffer h crs sel) = Buffer newH newCrs newCrs
+insert :: ByteString -> Bool -> Bool -> Buffer -> Buffer
+insert s m fusible b@(Buffer h crs sel) = Buffer newH newCrs newCrs
   where
     newH = addEditToHistory edit h
     edit = Edit (0, 0) s ix sel' fusible
-    (ix, sel') = ixAndSel b
+    (ix, sel'') = ixAndSel b
+    sel' = if m && sel'' == 0 && doInsert then 1 else sel''
     s0 = toString h
+    doInsert = if U.take 1 s0' == "\n" then False else True
+    (_, s0') = U.splitAt ix s0
     newCrs = ixToCursor newIx newS
     newIx = (cursorToIx (minCursor crs sel) s0) + (U.length s)
     newS = toString newH

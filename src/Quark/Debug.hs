@@ -1,10 +1,14 @@
 module Quark.Debug where
 
-dbgFile = "/home/stefan/quarkDebug.txt"
+import System.Directory ( getHomeDirectory )
+import System.FilePath ( joinPath )
+
+dbgFile :: IO FilePath
+dbgFile = (\h -> joinPath [h, "quarkDebug.log"]) <$> getHomeDirectory
 
 dbgClear :: IO ()
-dbgClear = writeFile dbgFile ""
+dbgClear = (\p -> writeFile p "") =<< dbgFile
 
 dbg :: String -> IO ()
-dbg s = appendFile dbgFile s
+dbg s = (\p -> appendFile p s) =<< dbgFile
 

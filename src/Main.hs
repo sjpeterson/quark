@@ -98,12 +98,14 @@ import Quark.Project ( Project
                      , projectTree
                      , findDefault
                      , replaceDefault
+                     , insertMode
                      , assumeRoot
                      , setRoot
                      , setFindDefault
                      , setReplaceDefault
                      , setProjectTree
                      , setBuffers
+                     , toggleInsertMode
                      , activeP
                      , active'
                      , activePath
@@ -159,7 +161,8 @@ saveAndQuit (x:xs) layout project' = do
     let project = first (flipTo x) project'
     let activeBuffer = activeP project
     let cursors = ebCursors $ activeBuffer
-    printText (language activeBuffer) w cursors (tokens activeBuffer)
+    -- printText (language activeBuffer) w cursors (tokens activeBuffer)
+    refreshText layout project
     (newProject, cancel) <- chooseSave layout project
     if cancel then mainLoop layout newProject
               else saveAndQuit xs layout newProject
@@ -363,9 +366,11 @@ setRoot' root project = do
 
 handleKey :: QFE.Layout -> Project -> Key -> IO ()
 handleKey layout project (CharKey c) =
-    mainLoop layout $ first (firstF $ ebFirst $ input c) project
+    mainLoop layout $ first (firstF $ ebFirst $
+        input c $ insertMode project) project
 handleKey layout project (WideCharKey s) =
-    mainLoop layout $ first (firstF $ ebFirst $ insert (B.pack s) True) project
+    mainLoop layout $ first (firstF $ ebFirst $
+        insert (B.pack s) (insertMode project) True) project
 handleKey layout project k
     | k == CtrlKey 'q' = saveAndQuit unsavedIndices layout project
     | k == CtrlKey 'w' = saveAndClose layout project
@@ -421,6 +426,8 @@ handleKey layout project k
     | k == SpecialKey "Ctrl-Left"       = actionF flipPrevious
     | k == SpecialKey "Ctrl-Right"      = actionF flipNext
     | k == SpecialKey "Esc"             = action deselect
+    | k == SpecialKey "Insert"          =
+          mainLoop layout $ toggleInsertMode project
     | k == ResizeKey                    = resizeLayout mainLoop layout project
     | otherwise = do
           debug (QFE.utilityBar layout) $ U.fromString $ show k
@@ -493,7 +500,8 @@ mainLoop layout project = do
 
 refreshText :: QFE.Layout -> Project -> IO ()
 refreshText layout project = do
-    printText (language activeBuffer) w cursors (tokens activeBuffer)
+    printText (language activeBuffer) w cursors
+        (insertMode project) (tokens activeBuffer)
     QFE.updateCursor w (rr, cc - lnOffset) crs
   where
     w@(QFE.TextView _ _ (rr, cc)) = QFE.primaryPane layout

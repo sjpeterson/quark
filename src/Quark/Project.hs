@@ -26,11 +26,13 @@ module Quark.Project ( Project
                      , projectTree
                      , findDefault
                      , replaceDefault
+                     , insertMode
                      , setBuffers
                      , setRoot
                      , setFindDefault
                      , setReplaceDefault
                      , setProjectTree
+                     , toggleInsertMode
                      , flipNext'
                      , flipPrevious'
                      , toLines
@@ -74,7 +76,8 @@ import Quark.Types ( ProjectTree
 data ProjectMeta = ProjectMeta { root' :: FilePath
                                , projectTree' :: ProjectTree
                                , findDefault' :: ByteString
-                               , replaceDefault' :: ByteString } deriving Eq
+                               , replaceDefault' :: ByteString
+                               , insertMode' :: Bool } deriving Eq
 
 type Project = (Flipper ExtendedBuffer, ProjectMeta)
 
@@ -83,7 +86,7 @@ type Project = (Flipper ExtendedBuffer, ProjectMeta)
 ----------------------------
 
 emptyProjectMeta :: ProjectMeta
-emptyProjectMeta = ProjectMeta "" (RootElement "", [], []) "" ""
+emptyProjectMeta = ProjectMeta "" (RootElement "", [], []) "" "" False
 
 projectRoot :: Project -> FilePath
 projectRoot (_, projectMeta) = root' projectMeta
@@ -97,6 +100,9 @@ findDefault (_, projectMeta) = findDefault' projectMeta
 replaceDefault :: Project -> ByteString
 replaceDefault (_, projectMeta) = replaceDefault' projectMeta
 
+insertMode :: Project -> Bool
+insertMode (_, projectMeta) = insertMode' projectMeta
+
 setBuffers :: Flipper ExtendedBuffer -> Project -> Project
 setBuffers buffers (_, projectMeta) = (buffers, projectMeta)
 
@@ -104,25 +110,32 @@ setRoot :: FilePath -> Project -> Project
 setRoot s project = second (setRoot' s) project
 
 setRoot' :: FilePath -> ProjectMeta -> ProjectMeta
-setRoot' s (ProjectMeta _ a b c) = ProjectMeta s a b c
+setRoot' s (ProjectMeta _ a b c d) = ProjectMeta s a b c d
 
 setFindDefault :: ByteString -> Project -> Project
 setFindDefault s project = second (setFindDefault' s) project
 
 setFindDefault' :: ByteString -> ProjectMeta -> ProjectMeta
-setFindDefault' s (ProjectMeta a b _ c) = ProjectMeta a b s c
+setFindDefault' s (ProjectMeta a b _ c d) = ProjectMeta a b s c d
 
 setReplaceDefault :: ByteString -> Project -> Project
 setReplaceDefault s project = second (setReplaceDefault' s) project
 
 setReplaceDefault' :: ByteString -> ProjectMeta -> ProjectMeta
-setReplaceDefault' s (ProjectMeta a b c _) = ProjectMeta a b c s
+setReplaceDefault' s (ProjectMeta a b c _ d) = ProjectMeta a b c s d
 
 setProjectTree :: ProjectTree -> Project -> Project
 setProjectTree t project = second (setProjectTree' t) project
 
 setProjectTree' :: ProjectTree -> ProjectMeta -> ProjectMeta
-setProjectTree' t (ProjectMeta a _ b c) = ProjectMeta a t b c
+setProjectTree' t (ProjectMeta a _ b c d) = ProjectMeta a t b c d
+
+toggleInsertMode :: Project -> Project
+toggleInsertMode project =
+    second (setInsertMode' $ not $ insertMode project) project
+
+setInsertMode' :: Bool -> ProjectMeta -> ProjectMeta
+setInsertMode' x (ProjectMeta a b c d _) = ProjectMeta a b c d x
 
 firstTree :: (ProjectTree -> ProjectTree) -> Project -> Project
 firstTree f project = setProjectTree (f $ projectTree project) project
