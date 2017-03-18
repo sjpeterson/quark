@@ -40,6 +40,7 @@ module Quark.Project ( Project
                      , activeP
                      , active'
                      , activePath
+                     , projectTreeIndex
                      , firstF'
                      , firstTree
                      , idxOfActive'
@@ -154,6 +155,11 @@ active' :: ProjectTree -> ProjectTreeElement
 active' t = case active t of
     DirectoryElement t' -> active' t'
     x                   -> x
+
+projectTreeIndex :: Project -> Int
+projectTreeIndex project = length prev
+  where
+    (_, prev, _) = projectTree project
 
 activePath :: ProjectTree -> FilePath
 activePath t = case active t of

@@ -46,8 +46,10 @@ import Quark.Window.UtilityBar ( promptString
                                , debug )
 import Quark.Window.TextView ( printText
                              , updateOffset )
-import Quark.Window.ProjectView ( printTree )
-import Quark.Layout ( firstL )
+import Quark.Window.ProjectView ( printTree
+                                , updateOffsetP)
+import Quark.Layout ( firstL
+                    , thirdL )
 import Quark.Lexer.Language ( assumeLanguage )
 import Quark.Buffer ( Buffer ( Buffer )
                     , ExtendedBuffer
@@ -108,6 +110,7 @@ import Quark.Project ( Project
                      , toggleInsertMode
                      , activeP
                      , active'
+                     , idxOfActive'
                      , activePath
                      , firstF'
                      , flipNext'
@@ -134,25 +137,9 @@ import Quark.Types (Key ( CharKey
                                         , FileElement
                                         , DirectoryElement ) )
 
-initLayout :: IO (QFE.Layout)
-initLayout = do
-    layout <- QFE.defaultLayout
-    return layout
-
-initBuffer :: FilePath -> IO (ExtendedBuffer)
-initBuffer path' = do
-    fileExists <- doesFileExist path'
-    if fileExists
-        then do contents <- B.readFile path'
-                return $ ebNew path' contents language'
-        else return $ ebEmpty path' language'
-  where
-    language' = assumeLanguage path'
-
-initProject :: FilePath -> FilePath -> IO Project
-initProject root path' = do
-    extendedBuffer <- initBuffer path'
-    setRoot' root ((extendedBuffer, [], []) , emptyProjectMeta)
+-------------------------------
+-- New, open, save and close --
+-------------------------------
 
 saveAndQuit :: [Int] -> QFE.Layout -> Project -> IO ()
 saveAndQuit [] _ _ = return ()
@@ -177,33 +164,6 @@ saveAndClose layout project = do
         Nothing           -> mainLoop layout $ setBuffers ( ebEmpty "" ""
                                                           , []
                                                           , []) project
-
-newBuffer :: QFE.Layout -> Project -> IO ()
-newBuffer layout project = mainLoop layout $ first (add $ ebEmpty "" "") project
-
-promptOpen :: QFE.Layout -> Project -> IO (Project)
-promptOpen layout project = do
-    path' <- liftM U.toString $
-                 promptString u (U.fromString "Open file:") $
-                 U.fromString defaultPath
-    if path' == "\ESC"
-        then return project
-        else openPath path' project
-  where
-    defaultPath = addTrailingPathSeparator $ projectRoot project
-    u = QFE.utilityBar layout
-
-openPath :: FilePath -> Project -> IO (Project)
-openPath path' project@(buffers, _) = do
-    -- absPath <- makeAbsolute path'
-    case findIndex (\b -> path b == path') $ toList buffers of
-        Nothing -> do
-            fileExists <- doesFileExist path'
-            contents <- if fileExists then B.readFile path' else return ""
-            return $ first (add $ ebNew path' contents language') project
-        Just k  -> return $ first (flipTo k) project
-  where
-    language' = assumeLanguage path'
 
 chooseSave :: QFE.Layout -> Project -> IO (Project, Bool)
 chooseSave layout project =
@@ -294,6 +254,38 @@ writeBuffer path' (Buffer h@(n, p, f) c s) = do
   where
     nlEnd s  = if nlTail s then s else s ~~ "\n"
 
+newBuffer :: QFE.Layout -> Project -> IO ()
+newBuffer layout project =
+    mainLoop layout $ first (add $ ebEmpty "" "") project
+
+promptOpen :: QFE.Layout -> Project -> IO Project
+promptOpen layout project = do
+    path' <- liftM U.toString $
+                 promptString u (U.fromString "Open file:") $
+                 U.fromString defaultPath
+    if path' == "\ESC"
+        then return project
+        else openPath path' project
+  where
+    defaultPath = addTrailingPathSeparator $ projectRoot project
+    u = QFE.utilityBar layout
+
+openPath :: FilePath -> Project -> IO Project
+openPath path' project@(buffers, _) = do
+    -- absPath <- makeAbsolute path'
+    case findIndex (\b -> path b == path') $ toList buffers of
+        Nothing -> do
+            fileExists <- doesFileExist path'
+            contents <- if fileExists then B.readFile path' else return ""
+            return $ first (add $ ebNew path' contents language') project
+        Just k  -> return $ first (flipTo k) project
+  where
+    language' = assumeLanguage path'
+
+----------------------
+-- Find and replace --
+----------------------
+
 find :: Bool -> Bool -> Bool -> QFE.Layout -> Project -> IO ()
 find doReplace next doPrompt layout project = do
     findString <- if doPrompt
@@ -332,14 +324,9 @@ replace' next doPrompt layout project = do
     s = B.pack "Replace by: "
     u = (QFE.utilityBar layout)
 
-resizeLayout :: (QFE.Layout -> Project -> IO ())
-             -> QFE.Layout -> Project -> IO ()
-resizeLayout continueFunction layout' project = do
-    QFE.onResize
-    layout <- QFE.defaultLayout
-    refreshText layout project
-    refreshTree layout project
-    continueFunction layout project
+-------------------------------------
+-- Project tree and root functions --
+-------------------------------------
 
 expandIfDir :: QFE.Layout -> Project -> IO ()
 expandIfDir layout project = case active' $ projectTree project of
@@ -364,6 +351,39 @@ setRoot' root project = do
     let projectTree' = (RootElement root, [], sort rootContents)
     return $ setProjectTree projectTree' $ setRoot root project
 
+-----------------------------
+-- Window update functions --
+-----------------------------
+
+refreshText :: QFE.Layout -> Project -> IO ()
+refreshText layout project = do
+    printText (language activeBuffer) w cursors
+        (insertMode project) (tokens activeBuffer)
+    QFE.updateCursor w (rr, cc - lnOffset) crs
+  where
+    w@(QFE.TextView _ _ (rr, cc)) = QFE.primaryPane layout
+    activeBuffer = activeP project
+    cursors@(crs, _) = ebCursors activeBuffer
+    lnOffset = lnWidth $ ebToString activeBuffer
+
+refreshTree :: QFE.Layout -> Project -> IO ()
+refreshTree (QFE.MinimalLayout _ _ _) project = return ()
+refreshTree layout project =
+   printTree False (QFE.projectPane layout) (projectTree project)
+
+resizeLayout :: (QFE.Layout -> Project -> IO ())
+             -> QFE.Layout -> Project -> IO ()
+resizeLayout continueFunction layout' project = do
+    QFE.onResize
+    layout <- QFE.defaultLayout
+    refreshText layout project
+    refreshTree layout project
+    continueFunction layout project
+
+------------------
+-- Key handlers --
+------------------
+
 handleKey :: QFE.Layout -> Project -> Key -> IO ()
 handleKey layout project (CharKey c) =
     mainLoop layout $ first (firstF $ ebFirst $
@@ -378,10 +398,12 @@ handleKey layout project k
         (newProject, _) <- promptSave layout project
         mainLoop layout newProject
     | k == CtrlKey 'x' = do
-        setClipboardString $ U.toString $ selection $ condense $ activeP project
+        setClipboardString $ U.toString $ selection $
+            condense $ activeP project
         action delete
     | k == CtrlKey 'c' = do
-        setClipboardString $ U.toString $ selection $ condense $ activeP project
+        setClipboardString $ U.toString $ selection $
+            condense $ activeP project
         mainLoop layout project
     | k == CtrlKey 'v' = do
         s <- getClipboardString
@@ -471,14 +493,9 @@ handleKeyProject layout project k
     continue = projectLoop layout project
     unsavedIndices = findIndices ebUnsaved $ (\(x, _) -> toList x) project
 
-quarkStart :: (FilePath, FilePath) -> IO ()
-quarkStart (root, path') = do
-    absPath <- makeAbsolute path'
-    absRoot <- makeAbsolute root
-    layout <- initLayout
-    project <- initProject absRoot absPath
-    refreshTree layout project
-    mainLoop layout project
+--------------------
+-- Loop functions --
+--------------------
 
 mainLoop :: QFE.Layout -> Project -> IO ()
 mainLoop layout project = do
@@ -498,33 +515,29 @@ mainLoop layout project = do
     cursors = ebCursors activeBuffer
     frontendFunctions = (QFE.setTextColor, QFE.mvAddString, QFE.refresh)
 
-refreshText :: QFE.Layout -> Project -> IO ()
-refreshText layout project = do
-    printText (language activeBuffer) w cursors
-        (insertMode project) (tokens activeBuffer)
-    QFE.updateCursor w (rr, cc - lnOffset) crs
-  where
-    w@(QFE.TextView _ _ (rr, cc)) = QFE.primaryPane layout
-    activeBuffer = activeP project
-    cursors@(crs, _) = ebCursors activeBuffer
-    lnOffset = lnWidth $ ebToString activeBuffer
-
-refreshTree :: QFE.Layout -> Project -> IO ()
-refreshTree (QFE.MinimalLayout _ _ _) project = return ()
-refreshTree layout project =
-   printTree False (QFE.projectPane layout) (projectTree project)
-
 projectLoop :: QFE.Layout -> Project -> IO ()
-projectLoop layout project = case layout of
-    (QFE.MinimalLayout _ _ _) -> QFE.showCursor >> mainLoop layout project
+projectLoop layout' project = case layout' of
+    (QFE.MinimalLayout _ _ _) -> QFE.showCursor >> mainLoop layout' project
     _                         -> do
+        let layout = thirdL f layout'
         printTree True (QFE.projectPane layout) (projectTree project)
         k <- QFE.getKey
         handleKeyProject layout project k
+  where
+    f = (updateOffsetP $ idxOfActive' $ projectTree project)
 
-main :: IO ()
-main = bracket_ QFE.start QFE.end $
-    getArgs >>= rootAndPath >>= quarkStart
+------------------------------
+-- Start and main functions --
+------------------------------
+
+quarkStart :: (FilePath, FilePath) -> IO ()
+quarkStart (root, path') = do
+    absPath <- makeAbsolute path'
+    absRoot <- makeAbsolute root
+    layout <- initLayout
+    project <- initProject absRoot absPath
+    refreshTree layout project
+    mainLoop layout project
 
 rootAndPath :: [String] -> IO (FilePath, FilePath)
 rootAndPath []            = do
@@ -536,3 +549,26 @@ rootAndPath [path']       = do
                    else return (assumeRoot path', path')
 rootAndPath (root':path':_) = do
     return (root', path')
+
+initLayout :: IO QFE.Layout
+initLayout = do
+    layout <- QFE.defaultLayout
+    return layout
+
+initBuffer :: FilePath -> IO ExtendedBuffer
+initBuffer path' = do
+    fileExists <- doesFileExist path'
+    if fileExists
+        then do contents <- B.readFile path'
+                return $ ebNew path' contents language'
+        else return $ ebEmpty path' language'
+  where
+    language' = assumeLanguage path'
+
+initProject :: FilePath -> FilePath -> IO Project
+initProject root path' = do
+    extendedBuffer <- initBuffer path'
+    setRoot' root ((extendedBuffer, [], []) , emptyProjectMeta)
+
+main :: IO ()
+main = bracket_ QFE.start QFE.end $ getArgs >>= rootAndPath >>= quarkStart

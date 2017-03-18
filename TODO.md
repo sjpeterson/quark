@@ -20,7 +20,11 @@
 - Intelligent expansion of root (in setRoot' of Main.hs)
   - expand to include open files (assuming they exist under root)
   - expand previously expanded directories
-- Scrolling in project view
+- Improved navigation in project tree
+  - Ctrl + Left    -> go to parent of selected
+  - Left (non-dir) -> go to parent of selected
+  - Home           -> go to project root
+  - PgUp / PgDn    -> like in text view
 - Support additional terminal environments/emulators and color modes
 - Layout switching
 - Layout resizing

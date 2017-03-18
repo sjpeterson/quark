@@ -16,7 +16,8 @@
 --
 --------
 
-module Quark.Window.ProjectView ( printTree ) where
+module Quark.Window.ProjectView ( printTree
+                                , updateOffsetP ) where
 
 import Data.ByteString.UTF8 (ByteString)
 import qualified Data.ByteString.UTF8 as U
@@ -50,3 +51,11 @@ printTreeLine :: Window -> Row -> Bool -> String -> IO ()
 printTreeLine w k isActive s = do
     setTextColor w $ if isActive then treeActivePair else treeDefaultPair
     mvAddString w k 0 s
+
+updateOffsetP :: Int -> Window -> Window
+updateOffsetP n p@(ProjectView w (r, c) rr) = case inRange of
+    True  -> p
+    False -> updateOffsetP n $ ProjectView w (r, c) $
+                                   if n < rr then max 0 (rr -3) else rr + 3
+  where
+    inRange = if n >= rr && n < rr + r - 1 then True else False
