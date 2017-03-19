@@ -31,7 +31,7 @@ import Quark.Types
 setTitle :: Window -> String -> IO ()
 setTitle w title = do
     setTextColor w titleBarPair
-    mvAddString w 0 0 (padMidToLen c leftText rightText)
+    mvAddString w 0 0 (fixToLenPadMid c leftText rightText)
     move w 0 0
     refresh w
   where

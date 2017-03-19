@@ -61,8 +61,16 @@ padToLen' k a
 -- Concatenate two strings, padding with spaces in the middle
 padMidToLen :: Int -> String -> String -> String
 padMidToLen k a0 a1
-    | k == (length a0 + length a1) = a0 ++ a1
+    | k >= (length a0 + length a1) = a0 ++ a1
     | otherwise                    = padMidToLen k (a0 ++ " ") a1
+
+fixToLenPadMid :: Int -> String -> String -> String
+fixToLenPadMid k a0 a1
+    | k < length a0 + length a1 + 1  = (take kk a0) ++ "..." ++ (' ':a1)
+    | k == length a0 + length a1 + 1 = a0 ++ (' ':a1)
+    | otherwise                      = padMidToLen k a0 (' ':a1)
+  where
+    kk = k - length a1 - 4
 
 -- Selection helpers
 splitAt2 :: (Int, Int) -> ByteString -> (ByteString, ByteString, ByteString)
