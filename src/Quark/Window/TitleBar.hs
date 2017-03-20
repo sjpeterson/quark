@@ -41,4 +41,4 @@ setTitle w path = do
     leftText = prefix ++ (trimPathHead k path)
     k = (c - length prefix - length suffix)
     prefix = "quark - "
-    suffix = "0.0.1a "
+    suffix = " 0.0.1a "
