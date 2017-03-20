@@ -81,8 +81,8 @@ trimPathHead :: Int -> FilePath -> FilePath
 trimPathHead k p
     | k <= 0        = ""
     | k >= length p = p
-    | otherwise     = "..." ++ (joinPath $
-          dropWhile' (\x -> (length $ concat x) > (k - 3)) $ splitPath p)
+    | otherwise     = ".../" ++ (joinPath $
+          dropWhile' (\x -> (length $ concat x) > (k - 4)) $ splitPath p)
 
 dropWhile' :: ([a] -> Bool) -> [a] -> [a]
 dropWhile' _ [] = []
