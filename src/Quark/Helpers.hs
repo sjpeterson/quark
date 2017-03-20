@@ -6,6 +6,9 @@ import Data.ByteString.UTF8 (ByteString)
 import qualified Data.ByteString.UTF8 as U
 import qualified Data.ByteString.Char8 as B
 
+import System.FilePath ( splitPath
+                       , joinPath )
+
 import Quark.Types ( Size
                    , Index )
 
@@ -64,13 +67,26 @@ padMidToLen k a0 a1
     | k >= (length a0 + length a1) = a0 ++ a1
     | otherwise                    = padMidToLen k (a0 ++ " ") a1
 
-fixToLenPadMid :: Int -> String -> String -> String
-fixToLenPadMid k a0 a1
-    | k < length a0 + length a1 + 1  = (take kk a0) ++ "..." ++ (' ':a1)
-    | k == length a0 + length a1 + 1 = a0 ++ (' ':a1)
-    | otherwise                      = padMidToLen k a0 (' ':a1)
+fixToLenPadMid :: Int -> [a] -> [a] -> a -> [a]
+fixToLenPadMid k xs ys z
+    | k <= 0      = []
+    | nx > k      = take k xs
+    | nx + ny > k = xs ++ take (k - nx) ys
+    | otherwise   = fixToLenPadMid k xs (z:ys) z
   where
-    kk = k - length a1 - 4
+    nx = length xs
+    ny = length ys
+
+trimPathHead :: Int -> FilePath -> FilePath
+trimPathHead k p
+    | k <= 0        = ""
+    | k >= length p = p
+    | otherwise     = "..." ++ (joinPath $
+          dropWhile' (\x -> (length $ concat x) > (k - 3)) $ splitPath p)
+
+dropWhile' :: ([a] -> Bool) -> [a] -> [a]
+dropWhile' _ [] = []
+dropWhile' f xs = if f xs then dropWhile' f (drop 1 xs) else xs
 
 -- Selection helpers
 splitAt2 :: (Int, Int) -> ByteString -> (ByteString, ByteString, ByteString)

@@ -22,19 +22,23 @@ import Quark.Frontend.HSCurses ( Window ( TitleBar )
                                , setTextColor
                                , mvAddString
                                , move
-                               , refresh )
+                               , refresh
+                               , hideCursor )
 
 import Quark.Colors
 import Quark.Helpers
 import Quark.Types
 
 setTitle :: Window -> String -> IO ()
-setTitle w title = do
+setTitle w path = do
     setTextColor w titleBarPair
-    mvAddString w 0 0 (fixToLenPadMid c leftText rightText)
+    mvAddString w 0 0 (fixToLenPadMid c leftText suffix ' ')
     move w 0 0
+    hideCursor
     refresh w
   where
     (TitleBar _ (_, c)) = w
-    leftText = " quark - " ++ title
-    rightText = "0.0.1a "
+    leftText = prefix ++ (trimPathHead k path)
+    k = (c - length prefix - length suffix)
+    prefix = "quark - "
+    suffix = "0.0.1a "
