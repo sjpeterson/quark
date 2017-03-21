@@ -20,11 +20,6 @@
 - Intelligent expansion of root (in setRoot' of Main.hs)
   - expand to include open files (assuming they exist under root)
   - expand previously expanded directories
-- Improved navigation in project tree
-  - Ctrl + Left    -> go to parent of selected
-  - Left (non-dir) -> go to parent of selected
-  - Home           -> go to project root
-  - PgUp / PgDn    -> like in text view
 - Support additional terminal environments/emulators and color modes
 - Layout switching
 - Layout resizing
@@ -48,3 +43,5 @@
 - Context aware code completion
 - Macros (Haskell, Python and possibly other languages)
 - Customization support
+- Automatically keep project tree updated
+- Navigation by typing in project tree

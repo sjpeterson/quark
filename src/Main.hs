@@ -115,6 +115,8 @@ import Quark.Project ( Project
                      , firstF'
                      , flipNext'
                      , flipPrevious'
+                     , flipTo'
+                     , flipToParent'
                      , expand
                      , contract )
 import Quark.History ( fromString
@@ -465,32 +467,38 @@ handleKey layout project k
 
 handleKeyProject :: QFE.Layout -> Project -> Key -> IO ()
 handleKeyProject layout project k
-    | k == SpecialKey "Up"     = projectLoop layout $ flipPrevious' project
-    | k == SpecialKey "Down"   = projectLoop layout $ flipNext' project
-    | k == SpecialKey "Esc"    = do
+    | k == SpecialKey "Up"        = projectLoop layout $ flipPrevious' 1 project
+    | k == SpecialKey "Down"      = projectLoop layout $ flipNext' 1 project
+    | k == SpecialKey "Ctrl-Up"   = projectLoop layout $ flipPrevious' 5 project
+    | k == SpecialKey "Ctrl-Down" = projectLoop layout $ flipNext' 5 project
+    | k == SpecialKey "Esc"       = do
           QFE.showCursor
           dropFocus
           mainLoop layout project
-    | k == SpecialKey "Right"  = expandIfDir layout project
-    | k == SpecialKey "Left"   = case a of
+    | k == SpecialKey "Right"     = expandIfDir layout project
+    | k == SpecialKey "Left"      = case a of
           (RootElement _) -> projectLoop layout $ contract project
-          _               -> continue
-    | k == CharKey '+'         = setNewRoot False layout project
-    | k == CharKey '-'         = setNewRoot True layout project
-    | k == SpecialKey "Return" = case a of
+          _               -> projectLoop layout $ flipToParent' project
+    | k == SpecialKey "Ctrl-Left" = projectLoop layout $ flipToParent' project
+    | k == CharKey '+'            = setNewRoot False layout project
+    | k == CharKey '-'            = setNewRoot True layout project
+    | k == SpecialKey "Home"      = projectLoop layout $ flipTo' 0 project
+    | k == SpecialKey "PgUp"      = projectLoop layout $ flipPrevious' r project
+    | k == SpecialKey "PgDn"      = projectLoop layout $ flipNext' r project
+    | k == SpecialKey "Return"    = case a of
           (FileElement s)  -> do
               QFE.showCursor
               dropFocus
               (mainLoop layout) =<< (openPath (activePath t) project)
           _                -> expandIfDir layout project
-    | k == CtrlKey 'q'         = saveAndQuit unsavedIndices layout project
-    | k == ResizeKey           = resizeLayout projectLoop layout project
-    | otherwise                = continue
+    | k == CtrlKey 'q'            = saveAndQuit unsavedIndices layout project
+    | k == ResizeKey              = resizeLayout projectLoop layout project
+    | otherwise                   = projectLoop layout project
   where
     t = projectTree project
     a = active' t
-    dropFocus = printTree False (QFE.projectPane layout) t
-    continue = projectLoop layout project
+    p@(QFE.ProjectView _ (r, _) _) = QFE.projectPane layout
+    dropFocus = printTree False p t
     unsavedIndices = findIndices ebUnsaved $ (\(x, _) -> toList x) project
 
 --------------------

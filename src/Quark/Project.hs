@@ -35,6 +35,8 @@ module Quark.Project ( Project
                      , toggleInsertMode
                      , flipNext'
                      , flipPrevious'
+                     , flipTo'
+                     , flipToParent'
                      , toLines
                      , assumeRoot
                      , activeP
@@ -195,32 +197,59 @@ firstF'' f (a, p, n) = case a of
     DirectoryElement t' -> (DirectoryElement $ firstF'' f t', p, n)
     _                   -> (f a, p, n)
 
-flipNext' :: Project -> Project
-flipNext' = firstTree flipNext''
+flipNext' :: Int -> Project -> Project
+flipNext' k p
+    | k <= 1    = firstTree flipNext'' p
+    | otherwise = flipNext' (k - 1) $ firstTree flipNext'' p
 
-flipPrevious' :: Project -> Project
-flipPrevious' = firstTree flipPrevious''
+flipPrevious' :: Int -> Project -> Project
+flipPrevious' k p
+    | k <= 1    = firstTree flipPrevious'' p
+    | otherwise = flipPrevious' (k - 1) $ firstTree flipPrevious'' p
+
+flipTo' :: Int -> Project -> Project
+flipTo' k = firstTree $ flipTo'' k
+
+flipToParent' :: Project -> Project
+flipToParent' = firstTree flipToParent''
 
 flipNext'' :: ProjectTree -> ProjectTree
-flipNext'' t@(a, p, n) = case a of
+flipNext'' t@(_, _, []) = t
+flipNext'' t@(a, p, n)  = case a of
     DirectoryElement t' -> if nextEmpty t'
                                then flipNext t
                                else (DirectoryElement $ flipNext'' t', p, n)
     _                   -> flipNext t
 
 flipPrevious'' :: ProjectTree -> ProjectTree
-flipPrevious'' t@(a, p, n) = case a of
+flipPrevious'' t@(_, [], _) = t
+flipPrevious'' t@(a, p, n)  = case a of
     DirectoryElement t' -> if previousEmpty t'
-                               then (flipToLast' a', p', n')
+                               then (flipToLast''' a', p', n')
                                else (DirectoryElement $ flipPrevious'' t', p, n)
-    _                   -> (flipToLast' a', p', n')
+    _                   -> (flipToLast''' a', p', n')
   where
     (a', p', n') = flipPrevious t
 
-flipToLast' :: ProjectTreeElement -> ProjectTreeElement
-flipToLast' x = case x of
-    DirectoryElement (a, p, []) -> DirectoryElement (flipToLast' a, p, [])
-    DirectoryElement t          -> flipToLast' (DirectoryElement $ flipToLast t)
+flipTo'' :: Int -> ProjectTree -> ProjectTree
+flipTo'' k t = case compare (mod k n) (lengthPrevious t) of
+    EQ -> t
+    LT -> flipTo'' k $ flipPrevious'' t
+    _  -> flipTo'' k $ flipNext'' t
+  where
+    n = sum $ map length' $ toList t
+
+flipToParent'' :: ProjectTree -> ProjectTree
+flipToParent'' t@(x, y, z) = case x of
+    DirectoryElement t' -> if previousEmpty t'
+                               then flipTo 0 t
+                               else (DirectoryElement $ flipToParent'' t', y, z)
+    _                   -> flipTo 0 t
+
+flipToLast''' :: ProjectTreeElement -> ProjectTreeElement
+flipToLast''' x = case x of
+    DirectoryElement (a, p, []) -> DirectoryElement (flipToLast''' a, p, [])
+    DirectoryElement t          -> flipToLast''' (DirectoryElement $ flipToLast t)
     _                           -> x
 
 expand :: [ProjectTreeElement] -> Project -> Project
