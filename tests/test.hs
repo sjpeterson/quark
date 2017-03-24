@@ -28,7 +28,7 @@ properties = testGroup "Properties" [qcProps]
 
 qcProps = testGroup "(checked by QuickCheck)"
   [ QC.testProperty "Order two cursors" $
-      \x y -> (orderTwo x y) == (orderTwo y x)
+      \x y -> (orderTwo (x :: Cursor) (y :: Cursor)) == (orderTwo y x)
   ,  QC.testProperty "fixToLenPadMid" $
       \x y z -> length (fixToLenPadMid x y z ' ') == max x 0
   ]

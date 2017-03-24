@@ -2,7 +2,8 @@
 
 ## Bugs and the like
 
-- Arrow keys are not handled correctly immediately following a terminal resize
+- Arrow keys (and other escaped keys) are not handled correctly immediately 
+  following a terminal resize
 
 ## Missing functionality
 

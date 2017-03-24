@@ -1,6 +1,9 @@
 {-# LANGUAGE OverloadedStrings, ViewPatterns #-}
 
-module Quark.Cursor where
+module Quark.Cursor ( ixToCursor
+                    , cursorToIx
+                    , distance
+                    , move ) where
 
 import Data.ByteString.UTF8 (ByteString)
 import qualified Data.ByteString.UTF8 as U
@@ -37,17 +40,6 @@ cursorToIx (row, col) (U.uncons -> Just (x, xs))
 -- Compute distance between two cursors on a string (may be negative)
 distance :: Cursor -> Cursor -> ByteString -> Int
 distance crs0 crs1 s = (cursorToIx crs1 s) - (cursorToIx crs0 s)
-
--- Order two cursors
-minCursor :: Cursor -> Cursor -> Cursor
-minCursor x y = case compare x y of
-    GT -> y
-    _  -> x
-
-orderTwo :: Cursor -> Cursor -> (Cursor, Cursor)
-orderTwo x y = case compare x y of
-    GT -> (y, x)
-    _  -> (x, y)
 
 -- Move a cursor on a string
 move :: Direction -> ByteString -> Cursor -> Cursor

@@ -75,7 +75,8 @@ import Quark.Types ( Clipboard
                    , Language
                    , Token )
 import Quark.History ( Edit ( Edit
-                            , IndentLine )
+                            , IndentLine
+                            , EditGroup )
                      , EditHistory
                      , editIndex
                      , editSelection
@@ -86,17 +87,16 @@ import Quark.History ( Edit ( Edit
                      , toString
                      , fromString )
 import Quark.Cursor ( move
-                     , distance
-                     , minCursor
-                     , orderTwo
-                     , ixToCursor
-                     , cursorToIx )
+                    , distance
+                    , ixToCursor
+                    , cursorToIx )
 import Quark.Lexer.Core ( tokenLines )
 import Quark.Lexer.Language ( tokenize )
 import Quark.Helpers ( lnIndent
                      , lineSplitIx
                      , findIx
-                     , xnor )
+                     , xnor
+                     , orderTwo )
 
 -- The Buffer data type
 data Buffer = LockedBuffer String
@@ -195,30 +195,45 @@ paste s = insert s False False
 tab :: Int -> Buffer -> Buffer
 tab tabWidth b@(Buffer h crs@(r, c) sel@(rr, cc))
     | crs == sel = insert (B.replicate n ' ') False True b
-    | otherwise  = Buffer newH (r, c + n') (rr, cc + n')
+    | otherwise  = Buffer newH (r, c + n0) (rr, cc + n1)
   where
     n = tabWidth - (mod c tabWidth)
-    newH = addEditToHistory (IndentLine r n' ix sel') h
+    newH = addEditToHistory tabEdit h
+    tabEdit = EditGroup [ IndentLine r' (tabWidth' r') 0 0
+                        | r' <- [r0..r1]] ix sel'
     (ix, sel') = ixAndSel b
-    n' = tabWidth - mod (lnIndent r $ toString h) tabWidth
+    tabWidth' = \r'' -> tabWidth - mod (lnIndent r'' s0) tabWidth
+    n0 = tabWidth - mod (lnIndent r s0) tabWidth
+    n1 = tabWidth - mod (lnIndent rr s0) tabWidth
+    r0 = min r rr
+    r1 = max r rr
     s0 = toString h
 
 unTab :: Int -> Buffer -> Buffer
 unTab tabWidth b@(Buffer h (r, c) (rr, cc))
-    | n == 0    = b
-    | otherwise = Buffer newH (r, c + n') (rr, cc + n')
+    | all (== 0) n = b
+    | otherwise    = Buffer newH (r, c + head n) (rr, cc + last n)
   where
-    n = lnIndent r $ toString h
-    newH = addEditToHistory (IndentLine r n' ix sel) h
+    newH = addEditToHistory unTabEdit h
+    unTabEdit = EditGroup [ IndentLine r' n' 0 0
+                          | (r', n') <- zip [r0..r1] n] ix sel
     (ix, sel) = ixAndSel b
-    n' = (-tabWidth) + mod (-n) tabWidth
+    r0 = min r rr
+    r1 = max r rr
+    n = [ unTabWidth r' | r' <- [r0..r1]]
+    unTabWidth r'' = if thisIndent == 0
+                         then 0
+                         else (-tabWidth) + mod (-thisIndent) tabWidth
+      where
+        thisIndent = lnIndent r'' s0
+    s0 = toString h
 
 nlAutoIndent :: Buffer -> Buffer
 nlAutoIndent b@(Buffer h crs sel) =
     insert (B.cons '\n' (B.replicate n ' ')) False True b
   where
     n = lnIndent r (toString h)
-    (r, _) = minCursor crs sel
+    (r, _) = min crs sel
 
 ixAndSel :: Buffer -> (Index, Selection)
 ixAndSel (Buffer h crs sel) = ((cursorToIx crs s), (distance crs sel s))
@@ -237,7 +252,7 @@ insert s m fusible b@(Buffer h crs sel) = Buffer newH newCrs newCrs
     doInsert = if U.take 1 s0' == "\n" then False else True
     (_, s0') = U.splitAt ix s0
     newCrs = ixToCursor newIx newS
-    newIx = (cursorToIx (minCursor crs sel) s0) + (U.length s)
+    newIx = (cursorToIx (min crs sel) s0) + (U.length s)
     newS = toString newH
 
 -- Delete
@@ -265,7 +280,7 @@ selection :: Buffer -> ByteString
 selection (Buffer h crs sel) = U.take l $ U.drop k s
   where
     l = abs $ distance crs sel s
-    k = cursorToIx (minCursor crs sel) s
+    k = cursorToIx (min crs sel) s
     s = toString h
 
 -- Perform undo on buffer, moving cursor to the beginning of the undone edit

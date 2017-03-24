@@ -33,15 +33,18 @@ import Quark.Helpers ( lineSplitIx
 -- (Edit n s ix) means to delete n characters at index ix, replacing them with
 -- string s.
 data Edit = Edit Deletion ByteString Index Selection Bool
-          | IndentLine Row Int Index Selection deriving (Show, Eq)
+          | IndentLine Row Int Index Selection
+          | EditGroup [Edit] Index Selection deriving (Show, Eq)
 
 editIndex:: Edit -> Index
-editIndex (Edit _ _ ix _ _) = ix
+editIndex (Edit _ _ ix _ _)     = ix
 editIndex (IndentLine _ _ ix _) = ix
+editIndex (EditGroup _ ix _)    = ix
 
 editSelection :: Edit -> Selection
-editSelection (Edit _ _ _ sel _) = sel
+editSelection (Edit _ _ _ sel _)     = sel
 editSelection (IndentLine _ _ _ sel) = sel
+editSelection (EditGroup _ _ sel)    = sel
 
 -- EditHistory consists of lists of present and future edits and an integer
 -- indicating the number of edits since last save.
@@ -72,6 +75,9 @@ doEdit (IndentLine r n _ _) s =
   where
     n' = min (U.length $ B.takeWhile (\c -> c == ' ') s1) $ max 0 (-n)
     (s0, s1) = U.splitAt (lineSplitIx r s) s
+doEdit (EditGroup edits _ _) s = case edits of
+    []     -> s
+    (x:xs) -> doEdit (EditGroup xs 0 0) $ doEdit x s
 
 -- Undo by moving the most recent edit to the head of future edits
 -- Second pattern is needed when loading files

@@ -20,6 +20,12 @@ import Quark.Types ( Size
 xnor :: Bool -> Bool -> Bool
 xnor a b = (a && b) || (not a && not b)
 
+-- Order two things, smallest first
+orderTwo :: Ord a => a -> a -> (a, a)
+orderTwo x y = case compare x y of
+    GT -> (y, x)
+    _  -> (x, y)
+
 -- Compute width of a string in number of columns
 strWidth :: ByteString -> Int
 strWidth s = maximum $ map U.length $ U.lines s

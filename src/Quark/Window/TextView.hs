@@ -40,7 +40,6 @@ import Quark.Lexer.Language
 import Quark.Helpers
 import Quark.Colors
 import Quark.Types
-import Quark.Cursor (orderTwo)
 
 printText :: Language -> Window -> (Cursor, Cursor) -> Bool -> [[Token]]
           -> IO ()
