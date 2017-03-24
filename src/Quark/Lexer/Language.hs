@@ -30,6 +30,8 @@ import Quark.Lexer.Haskell ( tokenizeHaskell
                            , haskellColors )
 import Quark.Lexer.Python ( tokenizePython
                           , pythonColors )
+import Quark.Lexer.Rust ( tokenizeRust
+                        , rustColors )
 -- import Quark.Lexer.Shell ( tokenizeShellScript
 --                          , shellScriptColors )
 
@@ -40,6 +42,7 @@ assumeLanguage path
     | extension == ".py" = "Python"
     | extension == ".hs" = "Haskell"
     | extension == ".sh" = "Shell script"
+    | extension == ".rs" = "Rust"
     | otherwise          = "UndefinedFish"
   where
     extension = takeExtension path
@@ -48,10 +51,12 @@ tokenize :: Language -> ByteString -> [Token]
 tokenize language
     | language == "Haskell" = tokenizeHaskell
     | language == "Python"  = tokenizePython
+    | language == "Rust"    = tokenizeRust
     | otherwise             = tokenizeNothing
 
 colorize :: Language -> Token -> Int
 colorize language
     | language == "Haskell" = haskellColors
     | language == "Python"  = pythonColors
+    | language == "Rust"    = rustColors
     | otherwise             = nothingColors

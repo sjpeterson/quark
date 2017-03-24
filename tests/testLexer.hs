@@ -8,6 +8,7 @@ import Data.ByteString (ByteString)
 import Quark.Lexer.Core
 import Quark.Lexer.Language
 import Quark.Lexer.Haskell
+import Quark.Lexer.Rust
 import Quark.Types
 
 main = defaultMain tests
@@ -36,7 +37,29 @@ lexerCoreUnitTests = testGroup "Unit tests for Lexer/Core.hs"
 
 lexerLanguageUnitTests = testGroup "Unit tests for Lexer/Language.hs"
   [ testCase "assumeLanguage haskell" $
-      assertEqual "" "Haskell" $ assumeLanguage "/home/test/File.hs"]
+      assertEqual "" "Haskell" $ assumeLanguage "/home/test/File.hs"
+  , testCase "assumeLanguage python" $
+      assertEqual "" "Python" $ assumeLanguage "/home/test/File.py"
+  , testCase "assumeLanguage rust" $
+      assertEqual "" "Rust" $ assumeLanguage "/home/test/File.rs"]
+
+rsLexerUnitTests = testGroup "Unit tests for Lexer/Rust.hs"
+  [ testCase "=>" $
+      assertEqual "" [Symbol "=>"] $
+        tokenizeRust "=>",
+    testCase "Ordering::Less   => println!(\"test string\")," $
+      assertEqual "" [ VarIdent "Ordering"
+                     , Symbol "::"
+                     , VarIdent "Less"
+                     , Whitespace "   "
+                     , Symbol "=>"
+                     , Whitespace " "
+                     , VarIdent "println!"
+                     , Bracket "("
+                     , StringLiteral "\"test string\""
+                     , Bracket ")"
+                     , Separator ","] $
+        tokenizeRust "Ordering::Less   => println!(\"test string\"),"]
 
 hsLexerUnitTests = testGroup "Unit tests for Lexer/Haskell.hs"
   [ testCase "Simple StringLiteral" $

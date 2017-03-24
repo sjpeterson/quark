@@ -73,6 +73,7 @@ mapT f (BoolLiteral s)   = f s
 mapT f (Whitespace s)    = f s
 mapT f (Newline s)       = f s
 mapT f (Decorator s)     = f s
+mapT f (Symbol s)        = f s
 mapT f (Unclassified s)  = f s
 
 liftT :: (ByteString -> ByteString) -> Token -> Token
@@ -94,6 +95,7 @@ liftT f (BoolLiteral s)   = BoolLiteral $ f s
 liftT f (Whitespace s)    = Whitespace $ f s
 liftT f (Newline s)       = Newline $ f s
 liftT f (Decorator s)     = Decorator $ f s
+liftT f (Symbol s)        = Symbol $ f s
 liftT f (Unclassified s)  = Unclassified $ f s
 
 tokenString :: Token -> ByteString

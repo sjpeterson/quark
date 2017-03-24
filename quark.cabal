@@ -35,6 +35,7 @@ library
                  , Quark.Lexer.Language
                  , Quark.Lexer.Haskell
                  , Quark.Lexer.Python
+                 , Quark.Lexer.Rust
   other-modules: Paths_quark
   build-depends: base >= 4.9 && < 4.10
                , hscurses >=1.4 && < 1.5

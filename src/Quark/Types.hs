@@ -71,6 +71,7 @@ data Token = Comment B.ByteString
            | Whitespace B.ByteString
            | Newline B.ByteString
            | Decorator B.ByteString
+           | Symbol B.ByteString
            | Unclassified B.ByteString deriving (Show, Eq)
 
 -- Types and synonyms for projects
