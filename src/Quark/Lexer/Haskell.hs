@@ -29,7 +29,9 @@ haskellGrammar = [ (Newline, "\\A\n")
                  , (Whitespace, "\\A[ \t]*")
                  , (StringLiteral, "\\A\"[\\S\\s]*?(\")(?<!\\\\\\\")")
                  , (Pragma, "\\A\\{-#.*?#-\\}")
+                 , (DocComment, "\\A\\{-|[\\S\\s]*?-\\}")
                  , (Comment, "\\A\\{-[\\S\\s]*?-\\}")
+                 , (DocComment, "\\A-- |[^\n]*")
                  , (Comment, "\\A--[^\n]*")
                  , (CharLiteral, "\\A'([^'\n]|\\\\[a-z]|\\\\[A-Z0-9]+)'")
                  , (NumLiteral, "\\A[0-9]+\\.?[0-9]*")
@@ -86,10 +88,11 @@ haskellColors (ReservedIdent _) = orange
 haskellColors (Operator _)      = orange
 haskellColors (Separator _)     = orange
 haskellColors (TypeIdent _)     = purple
-haskellColors (StringLiteral _) = green
+haskellColors (StringLiteral _) = lightGreen
 haskellColors (CharLiteral _)   = teal
 haskellColors (NumLiteral _)    = lightBlue
 haskellColors (Pragma _)        = yellow
+haskellColors (DocComment _)    = green
 haskellColors (Comment _)       = lightGray
 haskellColors _                 = defaultColor
 
