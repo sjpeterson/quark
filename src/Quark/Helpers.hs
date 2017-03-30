@@ -145,9 +145,10 @@ zip4 _       _      _      _      = []
 findIx :: Index -> Bool -> ByteString -> ByteString -> Index
 findIx _ _ findString s
     | B.isInfixOf findString s == False = (-1)
-findIx k True findString s = if s1b == ""
-                                 then U.length s0a
-                                 else U.length s0 + U.length s1a
+findIx k True findString s
+    | s0b == "" && s1b == "" = k - 1
+    | s1b == "" = U.length s0a
+    | otherwise = U.length s0 + U.length s1a
   where
     (s0a, s0b) = B.breakSubstring findString s0
     (s1a, s1b) = B.breakSubstring findString s1
