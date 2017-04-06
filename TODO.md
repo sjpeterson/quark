@@ -4,6 +4,8 @@
 
 - Arrow keys (and other escaped keys) are not handled correctly immediately 
   following a terminal resize
+- Rust's '=>' operator is tokenized correctly but printed incorrectly
+  ('=' has default color)
 
 ## Missing functionality
 
@@ -11,7 +13,6 @@
 
 - Shell script
 - C
-- Rust
 - Go
 - Matlab/Octave
 - ...
@@ -30,9 +31,11 @@
 
 ### Editor functionality
 
+- Improved Home key behaviour
+  - Jump to first non-whitespace on line if not already there
 - Improved find and replace functionality
   - Replace all
-  - Regex
+  - Regex support
 
 ## Other things
 
