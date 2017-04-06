@@ -23,6 +23,7 @@ white        = 15 :: Int
 black        = 16 :: Int
 
 selectionColor = darkGray
+hintColor      = darkGray
 backupColor    = lightGray
 
 -- Color pairs

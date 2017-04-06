@@ -33,6 +33,7 @@ import Quark.Frontend.HSCurses ( Window ( TextView )
 import Quark.Lexer.Core ( tokenLength
                         , tokenString
                         , tokenLines
+                        , hintTabs
                         , splitT
                         , dropTL
                         , takeTL )
@@ -55,11 +56,10 @@ printText language w@(TextView _ (r, c) (rr, cc)) (crs, sel) m tokenLines' = do
     lineNumbers =
         map (padToLen lnc) (map (U.fromString . show) $
             [rr + 1..n]) ++ repeat ""
-    tokens = drop rr tokenLines'
+    tokens = map hintTabs $ drop rr tokenLines'
     selections = map (selOnLine (crs, sel')) [rr + 0..n]
     sel' = if m && crs == sel then (rSel, cSel + 1) else sel
     (rSel, cSel) = sel
-
 
 updateOffset :: Cursor -> Int -> Window -> Window
 updateOffset crs ccOffset t = case cursorDirection crs ccOffset t of
@@ -138,8 +138,11 @@ printToken' :: Token -> Window -> IO ()
 printToken' t w = addString w $ U.toString $ tokenString t
 
 setTokenColor :: Language -> Token -> Bool -> Window -> IO ()
+setTokenColor _ (Tabs _) selected w =
+    setTextColor w (hintColor, tokenBg selected)
 setTokenColor language t selected w =
-    setTextColor w (colorize language t, tokenBg)
-  where
-    tokenBg = case selected of False -> defaultBg
-                               True  -> selectionColor
+    setTextColor w (colorize language t, tokenBg selected)
+
+tokenBg :: Bool -> Int
+tokenBg selected = case selected of False -> defaultBg
+                                    True  -> selectionColor

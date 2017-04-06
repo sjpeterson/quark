@@ -9,6 +9,7 @@ import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B
 
 import Quark.Types
+import Quark.Settings
 import Quark.Helpers
 import Quark.Cursor
 import Quark.History
@@ -51,6 +52,8 @@ helpersUnitTests = testGroup "Unit tests for Helpers.hs"
       assertEqual "" 2 $ lnWidth "test\nstring"
   , testCase "Line numbers width, test 2" $
       assertEqual "" 4 $ lnWidth $ B.unlines $ replicate 145 "test"
+  , testCase "Mixed line indent" $
+      assertEqual "" " \t   \t\t" $ lnIndent' 1"test\n \t   \t\tstring"
   , testCase "lineSplitIx: newline-terminated string" $
       assertEqual "" 5 $ lineSplitIx 1 "test\nstring\n"
   , testCase "lineSplitIx: open-ended string" $
@@ -63,10 +66,18 @@ helpersUnitTests = testGroup "Unit tests for Helpers.hs"
       assertEqual "" 12 $ lineSplitIx 4 "test\nstring\n"
   , testCase "lineSplitIx: beyond last line, open-ended string" $
       assertEqual "" 11 $ lineSplitIx 4 "test\nstring"
+  , testCase "tabbedLength: simple, tab width 4" $
+      assertEqual "" 4 $ tabbedLength 4 "\t"
+  , testCase "tabbedLength: simple, tab width 7" $
+      assertEqual "" 7 $ tabbedLength 7 "\t"
+  , testCase "tabbedLength: mixed with spaces, tab width 4" $
+      assertEqual "" 4 $ tabbedLength 4 "  \t"
+  , testCase "tabbedLength: mixed with spaces and newlines, tab width 4" $
+      assertEqual "" 15 $ tabbedLength 4 "test\n   \tstring"
   ]
 
-{- Unit tests for the Cursors.hs
-   distance function is indirectly verified through cursorToIx -}
+{- Unit tests for Cursors.hs
+   the distance function is indirectly verified through cursorToIx -}
 cursorUnitTests = testGroup "Unit tests for Cursors.hs"
   [ testCase "Ordinary move forward" $
       assertEqual "" (0, 4) $ move Forward "test string" (0, 3)
@@ -84,6 +95,10 @@ cursorUnitTests = testGroup "Unit tests for Cursors.hs"
       assertEqual "" (0, 0) $ move Backward "test string" (0, 0)
   , testCase "Move backward from col exceeding line length" $
       assertEqual "" (0, 3) $ move Backward "test\nstring" (0, 14)
+  , testCase "Move backward with single tab" $
+      assertEqual "" (0, 9) $ move Backward "\ttest string" (0, 10)
+  , testCase "Move backward with multiple tabs" $
+      assertEqual "" (0, 12) $ move Backward "\t\ttest string" (0, 13)
   , testCase "Ordinary move down" $
       assertEqual "" (1, 3) $ move Down "test\nstring" (0, 3)
   , testCase "Move down from last line" $   -- or move to end?
@@ -118,6 +133,12 @@ cursorUnitTests = testGroup "Unit tests for Cursors.hs"
       assertEqual "" (0, 0) $ ixToCursor (-3) "test\nstring"
   , testCase "ixToCursor with special characters" $
       assertEqual "" (0, 4) $ ixToCursor 4 "Mårdhund"
+  , testCase "cursorToIx: incomplete tab does not count" $
+      assertEqual "" 0 $ cursorToIx (0, tabWidth - 1) "\ttest string"
+  , testCase "cursorToIx: full tab counts" $
+      assertEqual "" 1 $ cursorToIx (0, tabWidth) "\ttest string"
+  , testCase "cursorToIx: multiple tabs" $
+      assertEqual "" 2 $ cursorToIx (0, 2*tabWidth) "\t\ttest string"
   ]
 
 {- Unit tests for History.hs -}
@@ -260,10 +281,10 @@ historyUnitTests = testGroup "Unit tests for History.hs"
               (1, [ (Edit (0, 2) "" 3 0 True)
                   , (Edit (0, 0) "test string" 0 0 False) ], [])
   , testCase "addEditToHistory: Do not fuse IndentLine with Edit" $
-      assertEqual "" (2, [ (IndentLine 1 4 7 1)
+      assertEqual "" (2, [ (IndentLine 1 4 ' ' 7 1)
                          , (Edit (0, 0) "string" 5 0 True)
                          , (Edit (0, 0) "test\n" 0 0 False) ], []) $
-          addEditToHistory (IndentLine 1 4 7 1)
+          addEditToHistory (IndentLine 1 4 ' ' 7 1)
               (1, [ (Edit (0, 0) "string" 5 0 True)
                   , (Edit (0, 0) "test\n" 0 0 False) ], [])
   , testCase "newEdit" $
@@ -295,18 +316,18 @@ historyUnitTests = testGroup "Unit tests for History.hs"
       toString (1, [ (Edit (0, 0) "" 3 2 True)
                    , (Edit (0, 0) "test string" 0 0 False) ], [])
   , testCase "toString indent line" $ assertEqual "" "test\n    string" $
-      toString (1, [ (IndentLine 1 4 7 1)
+      toString (1, [ (IndentLine 1 4 ' ' 7 1)
                    , (Edit (0, 0) "test\nstring" 0 0 False) ], [])
   , testCase "toString indent line, file ending with linebreak" $
       assertEqual "" "test\n    string\n" $
-          toString (1, [ (IndentLine 1 4 7 1)
+          toString (1, [ (IndentLine 1 4 ' ' 7 1)
                        , (Edit (0, 0) "test\nstring\n" 0 0 False) ], [])
   , testCase "toString dedent line" $ assertEqual "" "test\nstring" $
-      toString (1, [ (IndentLine 1 (-4) 11 0)
+      toString (1, [ (IndentLine 1 (-4) ' ' 11 0)
                    , (Edit (0, 0) "test\n    string" 0 0 False) ], [])
   , testCase "toString dedent line, file ending with line break" $
       assertEqual "" "test\nstring\n" $
-          toString (1, [ (IndentLine 1 (-4) 11 0)
+          toString (1, [ (IndentLine 1 (-4) ' ' 11 0)
                        , (Edit (0, 0) "test\n    string\n" 0 0 False) ], [])
   , testCase "Gracefully handle incomplete edit history with toString" $
       assertEqual "" "test string" $ toString

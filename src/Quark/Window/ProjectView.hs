@@ -43,8 +43,9 @@ printTree indicateActive w@(ProjectView _ (r, c) rr) t = do
   where
     treeList = zip3 [0..] isActive (drop rr $
                    map (fixTo c. U.toString . (U.take c)) $ toLines t)
-    isActive = take (r - 1) $ drop rr [(\x -> if x == n then True && indicateActive
-                                                        else False) x | x <- [0..]]
+    isActive = take (r - 1) $ drop rr [(\x -> if x == n
+                                                  then True && indicateActive
+                                                  else False) x | x <- [0..]]
     n = idxOfActive' t
 
 printTreeLine :: Window -> Row -> Bool -> String -> IO ()

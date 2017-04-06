@@ -427,8 +427,8 @@ handleKey layout project k
     | k == SpecialKey "Backspace"       = action backspace
     | k == SpecialKey "Delete"          = action delete
     | k == SpecialKey "Return"          = action nlAutoIndent
-    | k == SpecialKey "Tab"             = action (tab 4)
-    | k == SpecialKey "Shift-Tab"       = action (unTab 4)
+    | k == SpecialKey "Tab"             = action' tab
+    | k == SpecialKey "Shift-Tab"       = action' unTab
     | k == SpecialKey "Up"              = action (moveCursor Up)
     | k == SpecialKey "Down"            = action (moveCursor Down)
     | k == SpecialKey "Left"            = action (moveCursor Backward)
@@ -461,6 +461,7 @@ handleKey layout project k
     ((Buffer h _ _), _) = activeP project
     (QFE.TextView _ (r, _) _) = QFE.primaryPane layout
     action a = mainLoop layout $ first (firstF (ebFirst a)) project
+    action' a = mainLoop layout $ first (firstF a) project
     actionF a = mainLoop layout $ first a project
     continue = mainLoop layout project
     u = QFE.utilityBar layout

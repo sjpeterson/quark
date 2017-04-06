@@ -26,7 +26,8 @@ import Quark.Lexer.Core
 
 haskellGrammar :: Grammar
 haskellGrammar = [ (Newline, "\\A\n")
-                 , (Whitespace, "\\A[ \t]*")
+                 , (Whitespace, "\\A *")
+                 , (Tabs, "\\A\t*")
                  , (StringLiteral, "\\A\"[\\S\\s]*?(\")(?<!\\\\\\\")")
                  , (Pragma, "\\A\\{-#.*?#-\\}")
                  , (DocComment, "\\A\\{-\\|[\\S\\s]*?-\\}")

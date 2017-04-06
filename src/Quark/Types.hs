@@ -69,6 +69,7 @@ data Token = Comment B.ByteString
            | CharLiteral B.ByteString
            | BoolLiteral B.ByteString
            | Whitespace B.ByteString
+           | Tabs B.ByteString
            | Newline B.ByteString
            | Decorator B.ByteString
            | Symbol B.ByteString

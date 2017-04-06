@@ -26,7 +26,8 @@ import Quark.Lexer.Core
 
 pythonGrammar :: Grammar
 pythonGrammar = [ (Newline, "\\A\n")
-                , (Whitespace, "\\A[ \t]*")
+                , (Whitespace, "\\A *")
+                , (Tabs, "\\A\t*")
                 , (DocComment, "\\A\"\"\"[\\S\\s]*?\"\"\"")
                 , (StringLiteral, "\\A'''[\\s\\S]*?'''")
                 , (StringLiteral, listToRe' [ "\"[^\n]*?\"(?<!\\\\)"

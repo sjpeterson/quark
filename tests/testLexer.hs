@@ -32,6 +32,16 @@ lexerCoreUnitTests = testGroup "Unit tests for Lexer/Core.hs"
                      , Unclassified "t st"
                      , Unclassified "ring" ] $
         splitT (Unclassified "test string") [3, 7]
+  , testCase "hintTabs, simple case" $
+      assertEqual "" [ Tabs "\226\135\165   " ] $
+        hintTabs [ Tabs "\t" ]
+  , testCase "hintTabs, complex case" $
+      assertEqual "" [ Unclassified "te"
+                     , Tabs "\226\135\165 \226\135\165   "
+                     , Unclassified "st string" ] $
+        hintTabs [ Unclassified "te"
+                 , Tabs "\t\t"
+                 , Unclassified "st string" ]
   , testCase "Dummy" $
         assertEqual "" 1 1]
 

@@ -43,10 +43,15 @@ lnWidth :: ByteString -> Int
 lnWidth s =
     (length $ show $ (length $ U.lines s) + if nlTail s then 1 else 0) + 1
 
-lnIndent :: Int -> ByteString -> Int
-lnIndent r s = case drop r (U.lines s) of
-    (x:_) -> U.length $ B.takeWhile (\c -> c == ' ') x
+lnIndent :: Char -> Int -> ByteString -> Int
+lnIndent c r s = case drop r (U.lines s) of
+    (x:_) -> U.length $ B.takeWhile (\c' -> c' == c) x
     _     -> 0
+
+lnIndent' :: Int -> ByteString -> ByteString
+lnIndent' r s = case drop r (U.lines s) of
+    (x:_) -> B.takeWhile (\c -> c == ' ' || c == '\t') x
+    _     -> ""
 
 lineSplitIx :: Int -> ByteString -> Int
 lineSplitIx r s = min (U.length s) $ U.length $ B.unlines $ take r $ U.lines s
@@ -60,12 +65,12 @@ nlTail s  = if B.last s == '\n' then True else False
 padToLen :: Int -> ByteString -> ByteString
 padToLen k a
     | k <= U.length a = a
-    | otherwise     = padToLen k $ a ~~ " "
+    | otherwise       = padToLen k $ a ~~ " "
 
 padToLen' :: Int -> ByteString -> ByteString
 padToLen' k a
     | k <= U.length a = a
-    | otherwise     = padToLen k (B.cons ' ' a)
+    | otherwise       = padToLen k (B.cons ' ' a)
 
 -- Concatenate two strings, padding with spaces in the middle
 padMidToLen :: Int -> String -> String -> String
@@ -129,6 +134,18 @@ dropSL k x@((p, q):xs)
 padToLenSL :: Int -> [(ByteString, Bool)] -> [(ByteString, Bool)]
 padToLenSL k [] = [(B.replicate k ' ', False)]
 padToLenSL k (x@(p0, _):xs) = x:(padToLenSL (k - U.length p0) xs)
+
+tabbedLength :: Int -> ByteString -> Int
+tabbedLength tabWidth b = loop (0, 0) b
+  where
+    loop (n, nLine) xs =
+        case U.decode xs of
+            Just ('\n', m) -> loop (n + 1, 0) (B.drop m xs)
+            Just ('\t', m) -> loop (n + nn, nLine + nn) (B.drop m xs)
+              where
+                nn = tabWidth * (div (nLine + tabWidth) tabWidth) - nLine
+            Just (_, m)    -> loop (n + 1, nLine + 1) (B.drop m xs)
+            Nothing        -> n
 
 fixTo :: Int -> String -> String
 fixTo k s = padToLenWith k ' ' $ take k s

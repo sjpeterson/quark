@@ -26,7 +26,8 @@ import Quark.Lexer.Core
 
 rustGrammar :: Grammar
 rustGrammar = [ (Newline, "\\A\n")
-              , (Whitespace, "\\A[ \t]*")
+              , (Whitespace, "\\A *")
+              , (Tabs, "\\A\t*")
               , (StringLiteral, "\\A\"[\\S\\s]*?(\")(?<!\\\\\\\")")
               , (Comment, "\\A/\\*[\\S\\s]*?\\*/")
               , (DocComment, "\\A//(/||!)[^\n]*")

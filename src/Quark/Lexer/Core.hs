@@ -23,6 +23,7 @@ module Quark.Lexer.Core ( RegexString
                         , tokenString
                         , tokenLines
                         , tokenLength
+                        , hintTabs
                         , splitT
                         , takeTL
                         , dropTL
@@ -38,14 +39,17 @@ import Data.List ( intersperse
 
 import Data.ByteString.UTF8 (ByteString)
 import qualified Data.ByteString.UTF8 as U
+import qualified Data.ByteString.Char8 as B
 
 import Text.Regex.PCRE
 import Text.Regex.PCRE.ByteString
 
 import Quark.Types
 import Quark.Helpers ( (~~)
-                     , nlTail )
-import Quark.Colors (defaultColor)
+                     , nlTail
+                     , padToLen )
+import Quark.Colors ( defaultColor )
+import Quark.Settings ( tabWidth )
 
 type RegexString = ByteString
 
@@ -71,6 +75,7 @@ mapT f (StringLiteral s) = f s
 mapT f (CharLiteral s)   = f s
 mapT f (BoolLiteral s)   = f s
 mapT f (Whitespace s)    = f s
+mapT f (Tabs s)          = f s
 mapT f (Newline s)       = f s
 mapT f (Decorator s)     = f s
 mapT f (Symbol s)        = f s
@@ -93,6 +98,7 @@ liftT f (StringLiteral s) = StringLiteral $ f s
 liftT f (CharLiteral s)   = CharLiteral $ f s
 liftT f (BoolLiteral s)   = BoolLiteral $ f s
 liftT f (Whitespace s)    = Whitespace $ f s
+liftT f (Tabs s)          = Tabs $ f s
 liftT f (Newline s)       = Newline $ f s
 liftT f (Decorator s)     = Decorator $ f s
 liftT f (Symbol s)        = Symbol $ f s
@@ -112,6 +118,23 @@ tokenLines t = cons (case break (== (Newline "\n")) t of
                                             _:t'' -> tokenLines t''))
   where
     cons ~(p, q) = p:q
+
+hintTabs :: [Token] -> [Token]
+hintTabs xs = loop 0 xs
+  where
+    loop _ [] = []
+    loop k (y:ys) =
+        case y of (Tabs s)    -> (Tabs s'):(loop (k + (U.length s')) ys)
+                                   where
+                                     s' = tabHint k $ U.length s
+                  (Newline s) -> y:(loop 0 ys)
+                  _           -> y:(loop (k + (U.length $ tokenString y)) ys)
+
+tabHint :: Int -> Int -> ByteString
+tabHint _ 0 = ""
+tabHint k n = (padToLen kk "\226\135\165") ~~ (tabHint 0 (n-1))
+  where
+    kk = tabWidth - (mod k tabWidth)
 
 splitT :: Token -> [Int] -> [Token]
 splitT t []     = [t]
@@ -173,10 +196,20 @@ nextTokens (g@(t, matchRe):gs) s = case matchRe s of
     "" -> nextTokens gs s
     s' -> case s' of
               "\n" -> [t s']
-              _    -> intersperse (Newline "\n") [t s'' | s'' <- sLines]
+              _    -> tabSplit t $ intersperse (Newline "\n") $ map'' t sLines
                         where
                           sLines = U.lines s'
 
+tabSplit :: (ByteString -> Token) -> [Token] -> [Token]
+tabSplit _ []     = []
+tabSplit t (x:xs) = case B.split '\t' (tokenString x) of
+    ss@(_:_:_)  -> (intersperse (Tabs "\t") $ map'' t ss) ++ (tabSplit t xs)
+    _           -> x:(tabSplit t xs)
+
+map'' :: (ByteString -> Token) -> [ByteString] -> [Token]
+map'' t xs = case xs of
+    []      -> []
+    (y:ys)  -> (t y):(map'' t ys)
 
 hatify :: RegexString -> RegexString
 hatify "" = ""
@@ -195,7 +228,7 @@ fuseFold (Unclassified s0) ((Unclassified s1):ts) =
 fuseFold t ts = t:ts
 
 tokenizeNothing :: ByteString -> [Token]
-tokenizeNothing s = intersperse (Newline "\n") $
+tokenizeNothing s = tabSplit Unclassified $ intersperse (Newline "\n") $
     [Unclassified s' | s' <- U.lines s ++ if nlTail s then [""] else []]
 
 nothingColors :: Token -> Int

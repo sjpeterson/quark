@@ -74,6 +74,8 @@ import Quark.Types ( Clipboard
                    , Selection
                    , Language
                    , Token )
+import Quark.Settings ( tabWidth
+                      , tabToSpacesDefault )
 import Quark.History ( Edit ( Edit
                             , IndentLine
                             , EditGroup )
@@ -93,7 +95,9 @@ import Quark.Cursor ( move
 import Quark.Lexer.Core ( tokenLines )
 import Quark.Lexer.Language ( tokenize )
 import Quark.Helpers ( lnIndent
+                     , lnIndent'
                      , lineSplitIx
+                     , tabbedLength
                      , findIx
                      , xnor
                      , orderTwo )
@@ -111,7 +115,8 @@ data Buffer = LockedBuffer String
 data BufferMetaData = BufferMetaData { path' :: FilePath
                                      , language' :: Language
                                      , tokenLines' :: [[Token]]
-                                     , writeProtected' :: Bool } deriving Eq
+                                     , writeProtected' :: Bool
+                                     , tabToSpaces' :: Bool } deriving Eq
 type ExtendedBuffer = (Buffer, BufferMetaData)
 
 language :: ExtendedBuffer -> Language
@@ -123,22 +128,26 @@ writeProtected (_, bufferMetaData) = writeProtected' bufferMetaData
 path :: ExtendedBuffer -> FilePath
 path (_, bufferMetaData) = path' bufferMetaData
 
+tabToSpaces :: ExtendedBuffer -> Bool
+tabToSpaces (_, bufferMetaData) = tabToSpaces' bufferMetaData
+
 setPath :: FilePath -> ExtendedBuffer -> ExtendedBuffer
 setPath path'' b = second (setPath' path'') b
 
 setPath' :: FilePath -> BufferMetaData -> BufferMetaData
-setPath' path'' (BufferMetaData _ a b c) = BufferMetaData path'' a b c
+setPath' path'' (BufferMetaData _ a b c d) = BufferMetaData path'' a b c d
 
 setTokenLines' :: [[Token]] -> BufferMetaData -> BufferMetaData
-setTokenLines' tokenLines'' (BufferMetaData a b _ c) =
-    BufferMetaData a b tokenLines'' c
+setTokenLines' tokenLines'' (BufferMetaData a b _ c d) =
+    BufferMetaData a b tokenLines'' c d
 
 tokens :: ExtendedBuffer -> [[Token]]
 tokens (_, bufferMetaData) = tokenLines' bufferMetaData
 
 ebEmpty :: FilePath -> Language -> ExtendedBuffer
-ebEmpty path language = ( (Buffer (fromString "") (0, 0) (0, 0))
-                        , BufferMetaData path'' language'' [] False )
+ebEmpty path language =
+    ( (Buffer (fromString "") (0, 0) (0, 0))
+    , BufferMetaData path'' language'' [] False tabToSpacesDefault)
   where
     path'' = if path == "" then "Untitled" else path
     language'' = if language == "" then "Unknown" else language
@@ -157,9 +166,11 @@ ebSelection ((Buffer h crs sel), _) =
 ebNew :: FilePath -> ByteString -> Language -> ExtendedBuffer
 ebNew path'' contents language'' =
     ( Buffer (fromString contents) (0, 0) (0, 0)
-    , BufferMetaData path'' language'' tokenLines' False)
+    , BufferMetaData path'' language'' tokenLines' False tabToSpaces'')
   where
     tokenLines' = tokenLines $ tokenize language'' contents
+    tabToSpaces'' = if (B.elem '\t' contents) then False
+                                              else tabToSpacesDefault
 
 ebCursors :: ExtendedBuffer -> (Cursor, Cursor)
 ebCursors ((Buffer h crs sel), _) = (crs, sel)
@@ -171,8 +182,8 @@ ebFirst f (b, bufferMetaData) = (b', bufferMetaData')
     bufferMetaData' = if editHistory b' == editHistory b
                           then bufferMetaData
                           else setTokenLines' tokenLines' bufferMetaData
-    tokenLines' =
-        tokenLines $ tokenize (language' bufferMetaData') (toString $ editHistory b')
+    tokenLines' = tokenLines $ tokenize (language' bufferMetaData') s'
+    s' = toString $ editHistory b'
 
 condense :: ExtendedBuffer -> Buffer
 condense (b, _) = b
@@ -192,47 +203,62 @@ input c m = insert (B.cons c "") m True
 paste :: ByteString -> Buffer -> Buffer
 paste s = insert s False False
 
-tab :: Int -> Buffer -> Buffer
-tab tabWidth b@(Buffer h crs@(r, c) sel@(rr, cc))
-    | crs == sel = insert (B.replicate n ' ') False True b
-    | otherwise  = Buffer newH (r, c + n0) (rr, cc + n1)
+tab :: ExtendedBuffer -> ExtendedBuffer
+tab xb@(b@(Buffer h crs@(r, c) sel@(rr, cc)), bufferMetaData)
+    | crs == sel = case tabToSpaces' bufferMetaData of
+                       True  -> ebFirst (insert (B.replicate n ' ') False True) xb
+                       False -> ebFirst (insert "\t" False True) xb
+    | otherwise  = (b', setTokenLines' tokenLines' bufferMetaData)
   where
+    b' = Buffer newH (r, c + n0) (rr, cc + n1)
     n = tabWidth - (mod c tabWidth)
     newH = addEditToHistory tabEdit h
-    tabEdit = EditGroup [ IndentLine r' (tabWidth' r') 0 0
-                        | r' <- [r0..r1]] ix sel'
+    tabEdit = EditGroup [ IndentLine r' (tabWidth' r') c' 0 0
+                        | r' <- [r0..r1] ] ix sel'
     (ix, sel') = ixAndSel b
-    tabWidth' = \r'' -> tabWidth - mod (lnIndent r'' s0) tabWidth
-    n0 = tabWidth - mod (lnIndent r s0) tabWidth
-    n1 = tabWidth - mod (lnIndent rr s0) tabWidth
+    tabWidth' r'' = if tabToSpaces' bufferMetaData
+                        then tabWidth - mod (lnIndent ' ' r'' s0) tabWidth
+                        else 1
+    c' = if tabToSpaces' bufferMetaData then ' ' else '\t'
+    n0 = tabWidth - mod (lnIndent ' ' r s0) tabWidth
+    n1 = tabWidth - mod (lnIndent ' ' rr s0) tabWidth
     r0 = min r rr
     r1 = max r rr
     s0 = toString h
+    tokenLines' = tokenLines $ tokenize (language' bufferMetaData) s'
+    s' = toString $ editHistory b'
 
-unTab :: Int -> Buffer -> Buffer
-unTab tabWidth b@(Buffer h (r, c) (rr, cc))
-    | all (== 0) n = b
-    | otherwise    = Buffer newH (r, c + head n) (rr, cc + last n)
+unTab :: ExtendedBuffer -> ExtendedBuffer
+unTab xb@(b@(Buffer h (r, c) (rr, cc)), bufferMetaData)
+    | all (== 0) n = xb
+    | otherwise    = (b', setTokenLines' tokenLines' bufferMetaData)
   where
+    b' = Buffer newH (r, c + cAdd r) (rr, cc + cAdd rr)
     newH = addEditToHistory unTabEdit h
-    unTabEdit = EditGroup [ IndentLine r' n' 0 0
-                          | (r', n') <- zip [r0..r1] n] ix sel
+    unTabEdit = EditGroup [ IndentLine r' n' c' 0 0
+                          | (r', n') <- zip [r0..r1] n ] ix sel
     (ix, sel) = ixAndSel b
+    c' = if tabToSpaces' bufferMetaData then ' ' else '\t'
     r0 = min r rr
     r1 = max r rr
-    n = [ unTabWidth r' | r' <- [r0..r1]]
+    n = [ unTabWidth r' | r' <- [r0..r1] ]
+    cAdd r'' = if tabToSpaces' bufferMetaData then tabWidth * unTabWidth r''
+                                              else unTabWidth r''
     unTabWidth r'' = if thisIndent == 0
                          then 0
-                         else (-tabWidth) + mod (-thisIndent) tabWidth
+                         else if tabToSpaces' bufferMetaData
+                                  then (-tabWidth) + mod (-thisIndent) tabWidth
+                                  else (-1)
       where
-        thisIndent = lnIndent r'' s0
+        thisIndent = lnIndent c' r'' s0
     s0 = toString h
+    tokenLines' = tokenLines $ tokenize (language' bufferMetaData) s'
+    s' = toString $ editHistory b'
 
 nlAutoIndent :: Buffer -> Buffer
 nlAutoIndent b@(Buffer h crs sel) =
-    insert (B.cons '\n' (B.replicate n ' ')) False True b
+    insert (B.cons '\n' $ lnIndent' r (toString h)) False True b
   where
-    n = lnIndent r (toString h)
     (r, _) = min crs sel
 
 ixAndSel :: Buffer -> (Index, Selection)
@@ -305,17 +331,17 @@ alignCursor False b@(Buffer h@(_, x:xs, _) crs sel) = Buffer h newCrs newSel
   where
     newCrs = case x of
         (Edit (n, _) s ix _ _) -> ixToCursor (ix - n + U.length s) $ toString h
-        (IndentLine _ n ix _)  -> ixToCursor (ix + n) $ toString h
+        (IndentLine _ n ' ' ix _)  -> ixToCursor (ix + n) $ toString h
     newSel = case x of
         (Edit _ _ _ _ _)      -> newCrs
-        (IndentLine _ n ix sel) -> ixToCursor (ix + sel + n) $ toString h
+        (IndentLine _ n ' ' ix sel) -> ixToCursor (ix + sel + n) $ toString h
 alignCursor _ b = b
 
 -- End and Home functions
 endOfLine :: Bool -> Buffer -> Buffer
 endOfLine moveSel (Buffer h (r, _) sel) = Buffer h newCrs newSel
   where
-    newCrs = case drop r $ U.lines s of (x:xs) -> (r, U.length x)
+    newCrs = case drop r $ U.lines s of (x:xs) -> (r, tabbedLength tabWidth x)
                                         _      -> ixToCursor (U.length s - 1) s
     newSel = case moveSel of True  -> newCrs
                              False -> sel
