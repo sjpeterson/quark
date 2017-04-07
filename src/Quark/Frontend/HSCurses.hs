@@ -99,7 +99,7 @@ end = Curses.endWin
 onResize :: IO ()
 onResize = do
     Curses.endWin
-    Curses.wclear Curses.stdScr
+    Curses.werase Curses.stdScr
     Curses.refresh
 
 ------------
@@ -271,13 +271,13 @@ refresh :: Window -> IO ()
 refresh = Curses.wRefresh . cursesWindow
 
 clear :: Window -> IO ()
-clear = Curses.wclear . cursesWindow
+clear = Curses.werase . cursesWindow
 
 clear' :: Window -> Int -> IO ()
 clear' t@(TextView w (r, c) (_, cc)) k
-    | rulerCol >= c + cc || rulerCol < cc = Curses.wclear w
+    | rulerCol >= c + cc || rulerCol < cc = Curses.werase w
     | otherwise                = do
-          Curses.wclear w
+          Curses.werase w
           setTextColor t rulerPair
           mapM_ (\x -> Curses.mvWAddStr w x 0 rulerLine) $
               take r [0..]
