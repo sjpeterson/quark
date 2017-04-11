@@ -1,0 +1,112 @@
+.\" Manpage for quark
+.TH QUARK 1 "April 2017" "0.0.1" "User Manual"
+.SH NAME
+.B quark
+\- the editor the world doesn't need
+.SH SYNOPSIS
+.B quark 
+[project root] [file]
+.SH DESCRIPTION
+.B quark 
+is a simple and lightweight editor with a clean interface.
+.SH EDITING
+Basic editing and navigation is vary staightforward: Move around with the
+normal cursor movement keys and enter text at the current cursor position by 
+typing characters. Various commands are available using modifier keys as 
+outlined in the next section.
+.SH COMMANDS
+.TP
+.B New buffer [Ctrl+N]
+Opens an empty buffer
+.TP
+.B Open file [Ctrl+O]
+Open a file in a new buffer. Prompt for the file path. If the file is already 
+open in some buffer, move to that buffer instead.
+.TP
+.B Save file [Ctrl+S]
+Save the current buffer. Prompt for the save path.
+.TP
+.B Close buffer [Ctrl+W]
+Close the current buffer. Prompt for saving the buffer it is has unsaved 
+changes.
+.TP
+.B Exit [Ctrl+Q]
+Close all buffers and exit. Prompt for saving any buffers that has unsaved
+changes.
+.B quark.
+.TP
+.B Previous buffer [Ctrl+LeftArrow]
+Move to previous buffer.
+.TP
+.B Next buffer [Ctrl+RightArrow]
+Move to next buffer.
+.TP
+.B Project tree [Ctrl+T]
+Switch focus to the project tree (if the terminal is wide enough to show it).
+For more information, see the next section.
+.TP
+.B Selection [Shift+(cursor movement key)]
+Move the cursor without updating the selection cursor.
+.I <PgUp>
+and
+.I <PgDn>
+replaces
+.I <ArrowUp>
+and
+.I <ArrowDown>
+in this context for NCurses reasons.
+.TP
+.B Select All [Ctrl+A]
+Select all text in the buffer.
+.TP
+.B Cut [Ctrl+X]
+Cut the currently selected text, placing it in the system clipboard.
+.TP 
+.B Copy [Ctrl+C]
+Copy the currently selected text to the system clipboard.
+.TP
+.B Paste [Ctrl+V]
+Paste text from the system clipboard.
+.TP
+.B Undo [Ctrl+Z]
+Undo the most recent edit.
+.TP
+.B Redo [Ctrl+Y]
+Redo a previously undone edit.
+.TP
+.B Find [Ctrl+F]
+Find the next occurence of a string in the buffer.
+.TP
+.B Find next [F3]
+Jump to the next occurence of the previously searched string.
+.TP
+.B Find previous [F2]
+.TP
+.B Replace [Ctrl+R]
+Find the next occurence of a string and replace it with another string.
+.TP
+.B Replace next [Shift+F3]
+Find the next occurence of the previously serched string and replace it.
+.TP
+.B Replace previous [Shift+F2]
+Find the previous occurence of the previously searched string and replace it.
+.SH PROJECT TREE
+If the terminal is wide enough, \fBquark \fRwill show a project tree on the
+left hand side. Move up and down the tree with the normal cursor movement keys.
+Expand and contract directories with \fI<RightArrow> \fRand \fI<LeftArrow>
+\fRrespectively. \fI<Return> \fROpens a file or expands a directory. The plus 
+key (\fI+\fR) sets a currently highlighted directory as project root while 
+minus (\fI\-\fR) sets it's parent as project root. \fI<Esc> \fRreturns focus to
+the editor.
+.SH PROMPTS
+A number of commands will prompt for additional information as described above.
+Tab completion is available for commands that prompt for a path. \fI<Esc> \fR
+escapes the prompt and cancels the command.
+.\" .SH OPTIONS
+.\" .B quark 
+.\" does not take any options.
+.SH BUGS
+In xterm-256color environments, some special keys like arrow keys are handled
+incorrectly immediately after terminal resize.
+.SH AUTHOR
+Stefan Peterson (stefan.j.peterson@gmail.com)

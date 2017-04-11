@@ -62,6 +62,7 @@ import Quark.Types ( Key ( CharKey
                    , Cursor
                    , Offset
                    , Size )
+import Quark.Settings ( lineWidthHint )
 
 import System.Posix.Signals ( Handler ( Catch )
                             , installHandler )
@@ -284,7 +285,7 @@ clear' t@(TextView w (r, c) (_, cc)) k
           Curses.wMove w 0 0
   where
     rulerCol = length rulerLine
-    rulerLine = drop cc (replicate (80 + k) ' ') ++ "|"
+    rulerLine = drop cc (replicate (lineWidthHint + k) ' ') ++ "|"
 
 -------------------------------
 -- Layout type and functions --

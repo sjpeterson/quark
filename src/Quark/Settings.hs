@@ -21,3 +21,6 @@ tabWidth = 4
 
 tabToSpacesDefault :: Bool
 tabToSpacesDefault = True
+
+lineWidthHint :: Int
+lineWidthHint = 80
