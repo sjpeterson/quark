@@ -107,5 +107,5 @@ pythonColors _                 = defaultColor
 compiledPythonGrammar :: CompiledGrammar
 compiledPythonGrammar = compileGrammar pythonGrammar
 
-tokenizePython :: ByteString -> [Token]
+tokenizePython :: [Token] -> ByteString -> [Token]
 tokenizePython = lexer $ compiledPythonGrammar

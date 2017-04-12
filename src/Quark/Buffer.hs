@@ -114,7 +114,7 @@ data Buffer = LockedBuffer String
 
 data BufferMetaData = BufferMetaData { path' :: FilePath
                                      , language' :: Language
-                                     , tokenLines' :: [[Token]]
+                                     , tokens' :: [Token]
                                      , writeProtected' :: Bool
                                      , tabToSpaces' :: Bool } deriving Eq
 type ExtendedBuffer = (Buffer, BufferMetaData)
@@ -137,12 +137,12 @@ setPath path'' b = second (setPath' path'') b
 setPath' :: FilePath -> BufferMetaData -> BufferMetaData
 setPath' path'' (BufferMetaData _ a b c d) = BufferMetaData path'' a b c d
 
-setTokenLines' :: [[Token]] -> BufferMetaData -> BufferMetaData
-setTokenLines' tokenLines'' (BufferMetaData a b _ c d) =
-    BufferMetaData a b tokenLines'' c d
+setTokens' :: [Token] -> BufferMetaData -> BufferMetaData
+setTokens' tokens'' (BufferMetaData a b _ c d) =
+    BufferMetaData a b tokens'' c d
 
-tokens :: ExtendedBuffer -> [[Token]]
-tokens (_, bufferMetaData) = tokenLines' bufferMetaData
+tokens :: ExtendedBuffer -> [Token]
+tokens (_, bufferMetaData) = tokens' bufferMetaData
 
 ebEmpty :: FilePath -> Language -> ExtendedBuffer
 ebEmpty path language =
@@ -166,9 +166,9 @@ ebSelection ((Buffer h crs sel), _) =
 ebNew :: FilePath -> ByteString -> Language -> ExtendedBuffer
 ebNew path'' contents language'' =
     ( Buffer (fromString contents) (0, 0) (0, 0)
-    , BufferMetaData path'' language'' tokenLines' False tabToSpaces'')
+    , BufferMetaData path'' language'' ts False tabToSpaces'')
   where
-    tokenLines' = tokenLines $ tokenize language'' contents
+    ts = tokenize language'' [] contents
     tabToSpaces'' = if (B.elem '\t' contents) then False
                                               else tabToSpacesDefault
 
@@ -181,8 +181,8 @@ ebFirst f (b, bufferMetaData) = (b', bufferMetaData')
     b' = f b
     bufferMetaData' = if editHistory b' == editHistory b
                           then bufferMetaData
-                          else setTokenLines' tokenLines' bufferMetaData
-    tokenLines' = tokenLines $ tokenize (language' bufferMetaData') s'
+                          else setTokens' ts bufferMetaData
+    ts = tokenize (language' bufferMetaData') (tokens' bufferMetaData) s'
     s' = toString $ editHistory b'
 
 condense :: ExtendedBuffer -> Buffer
@@ -208,7 +208,7 @@ tab xb@(b@(Buffer h crs@(r, c) sel@(rr, cc)), bufferMetaData)
     | crs == sel = case tabToSpaces' bufferMetaData of
                        True  -> ebFirst (insert (B.replicate n ' ') False True) xb
                        False -> ebFirst (insert "\t" False True) xb
-    | otherwise  = (b', setTokenLines' tokenLines' bufferMetaData)
+    | otherwise  = (b', setTokens' ts bufferMetaData)
   where
     b' = Buffer newH (r, c + n0) (rr, cc + n1)
     n = tabWidth - (mod c tabWidth)
@@ -225,13 +225,13 @@ tab xb@(b@(Buffer h crs@(r, c) sel@(rr, cc)), bufferMetaData)
     r0 = min r rr
     r1 = max r rr
     s0 = toString h
-    tokenLines' = tokenLines $ tokenize (language' bufferMetaData) s'
+    ts = tokenize (language' bufferMetaData) (tokens' bufferMetaData) s'
     s' = toString $ editHistory b'
 
 unTab :: ExtendedBuffer -> ExtendedBuffer
 unTab xb@(b@(Buffer h (r, c) (rr, cc)), bufferMetaData)
     | all (== 0) n = xb
-    | otherwise    = (b', setTokenLines' tokenLines' bufferMetaData)
+    | otherwise    = (b', setTokens' ts bufferMetaData)
   where
     b' = Buffer newH (r, c + cAdd r) (rr, cc + cAdd rr)
     newH = addEditToHistory unTabEdit h
@@ -252,7 +252,7 @@ unTab xb@(b@(Buffer h (r, c) (rr, cc)), bufferMetaData)
       where
         thisIndent = lnIndent c' r'' s0
     s0 = toString h
-    tokenLines' = tokenLines $ tokenize (language' bufferMetaData) s'
+    ts = tokenize (language' bufferMetaData) (tokens' bufferMetaData) s'
     s' = toString $ editHistory b'
 
 nlAutoIndent :: Buffer -> Buffer

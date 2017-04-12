@@ -42,15 +42,16 @@ import Quark.Helpers
 import Quark.Colors
 import Quark.Types
 
-printText :: Language -> Window -> (Cursor, Cursor) -> Bool -> [[Token]]
+printText :: Language -> Window -> (Cursor, Cursor) -> Bool -> [Token]
           -> IO ()
-printText language w@(TextView _ (r, c) (rr, cc)) (crs, sel) m tokenLines' = do
+printText language w@(TextView _ (r, c) (rr, cc)) (crs, sel) m ts = do
     clear' w lnc
     mapM_ (\(k, l, t, s) -> printTokenLine language k l t s w) $
         zip4 [0..(r - 2)] lineNumbers tokens selections
     showCursor
     refresh w
   where
+    tokenLines' = tokenLines ts
     n = length tokenLines'
     lnc = (length $ show n) + 1
     lineNumbers =

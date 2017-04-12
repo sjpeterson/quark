@@ -178,8 +178,13 @@ listToRe' l = U.fromString $ "\\A(" ++ intercalate "|" sortedL ++ ")"
   where
     sortedL = sortBy (\x y -> compare (length y) (length x)) l
 
-lexer :: CompiledGrammar -> ByteString -> [Token]
-lexer g s = (fuseUnclassified . concat) $ lexer' g s
+lexer :: CompiledGrammar -> [Token] -> ByteString -> [Token]
+lexer g (t0:t1:ts) s
+    | B.isPrefixOf (s0 ~~ s1) s = t0:(lexer g (t1:ts) $ U.drop (U.length s0) s)
+  where
+    s0 = tokenString t0
+    s1 = tokenString t1
+lexer g _ s = (fuseUnclassified . concat) $ lexer' g s
 
 lexer' :: CompiledGrammar -> ByteString -> [[Token]]
 lexer' _ ""   = []
@@ -227,8 +232,8 @@ fuseFold (Unclassified s0) ((Unclassified s1):ts) =
     (Unclassified $ s0 ~~ s1):ts
 fuseFold t ts = t:ts
 
-tokenizeNothing :: ByteString -> [Token]
-tokenizeNothing s = tabSplit Unclassified $ intersperse (Newline "\n") $
+tokenizeNothing :: [Token] -> ByteString -> [Token]
+tokenizeNothing _ s = tabSplit Unclassified $ intersperse (Newline "\n") $
     [Unclassified s' | s' <- U.lines s ++ if nlTail s then [""] else []]
 
 nothingColors :: Token -> Int

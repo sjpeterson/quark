@@ -47,7 +47,7 @@ assumeLanguage path
   where
     extension = takeExtension path
 
-tokenize :: Language -> ByteString -> [Token]
+tokenize :: Language -> [Token] -> ByteString -> [Token]
 tokenize language
     | language == "Haskell" = tokenizeHaskell
     | language == "Python"  = tokenizePython

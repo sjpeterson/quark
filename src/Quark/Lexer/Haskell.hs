@@ -100,5 +100,5 @@ haskellColors _                 = defaultColor
 compiledHaskellGrammar :: CompiledGrammar
 compiledHaskellGrammar = compileGrammar haskellGrammar
 
-tokenizeHaskell :: ByteString -> [Token]
+tokenizeHaskell :: [Token] -> ByteString -> [Token]
 tokenizeHaskell = lexer $ compiledHaskellGrammar

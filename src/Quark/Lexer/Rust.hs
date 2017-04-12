@@ -130,5 +130,5 @@ rustColors _                 = defaultColor
 compiledRustGrammar :: CompiledGrammar
 compiledRustGrammar = compileGrammar rustGrammar
 
-tokenizeRust :: ByteString -> [Token]
+tokenizeRust :: [Token] -> ByteString -> [Token]
 tokenizeRust = lexer $ compiledRustGrammar
