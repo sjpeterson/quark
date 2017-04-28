@@ -144,219 +144,204 @@ cursorUnitTests = testGroup "Unit tests for Cursors.hs"
 {- Unit tests for History.hs -}
 historyUnitTests = testGroup "Unit tests for History.hs"
   [ testCase "Fuse insert with deletes" $
-      assertEqual "" (1, [ (Edit (0, 2) "a" 3 0 True)
-                         , (Edit (0, 0) "test string" 0 0 False) ], []) $
-          addEditToHistory (Edit (0, 0) "a" 3 0 True)
-              (1, [ (Edit (0, 2) "" 3 0 True)
-                  , (Edit (0, 0) "test string" 0 0 False) ], [])
+      assertEqual "" (1, [ (Edit (0, 2) "a" 3 0 True "t ")
+                         , (Edit (0, 0) "test string" 0 0 False "") ], []) $
+          addEditToHistory (Edit (0, 0) "a" 3 0 True "")
+              (1, [ (Edit (0, 2) "" 3 0 True "t ")
+                  , (Edit (0, 0) "test string" 0 0 False "") ], [])
   , testCase "Fuse insert with backspaces" $
-      assertEqual "" (1, [ (Edit (2, 0) "a" 5 0 True)
-                         , (Edit (0, 0) "test string" 0 0 False) ], []) $
-          addEditToHistory (Edit (0, 0) "a" 3 0 True)
-              (1, [ (Edit (2, 0) "" 5 0 True)
-                  , (Edit (0, 0) "test string" 0 0 False) ], [])
+      assertEqual "" (1, [ (Edit (2, 0) "a" 5 0 True "t ")
+                         , (Edit (0, 0) "test string" 0 0 False "") ], []) $
+          addEditToHistory (Edit (0, 0) "a" 3 0 True "")
+              (1, [ (Edit (2, 0) "" 5 0 True "t ")
+                  , (Edit (0, 0) "test string" 0 0 False "") ], [])
   , testCase "Fuse insert with inserts" $
-      assertEqual "" (1, [ (Edit (0, 0) "abcd" 3 0 True)
-                         , (Edit (0, 0) "test string" 0 0 False) ], []) $
-          addEditToHistory (Edit (0, 0) "d" 6 0 True)
-              (1, [ (Edit (0, 0) "abc" 3 0 True)
-                  , (Edit (0, 0) "test string" 0 0 False) ], [])
-  , testCase "Do not fuse insert with initial empty edit, even if fusible" $
-      assertEqual "" (1, [ (Edit (0, 0) "a" 0 0 True)
-                         , (Edit (0, 0) "" 0 0 True) ], []) $
-          addEditToHistory (Edit (0, 0) "a" 0 0 True)
-              (0, [(Edit (0, 0) "" 0 0 True)], [])
+      assertEqual "" (1, [ (Edit (0, 0) "abcd" 3 0 True "")
+                         , (Edit (0, 0) "test string" 0 0 False "") ], []) $
+          addEditToHistory (Edit (0, 0) "d" 6 0 True "")
+              (1, [ (Edit (0, 0) "abc" 3 0 True "")
+                  , (Edit (0, 0) "test string" 0 0 False "") ], [])
   , testCase "Do not fuse paste" $
-      assertEqual "" (2, [ (Edit (0, 0) "de" 6 0 False)
-                         , (Edit (0, 0) "abc" 3 0 True)
-                         , (Edit (0, 0) "test string" 0 0 False) ], []) $
-          addEditToHistory (Edit (0, 0) "de" 6 0 False)
-              (1, [ (Edit (0, 0) "abc" 3 0 True)
-                  , (Edit (0, 0) "test string" 0 0 False) ], [])
+      assertEqual "" (2, [ (Edit (0, 0) "de" 6 0 False "")
+                         , (Edit (0, 0) "abc" 3 0 True "")
+                         , (Edit (0, 0) "test string" 0 0 False "") ], []) $
+          addEditToHistory (Edit (0, 0) "de" 6 0 False "")
+              (1, [ (Edit (0, 0) "abc" 3 0 True "")
+                  , (Edit (0, 0) "test string" 0 0 False "") ], [])
   , testCase "Do not fuse with paste" $
-      assertEqual "" (2, [ (Edit (0, 0) "d" 6 0 True)
-                         , (Edit (0, 0) "abc" 3 0 False)
-                         , (Edit (0, 0) "test string" 0 0 False) ], []) $
-          addEditToHistory (Edit (0, 0) "d" 6 0 True)
-              (1, [ (Edit (0, 0) "abc" 3 0 False)
-                  , (Edit (0, 0) "test string" 0 0 False) ], [])
+      assertEqual "" (2, [ (Edit (0, 0) "d" 6 0 True "")
+                         , (Edit (0, 0) "abc" 3 0 False "")
+                         , (Edit (0, 0) "test string" 0 0 False "") ], []) $
+          addEditToHistory (Edit (0, 0) "d" 6 0 True "")
+              (1, [ (Edit (0, 0) "abc" 3 0 False "")
+                  , (Edit (0, 0) "test string" 0 0 False "") ], [])
   , testCase "Fuse insert with forward selection delete" $
-      assertEqual "" (1, [ (Edit (0, 0) "a" 3 2 True)
-                         , (Edit (0, 0) "test string" 0 0 False) ], []) $
-          addEditToHistory (Edit (0, 0) "a" 3 0 True)
-              (1, [ (Edit (0, 0) "" 3 2 True)
-                  , (Edit (0, 0) "test string" 0 0 False) ], [])
+      assertEqual "" (1, [ (Edit (0, 0) "a" 3 2 True "t ")
+                         , (Edit (0, 0) "test string" 0 0 False "") ], []) $
+          addEditToHistory (Edit (0, 0) "a" 3 0 True "")
+              (1, [ (Edit (0, 0) "" 3 2 True "t ")
+                  , (Edit (0, 0) "test string" 0 0 False "") ], [])
   , testCase "Fuse insert with backward selection delete" $
-      assertEqual "" (1, [ (Edit (0, 0) "a" 5 (-2) True)
-                         , (Edit (0, 0) "test string" 0 0 False) ], []) $
-          addEditToHistory (Edit (0, 0) "a" 3 0 True)
-              (1, [ (Edit (0, 0) "" 5 (-2) True)
-                  , (Edit (0, 0) "test string" 0 0 False) ], [])
+      assertEqual "" (1, [ (Edit (0, 0) "a" 5 (-2) True "t ")
+                         , (Edit (0, 0) "test string" 0 0 False "") ], []) $
+          addEditToHistory (Edit (0, 0) "a" 3 0 True "")
+              (1, [ (Edit (0, 0) "" 5 (-2) True "t ")
+                  , (Edit (0, 0) "test string" 0 0 False "") ], [])
   , testCase "Fuse delete with backspace" $
-      assertEqual "" (1, [ (Edit (2, 2) "" 5 0 True)
-                         , (Edit (0, 0) "test string" 0 0 False) ], []) $
-          addEditToHistory (Edit (0, 2) "" 3 0 True)
-              (1, [ (Edit (2, 0) "" 5 0 True)
-                  , (Edit (0, 0) "test string" 0 0 False) ], [])
+      assertEqual "" (1, [ (Edit (2, 2) "" 5 0 True "t st")
+                         , (Edit (0, 0) "test string" 0 0 False "") ], []) $
+          addEditToHistory (Edit (0, 2) "" 3 0 True "st")
+              (1, [ (Edit (2, 0) "" 5 0 True "t ")
+                  , (Edit (0, 0) "test string" 0 0 False "") ], [])
   , testCase "Fuse delete with insert" $
-      assertEqual "" (1, [ (Edit (0, 2) "abc" 3 0 True)
-                         , (Edit (0, 0) "test string" 0 0 False) ], []) $
-          addEditToHistory (Edit (0, 2) "" 6 0 True)
-              (1, [ (Edit (0, 0) "abc" 3 0 True)
-                  , (Edit (0, 0) "test string" 0 0 False) ], [])
+      assertEqual "" (1, [ (Edit (0, 2) "abc" 3 0 True "t ")
+                         , (Edit (0, 0) "test string" 0 0 False "") ], []) $
+          addEditToHistory (Edit (0, 2) "" 6 0 True "t ")
+              (1, [ (Edit (0, 0) "abc" 3 0 True "")
+                  , (Edit (0, 0) "test string" 0 0 False "") ], [])
   , testCase "Fuse delete with delete" $
-      assertEqual "" (1, [ (Edit (0, 4) "" 3 0 True)
-                         , (Edit (0, 0) "test string" 0 0 False) ], []) $
-          addEditToHistory (Edit (0, 2) "" 3 0 True)
-              (1, [ (Edit (0, 2) "" 3 0 True)
-                  , (Edit (0, 0) "test string" 0 0 False) ], [])
+      assertEqual "" (1, [ (Edit (0, 4) "" 3 0 True "t st")
+                         , (Edit (0, 0) "test string" 0 0 False "") ], []) $
+          addEditToHistory (Edit (0, 2) "" 3 0 True "st")
+              (1, [ (Edit (0, 2) "" 3 0 True "t ")
+                  , (Edit (0, 0) "test string" 0 0 False "") ], [])
   , testCase "Fuse delete with forward selection delete" $
-      assertEqual "" (1, [ (Edit (0, 2) "" 3 2 True)
-                         , (Edit (0, 0) "test string" 0 0 False) ], []) $
-          addEditToHistory (Edit (0, 2) "" 3 0 True)
-              (1, [ (Edit (0, 0) "" 3 2 True)
-                  , (Edit (0, 0) "test string" 0 0 False) ], [])
+      assertEqual "" (1, [ (Edit (0, 2) "" 3 2 True "t st")
+                         , (Edit (0, 0) "test string" 0 0 False "") ], []) $
+          addEditToHistory (Edit (0, 2) "" 3 0 True "st")
+              (1, [ (Edit (0, 0) "" 3 2 True "t ")
+                  , (Edit (0, 0) "test string" 0 0 False "") ], [])
   , testCase "Fuse delete with backward selection delete" $
-      assertEqual "" (1, [ (Edit (0, 2) "" 5 (-2) True)
-                         , (Edit (0, 0) "test string" 0 0 False) ], []) $
-          addEditToHistory (Edit (0, 2) "" 3 0 True)
-              (1, [ (Edit (0, 0) "" 5 (-2) True)
-                  , (Edit (0, 0) "test string" 0 0 False) ], [])
+      assertEqual "" (1, [ (Edit (0, 2) "" 5 (-2) True "t st")
+                         , (Edit (0, 0) "test string" 0 0 False "") ], []) $
+          addEditToHistory (Edit (0, 2) "" 3 0 True "st")
+              (1, [ (Edit (0, 0) "" 5 (-2) True "t ")
+                  , (Edit (0, 0) "test string" 0 0 False "") ], [])
   , testCase "Fuse backspace with delete" $
-      assertEqual "" (1, [ (Edit (2, 2) "" 3 0 True)
-                         , (Edit (0, 0) "test string" 0 0 False) ], []) $
-          addEditToHistory (Edit (2, 0) "" 3 0 True)
-              (1, [ (Edit (0, 2) "" 3 0 True)
-                  , (Edit (0, 0) "test string" 0 0 False) ], [])
+      assertEqual "" (1, [ (Edit (2, 2) "" 3 0 True "t st")
+                         , (Edit (0, 0) "test string" 0 0 False "") ], []) $
+          addEditToHistory (Edit (2, 0) "" 3 0 True "t ")
+              (1, [ (Edit (0, 2) "" 3 0 True "st")
+                  , (Edit (0, 0) "test string" 0 0 False "") ], [])
   , testCase "Fuse backspace with backspace" $
-      assertEqual "" (1, [ (Edit (4, 0) "" 5 0 True)
-                         , (Edit (0, 0) "test string" 0 0 False) ], []) $
-          addEditToHistory (Edit (2, 0) "" 3 0 True)
-              (1, [ (Edit (2, 0) "" 5 0 True)
-                  , (Edit (0, 0) "test string" 0 0 False) ], [])
+      assertEqual "" (1, [ (Edit (4, 0) "" 5 0 True "t st")
+                         , (Edit (0, 0) "test string" 0 0 False "") ], []) $
+          addEditToHistory (Edit (2, 0) "" 3 0 True "t ")
+              (1, [ (Edit (2, 0) "" 5 0 True "st")
+                  , (Edit (0, 0) "test string" 0 0 False "") ], [])
   , testCase "Do not fuse backspace with insert" $
-      assertEqual "" (2, [ (Edit (2, 0) "" 6 0 True)
-                         , (Edit (0, 0) "abc" 3 0 True)
-                         , (Edit (0, 0) "test string" 0 0 False) ], []) $
-          addEditToHistory (Edit (2, 0) "" 6 0 True)
-              (1, [ (Edit (0, 0) "abc" 3 0 True)
-                  , (Edit (0, 0) "test string" 0 0 False) ], [])
+      assertEqual "" (2, [ (Edit (2, 0) "" 6 0 True "bc")
+                         , (Edit (0, 0) "abc" 3 0 True "")
+                         , (Edit (0, 0) "test string" 0 0 False "") ], []) $
+          addEditToHistory (Edit (2, 0) "" 6 0 True "bc")
+              (1, [ (Edit (0, 0) "abc" 3 0 True "")
+                  , (Edit (0, 0) "test string" 0 0 False "") ], [])
   , testCase "Fuse backspace with forward selection delete" $
-      assertEqual "" (1, [ (Edit (2, 0) "" 3 2 True)
-                         , (Edit (0, 0) "test string" 0 0 False) ], []) $
-          addEditToHistory (Edit (2, 0) "" 3 0 True)
-              (1, [ (Edit (0, 0) "" 3 2 True)
-                  , (Edit (0, 0) "test string" 0 0 False) ], [])
+      assertEqual "" (1, [ (Edit (2, 0) "" 3 2 True "t st")
+                         , (Edit (0, 0) "test string" 0 0 False "") ], []) $
+          addEditToHistory (Edit (2, 0) "" 3 0 True "t ")
+              (1, [ (Edit (0, 0) "" 3 2 True "st")
+                  , (Edit (0, 0) "test string" 0 0 False "") ], [])
   , testCase "Fuse backspace with backward selection delete" $
-      assertEqual "" (1, [ (Edit (2, 0) "" 5 (-2) True)
-                         , (Edit (0, 0) "test string" 0 0 False) ], []) $
-          addEditToHistory (Edit (2, 0) "" 3 0 True)
-              (1, [ (Edit (0, 0) "" 5 (-2) True)
-                  , (Edit (0, 0) "test string" 0 0 False) ], [])
+      assertEqual "" (1, [ (Edit (2, 0) "" 5 (-2) True "t st")
+                         , (Edit (0, 0) "test string" 0 0 False "") ], []) $
+          addEditToHistory (Edit (2, 0) "" 3 0 True "t ")
+              (1, [ (Edit (0, 0) "" 5 (-2) True "st")
+                  , (Edit (0, 0) "test string" 0 0 False "") ], [])
   , testCase "Fuse insert with mixed edit" $
-      assertEqual "" (1, [ (Edit (2, 1) "abcd" 3 2 True)
-                         , (Edit (0, 0) "test string" 0 0 False) ], []) $
-          addEditToHistory (Edit (0, 0) "d" 4 0 True)
-              (1, [ (Edit (2, 1) "abc" 3 2 True)
-                  , (Edit (0, 0) "test string" 0 0 False) ], [])
+      assertEqual "" (1, [ (Edit (2, 1) "abcd" 3 2 True "est s")
+                         , (Edit (0, 0) "test string" 0 0 False "") ], []) $
+          addEditToHistory (Edit (0, 0) "d" 4 0 True "")
+              (1, [ (Edit (2, 1) "abc" 3 2 True "est s")
+                  , (Edit (0, 0) "test string" 0 0 False "") ], [])
   , testCase "Do not fuse when cursor has moved" $
-      assertEqual "" (2, [ (Edit (0, 0) "abc" 4 0 True)
-                         , (Edit (0, 2) "" 3 0 True)
-                         , (Edit (0, 0) "test string" 0 0 False) ], []) $
-          addEditToHistory (Edit (0, 0) "abc" 4 0 True)
-              (1, [ (Edit (0, 2) "" 3 0 True)
-                  , (Edit (0, 0) "test string" 0 0 False) ], [])
+      assertEqual "" (2, [ (Edit (0, 0) "abc" 4 0 True "")
+                         , (Edit (0, 2) "" 3 0 True "t ")
+                         , (Edit (0, 0) "test string" 0 0 False "") ], []) $
+          addEditToHistory (Edit (0, 0) "abc" 4 0 True "")
+              (1, [ (Edit (0, 2) "" 3 0 True "t ")
+                  , (Edit (0, 0) "test string" 0 0 False "") ], [])
   , testCase "Do not fuse edit with forward selection delete" $
-      assertEqual "" (2, [ (Edit (0, 0) "abc" 3 2 True)
-                         , (Edit (0, 2) "" 3 0 True)
-                         , (Edit (0, 0) "test string" 0 0 False) ], []) $
-          addEditToHistory (Edit (0, 0) "abc" 3 2 True)
-              (1, [ (Edit (0, 2) "" 3 0 True)
-                  , (Edit (0, 0) "test string" 0 0 False) ], [])
+      assertEqual "" (2, [ (Edit (0, 0) "abc" 3 2 True "st")
+                         , (Edit (0, 2) "" 3 0 True "t ")
+                         , (Edit (0, 0) "test string" 0 0 False "") ], []) $
+          addEditToHistory (Edit (0, 0) "abc" 3 2 True "st")
+              (1, [ (Edit (0, 2) "" 3 0 True "t ")
+                  , (Edit (0, 0) "test string" 0 0 False "") ], [])
   , testCase "Do not fuse edit with backward selection delete" $
-      assertEqual "" (2, [ (Edit (0, 0) "abc" 3 (-2) True)
-                         , (Edit (0, 2) "" 3 0 True)
-                         , (Edit (0, 0) "test string" 0 0 False) ], []) $
-          addEditToHistory (Edit (0, 0) "abc" 3 (-2) True)
-              (1, [ (Edit (0, 2) "" 3 0 True)
-                  , (Edit (0, 0) "test string" 0 0 False) ], [])
+      assertEqual "" (2, [ (Edit (0, 0) "abc" 3 (-2) True "es")
+                         , (Edit (0, 2) "" 3 0 True "t ")
+                         , (Edit (0, 0) "test string" 0 0 False "") ], []) $
+          addEditToHistory (Edit (0, 0) "abc" 3 (-2) True "es")
+              (1, [ (Edit (0, 2) "" 3 0 True "t ")
+                  , (Edit (0, 0) "test string" 0 0 False "") ], [])
   , testCase "addEditToHistory: Do not fuse IndentLine with Edit" $
       assertEqual "" (2, [ (IndentLine 1 4 ' ' 7 1)
-                         , (Edit (0, 0) "string" 5 0 True)
-                         , (Edit (0, 0) "test\n" 0 0 False) ], []) $
+                         , (Edit (0, 0) "string" 5 0 True "")
+                         , (Edit (0, 0) "test\n" 0 0 False "") ], []) $
           addEditToHistory (IndentLine 1 4 ' ' 7 1)
-              (1, [ (Edit (0, 0) "string" 5 0 True)
-                  , (Edit (0, 0) "test\n" 0 0 False) ], [])
+              (1, [ (Edit (0, 0) "string" 5 0 True "")
+                  , (Edit (0, 0) "test\n" 0 0 False "") ], [])
   , testCase "newEdit" $
-      assertEqual "" (2, [ (Edit (0, 0) "de" 6 0 True)
-                         , (Edit (0, 0) "abc" 3 0 True)
-                         , (Edit (0, 0) "test string" 0 0 False) ], []) $
-          newEdit (Edit (0, 0) "de" 6 0 True)
-              (1, [ (Edit (0, 0) "abc" 3 0 True)
-                  , (Edit (0, 0) "test string" 0 0 False) ], [])
-  , testCase "fromString" $
-      assertEqual "" (0, [ (Edit (0, 0) "test string" 0 0 False)], []) $
-          fromString "test string"
+      assertEqual "" (2, [ (Edit (0, 0) "de" 6 0 True "")
+                         , (Edit (0, 0) "abc" 3 0 True "")
+                         , (Edit (0, 0) "test string" 0 0 False "") ], []) $
+          newEdit (Edit (0, 0) "de" 6 0 True "")
+              (1, [ (Edit (0, 0) "abc" 3 0 True "")
+                  , (Edit (0, 0) "test string" 0 0 False "") ], [])
   , testCase "emptyEditHistory" $
-      assertEqual "" (0, [ (Edit (0, 0) "" 0 0 False)], []) $
+      assertEqual "" (0, [], []) $
           emptyEditHistory
-  , testCase "toString insert" $ assertEqual "" "tesabct string" $ toString
-      (1, [ (Edit (0, 0) "abc" 3 0 True)
-          , (Edit (0, 0) "test string" 0 0 False) ], [])
-  , testCase "toString backspace" $ assertEqual "" "tt string" $ toString
-      (1, [ (Edit (2, 0) "" 3 0 True)
-          , (Edit (0, 0) "test string" 0 0 False) ], [])
-  , testCase "toString delete" $ assertEqual "" "tesstring" $ toString
-      (1, [ (Edit (0, 2) "" 3 0 True)
-          , (Edit (0, 0) "test string" 0 0 False) ], [])
-  , testCase "toString backward selection delete" $ assertEqual "" "tt string" $
-      toString (1, [ (Edit (0, 0) "" 3 (-2) True)
-                   , (Edit (0, 0) "test string" 0 0 False) ], [])
-  , testCase "toString forward selection delete" $ assertEqual "" "tesstring" $
-      toString (1, [ (Edit (0, 0) "" 3 2 True)
-                   , (Edit (0, 0) "test string" 0 0 False) ], [])
-  , testCase "toString indent line" $ assertEqual "" "test\n    string" $
-      toString (1, [ (IndentLine 1 4 ' ' 7 1)
-                   , (Edit (0, 0) "test\nstring" 0 0 False) ], [])
-  , testCase "toString indent line, file ending with linebreak" $
+  , testCase "doEdit insert" $ assertEqual "" "tesabct string" $
+      doEdit (Edit (0, 0) "abc" 3 0 True "") "test string"
+  , testCase "doEdit backspace" $ assertEqual "" "tt string" $
+      doEdit (Edit (2, 0) "" 3 0 True "es") "test string"
+  , testCase "doEdit delete" $ assertEqual "" "tesstring" $
+      doEdit (Edit (0, 2) "" 3 0 True "t ") "test string"
+  , testCase "doEdit backward selection delete" $ assertEqual "" "tt string" $
+      doEdit (Edit (0, 0) "" 3 (-2) True "es") "test string"
+  , testCase "doEdit forward selection delete" $ assertEqual "" "tesstring" $
+      doEdit (Edit (0, 0) "" 3 2 True "t ") "test string"
+  , testCase "doEdit indent line" $ assertEqual "" "test\n    string" $
+      doEdit (IndentLine 1 4 ' ' 7 1) "test\nstring"
+  , testCase "doEdit indent line, file ending with linebreak" $
       assertEqual "" "test\n    string\n" $
-          toString (1, [ (IndentLine 1 4 ' ' 7 1)
-                       , (Edit (0, 0) "test\nstring\n" 0 0 False) ], [])
-  , testCase "toString dedent line" $ assertEqual "" "test\nstring" $
-      toString (1, [ (IndentLine 1 (-4) ' ' 11 0)
-                   , (Edit (0, 0) "test\n    string" 0 0 False) ], [])
-  , testCase "toString dedent line, file ending with line break" $
+          doEdit (IndentLine 1 4 ' ' 7 1) "test\nstring\n"
+  , testCase "doEdit dedent line" $ assertEqual "" "test\nstring" $
+      doEdit (IndentLine 1 (-4) ' ' 11 0) "test\n    string"
+  , testCase "doEdit dedent line, file ending with line break" $
       assertEqual "" "test\nstring\n" $
-          toString (1, [ (IndentLine 1 (-4) ' ' 11 0)
-                       , (Edit (0, 0) "test\n    string\n" 0 0 False) ], [])
-  , testCase "Gracefully handle incomplete edit history with toString" $
-      assertEqual "" "test string" $ toString
-          (1, [ (Edit (0, 0) "test string" 6 0 True)
-              , (Edit (2, 4) "" 5 1 True) ], [])
+          doEdit (IndentLine 1 (-4) ' ' 11 0) "test\n    string\n"
+  , testCase "undoEdit' forward selection delete" $
+      assertEqual "" "test string" $
+          undoEdit' (Edit (0, 0) "" 3 2 True "t ") "tesstring"
+  , testCase "undoEdit' backward selection delete" $
+      assertEqual "" "test string" $
+          undoEdit' (Edit (0, 0) "" 5 (-2) True "t ") "tesstring"
   , testCase "Ordinary undo edit" $
       assertEqual "" ( 1
-                     , [(Edit (0, 2) "" 3 0 True)]
-                     , [(Edit (0, 0) "test string" 0 0 False)] ) $
-          undoEdit (2, [ (Edit (0, 0) "test string" 0 0 False)
-                       , (Edit (0, 2) "" 3 0 True) ], [])
+                     , [(Edit (0, 2) "" 3 0 True "t ")]
+                     , [(Edit (0, 0) "test string" 0 0 False "")] ) $
+          undoEdit (2, [ (Edit (0, 0) "test string" 0 0 False "")
+                       , (Edit (0, 2) "" 3 0 True "t ") ], [])
   , testCase "Undo saved edit" $
       assertEqual "" ( (-1)
-                     , [(Edit (0, 2) "" 3 0 True)]
-                     , [(Edit (0, 0) "test string" 0 0 False)] ) $
-          undoEdit (0, [ (Edit (0, 0) "test string" 0 0 False)
-                       , (Edit (0, 2) "" 3 0 True) ], [])
-  , testCase "Do not undo solitary edit" $
-      assertEqual "" (0, [(Edit (0, 0) "test string" 0 0 False)], []) $
-          undoEdit (0, [(Edit (0, 0) "test string" 0 0 False)], [])
+                     , [(Edit (0, 2) "" 3 0 True "t ")]
+                     , [(Edit (0, 0) "test string" 0 0 False "")] ) $
+          undoEdit (0, [ (Edit (0, 0) "test string" 0 0 False "")
+                       , (Edit (0, 2) "" 3 0 True "t ") ], [])
+  , testCase "Undo solitary edit" $
+      assertEqual "" (0, [], [(Edit (0, 0) "test string" 0 0 False "")]) $
+          undoEdit (1, [(Edit (0, 0) "test string" 0 0 False "")], [])
   , testCase "Ordinary redo edit" $
-      assertEqual "" (2, [ (Edit (0, 2) "" 3 0 True)
-                         , (Edit (0, 0) "test string" 0 0 False) ], []) $
+      assertEqual "" (2, [ (Edit (0, 2) "" 3 0 True "t ")
+                         , (Edit (0, 0) "test string" 0 0 False "") ], []) $
           redoEdit ( 1
-                   , [(Edit (0, 0) "test string" 0 0 False)]
-                   , [(Edit (0, 2) "" 3 0 True)] )
-  , testCase "Nothing to undo" $
-      assertEqual "" (4, [(Edit (0, 0) "test string" 0 0 False)], []) $
-          redoEdit (4, [(Edit (0, 0) "test string" 0 0 False)], [])
+                   , [(Edit (0, 0) "test string" 0 0 False "")]
+                   , [(Edit (0, 2) "" 3 0 True "t ")] )
+  , testCase "Nothing to redo" $
+      assertEqual "" (4, [(Edit (0, 0) "test string" 0 0 False "")], []) $
+          redoEdit (4, [(Edit (0, 0) "test string" 0 0 False "")], [])
   ]
 
 {- Unit tests for Buffer.hs -}

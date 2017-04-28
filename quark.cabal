@@ -72,7 +72,7 @@ executable quark
 
 -- -- profiling steps
 -- stack clean (may be redundant)
--- stack build --profiling
+-- stack build --profile
 -- stack exec -- quark src/Main.hs +RTS -p
 --     (-h for memory profiling)
 

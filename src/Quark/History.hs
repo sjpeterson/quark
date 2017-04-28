@@ -32,40 +32,31 @@ import Quark.Helpers ( lineSplitIx
 
 -- (Edit n s ix) means to delete n characters at index ix, replacing them with
 -- string s.
-data Edit = Edit Deletion ByteString Index Selection Bool
+data Edit = Edit Deletion ByteString Index Selection Bool ByteString
           | IndentLine Row Int Char Index Selection
           | EditGroup [Edit] Index Selection deriving (Show, Eq)
 
 editIndex:: Edit -> Index
-editIndex (Edit _ _ ix _ _)     = ix
+editIndex (Edit _ _ ix _ _ _)     = ix
 editIndex (IndentLine _ _ _ ix _) = ix
-editIndex (EditGroup _ ix _)    = ix
+editIndex (EditGroup _ ix _)      = ix
 
 editSelection :: Edit -> Selection
-editSelection (Edit _ _ _ sel _)     = sel
+editSelection (Edit _ _ _ sel _ _)     = sel
 editSelection (IndentLine _ _ _ _ sel) = sel
-editSelection (EditGroup _ _ sel)    = sel
+editSelection (EditGroup _ _ sel)      = sel
 
 -- EditHistory consists of lists of present and future edits and an integer
 -- indicating the number of edits since last save.
 type EditHistory = (Int, [Edit], [Edit])
 
--- Initialize an edit history from a string
-fromString :: ByteString -> EditHistory
-fromString s = (0, [Edit (0, 0) s 0 0 False], [])
-
 -- An empty edit history
 emptyEditHistory :: EditHistory
-emptyEditHistory = fromString "" 
-
--- Construct a string from the edit history
-toString :: EditHistory -> ByteString
-toString (_, [], _)     = ""
-toString (_, x:xs, _) = doEdit x (toString (0, xs, []))
+emptyEditHistory = (0, [], [])
 
 -- Apply an edit to a string
 doEdit :: Edit -> ByteString -> ByteString
-doEdit (Edit (n, m) sx ix sel _) s = (U.take p s0) ~~ sx ~~ (U.drop q s1)
+doEdit (Edit (n, m) sx ix sel _ _) s = (U.take p s0) ~~ sx ~~ (U.drop q s1)
   where
     p = (U.length s0) - n + (min 0 sel)
     q = m + (max 0 sel)
@@ -79,11 +70,20 @@ doEdit (EditGroup edits _ _) s = case edits of
     []     -> s
     (x:xs) -> doEdit (EditGroup xs 0 0) $ doEdit x s
 
+-- Undo an edit to a string
+undoEdit' :: Edit -> ByteString -> ByteString
+undoEdit' (Edit (n, m) sx ix sel _ deletedS) s =
+    s0 ~~ deletedS ~~ (U.drop (U.length sx) s1)
+  where
+    (s0, s1) = U.splitAt (ix - n + (min 0 sel)) s
+undoEdit' (IndentLine r n c ix sel) s = doEdit (IndentLine r (-n) c ix sel) s
+undoEdit' (EditGroup edits _ _) s = case edits of
+    [] -> s
+    xs -> undoEdit' (EditGroup (init xs) 0 0) $ undoEdit' (last xs) s
+
 -- Undo by moving the most recent edit to the head of future edits
--- Second pattern is needed when loading files
 undoEdit :: EditHistory -> EditHistory
 undoEdit (k, [], future)   = (k, [], future)
-undoEdit (k, x:[], future) = (k, [x], future)
 undoEdit (k, x:xs, future) = (k - 1, xs, x:future)
 
 -- Redo by moving the head of future edits to the head of present edits
@@ -99,9 +99,14 @@ newEdit x (k, present, _) = (k + 1, x:present, [])
 -- if appropriate
 addEditToHistory :: Edit -> EditHistory -> EditHistory
 addEditToHistory
-  x0@(Edit (n0, m0) s0 ix0 sel0 f0) (k, x1@(Edit (n1, m1) s1 ix1 sel1 f1):xs, _)
-    | p0 && p1  = (k, (Edit (n1 + n0, m1 + m0) (s1 ~~ s0) (ix1) sel1 f0):xs, [])
+  x0@(Edit _ _ _ _ _ _) (k, x1@(Edit _ _ _ _ _ _):xs, _)
+    | p0 && p1  = (k, (Edit (n, m) (s1 ~~ s0) (ix1) sel1 f0 deletedS):xs, [])
   where
+    (n, m) = (n1 + n0, m1 + m0)
+    deletedS = s0' ~~ deletedS1 ~~ s1'
+    (s0', s1') = U.splitAt n0 deletedS0
+    (Edit (n0, m0) s0 ix0 sel0 f0 deletedS0) = x0
+    (Edit (n1, m1) s1 ix1 sel1 f1 deletedS1) = x1
     p0 = k /= 0 && sel0 == 0 && ix0 == ix1 - n1 + (min 0 sel1) + (U.length s1)
     p1 = f0 && f1 && (n0 == 0 || U.length s1 == 0)
 addEditToHistory x0 (k, x1@(IndentLine r1 n1 c1 ix sel):xs , _)

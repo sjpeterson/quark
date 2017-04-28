@@ -53,7 +53,7 @@ import Quark.Layout ( firstL
 import Quark.Lexer.Language ( assumeLanguage )
 import Quark.Buffer ( Buffer ( Buffer )
                     , ExtendedBuffer
-                    , ebToString
+                    , ebContents
                     , ebCursors
                     , ebUnsaved
                     , ebEmpty
@@ -119,8 +119,7 @@ import Quark.Project ( Project
                      , flipToParent'
                      , expand
                      , contract )
-import Quark.History ( fromString
-                     , toString )
+import Quark.History ( emptyEditHistory )
 import Quark.Helpers ( (~~)
                      , lnWidth
                      , nlTail )
@@ -250,11 +249,11 @@ writeXB path' xb@(b, bufferMetaData) = case writeProtected xb of
     True  -> return xb
 
 writeBuffer :: FilePath -> Buffer -> IO Buffer
-writeBuffer path' (Buffer h@(n, p, f) c s) = do
-    B.writeFile path' $ nlEnd $ toString h
-    return $ Buffer (0, p, f) c s
+writeBuffer path' (Buffer s h@(n, p, f) crs sel) = do
+    B.writeFile path' $ nlEnd $ s
+    return $ Buffer s (0, p, f) crs sel
   where
-    nlEnd s  = if nlTail s then s else s ~~ "\n"
+    nlEnd s'  = if nlTail s' then s' else s' ~~ "\n"
 
 newBuffer :: QFE.Layout -> Project -> IO ()
 newBuffer layout project =
@@ -295,7 +294,7 @@ find doReplace next doPrompt layout project = do
                       else return findDefault'
     if findString == "\ESC" || findString == ""
         then mainLoop layout project
-        else if B.isInfixOf findString (ebToString $ activeP project)
+        else if B.isInfixOf findString (ebContents $ activeP project)
                  then nextFunction $
                           first (firstF $ first $
                               bufferFind next (not doReplace) findString) $
@@ -366,7 +365,7 @@ refreshText layout project = do
     w@(QFE.TextView _ _ (rr, cc)) = QFE.primaryPane layout
     activeBuffer = activeP project
     cursors@(crs, _) = ebCursors activeBuffer
-    lnOffset = lnWidth $ ebToString activeBuffer
+    lnOffset = lnWidth $ ebContents activeBuffer
 
 refreshTree :: QFE.Layout -> Project -> IO ()
 refreshTree (QFE.MinimalLayout _ _ _) project = return ()
@@ -458,7 +457,6 @@ handleKey layout project k
           continue
   where
     unsavedIndices = findIndices ebUnsaved $ (\(x, _) -> toList x) project
-    ((Buffer h _ _), _) = activeP project
     (QFE.TextView _ (r, _) _) = QFE.primaryPane layout
     action a = mainLoop layout $ first (firstF (ebFirst a)) project
     action' a = mainLoop layout $ first (firstF a) project
@@ -508,8 +506,8 @@ handleKeyProject layout project k
 
 mainLoop :: QFE.Layout -> Project -> IO ()
 mainLoop layout project = do
-    let lnOffset = lnWidth $ ebToString activeBuffer
-    let ((Buffer _ crs _), _) = activeBuffer
+    let lnOffset = lnWidth $ ebContents activeBuffer
+    let ((Buffer _ _ crs _), _) = activeBuffer
     let layout' = firstL (updateOffset crs lnOffset) layout
     setTitle (QFE.titleBar layout') $ if ebUnsaved activeBuffer
                                           then (path activeBuffer) ++ "*"
