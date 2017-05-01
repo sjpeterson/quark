@@ -18,7 +18,7 @@
 
 module Quark.Lexer.Rust ( tokenizeRust, rustColors ) where
 
-import Data.ByteString.UTF8 (ByteString)
+import qualified Data.Text as T
 
 import Quark.Types
 import Quark.Colors
@@ -130,5 +130,5 @@ rustColors _                 = defaultColor
 compiledRustGrammar :: CompiledGrammar
 compiledRustGrammar = compileGrammar rustGrammar
 
-tokenizeRust :: ByteString -> [Token]
+tokenizeRust :: T.Text -> [Token]
 tokenizeRust = lexer $ compiledRustGrammar

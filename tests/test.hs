@@ -5,8 +5,7 @@ import Test.Tasty.QuickCheck as QC
 import Test.Tasty.HUnit
 
 import Data.List
-import Data.ByteString (ByteString)
-import qualified Data.ByteString.Char8 as B
+import qualified Data.Text as T
 
 import Quark.Types
 import Quark.Settings
@@ -51,7 +50,7 @@ helpersUnitTests = testGroup "Unit tests for Helpers.hs"
   , testCase "Line numbers width, test 1" $
       assertEqual "" 2 $ lnWidth "test\nstring"
   , testCase "Line numbers width, test 2" $
-      assertEqual "" 4 $ lnWidth $ B.unlines $ replicate 145 "test"
+      assertEqual "" 4 $ lnWidth $ T.unlines $ replicate 145 "test"
   , testCase "Mixed line indent" $
       assertEqual "" " \t   \t\t" $ lnIndent' 1"test\n \t   \t\tstring"
   , testCase "lineSplitIx: newline-terminated string" $

@@ -59,9 +59,7 @@ module Quark.Buffer ( Buffer ( Buffer
 
 import Data.Bifunctor ( second )
 
-import Data.ByteString.UTF8 (ByteString)
-import qualified Data.ByteString.UTF8 as U
-import qualified Data.ByteString.Char8 as B
+import qualified Data.Text as T
 
 import Quark.Types ( Clipboard
                    , Cursor
@@ -104,7 +102,7 @@ import Quark.Helpers ( lnIndent
 
 -- The Buffer data type
 data Buffer = LockedBuffer String
-            | Buffer { contents :: ByteString
+            | Buffer { contents :: T.Text
                      , editHistory :: EditHistory
                      , cursor :: Cursor
                      , selectionCursor :: Cursor } deriving (Eq, Show)
@@ -143,7 +141,7 @@ setTokenLines' tokenLines'' (BufferMetaData a b _ c d) =
 tokens :: ExtendedBuffer -> [[Token]]
 tokens (_, bufferMetaData) = tokenLines' bufferMetaData
 
-ebContents :: ExtendedBuffer -> ByteString
+ebContents :: ExtendedBuffer -> T.Text
 ebContents (b, _) = contents b
 
 -- Basic buffer functions
@@ -151,7 +149,7 @@ ebContents (b, _) = contents b
 emptyBuffer :: Buffer
 emptyBuffer = Buffer "" emptyEditHistory (0, 0) (0, 0)
 
-newBuffer :: ByteString -> Buffer
+newBuffer :: T.Text -> Buffer
 newBuffer bufferContents = Buffer bufferContents emptyEditHistory (0,0) (0,0)
 
 unsaved :: Buffer -> Bool
@@ -160,16 +158,17 @@ unsaved (Buffer _ (k, _, _) _ _) = case k of
     _ -> True
 
 input :: Char -> Bool -> Buffer -> Buffer
-input c m = insert (B.cons c "") m True
+input c m = insert (T.cons c "") m True
 
-paste :: ByteString -> Buffer -> Buffer
+paste :: T.Text -> Buffer -> Buffer
 paste s = insert s False False
 
 tab' :: Bool -> Buffer -> Buffer
 tab' tabToSpaces b@(Buffer s h crs@(r, c) sel@(rr, cc))
-    | crs == sel = if tabToSpaces
-                       then (insert (B.replicate n ' ') False True) b
-                       else (insert "\t" False True) b
+    | crs == sel =
+          if tabToSpaces
+              then (insert (T.replicate n $ T.singleton ' ') False True) b
+              else (insert "\t" False True) b
     | otherwise  = Buffer newS newH (r, c + n0) (rr, cc + n1)
   where
     n = tabWidth - (mod c tabWidth)
@@ -213,7 +212,7 @@ unTab' tabToSpaces b@(Buffer s h (r, c) (rr, cc))
 
 nlAutoIndent :: Buffer -> Buffer
 nlAutoIndent b@(Buffer s h crs sel) =
-    insert (B.cons '\n' $ lnIndent' r s) False True b
+    insert (T.cons '\n' $ lnIndent' r s) False True b
   where
     (r, _) = min crs sel
 
@@ -221,17 +220,17 @@ ixAndSel :: Buffer -> (Index, Selection)
 ixAndSel (Buffer s h crs sel) = ((cursorToIx crs s), (distance crs sel s))
 
 -- Generic insert string at current selection
-insert :: ByteString -> Bool -> Bool -> Buffer -> Buffer
+insert :: T.Text -> Bool -> Bool -> Buffer -> Buffer
 insert s m fusible b@(Buffer s0 h crs sel) = Buffer newS newH newCrs newCrs
   where
     newH = addEditToHistory edit h
     edit = Edit (0, 0) s ix sel' fusible $ selection b
     (ix, sel'') = ixAndSel b
     sel' = if m && sel'' == 0 && doInsert then 1 else sel''
-    doInsert = if U.take 1 s0' == "\n" then False else True
-    (_, s0') = U.splitAt ix s0
+    doInsert = if T.take 1 s0' == "\n" then False else True
+    (_, s0') = T.splitAt ix s0
     newCrs = ixToCursor newIx newS
-    newIx = (cursorToIx (min crs sel) s0) + (U.length s)
+    newIx = (cursorToIx (min crs sel) s0) + (T.length s)
     newS = doEdit edit s0
 
 -- Delete
@@ -252,14 +251,14 @@ genericDelete d (Buffer s h crs sel) = Buffer newS newH newCrs newCrs
     edit = Edit (n, m) "" (cursorToIx crs s) (distance crs sel s) True delS
     (n, m) = if c0 then (d, 1 - d) else (0, 0)
     c0 = (distance crs sel s) == 0
-    delS = U.take (l + n + m) $ U.drop (k - n) s
+    delS = T.take (l + n + m) $ T.drop (k - n) s
     l = abs $ distance crs sel s
     k = cursorToIx (min crs sel) s
     newS = doEdit edit s
 
 -- Copy selection
-selection :: Buffer -> ByteString
-selection (Buffer s h crs sel) = U.take l $ U.drop k s
+selection :: Buffer -> T.Text
+selection (Buffer s h crs sel) = T.take l $ T.drop k s
   where
     l = abs $ distance crs sel s
     k = cursorToIx (min crs sel) s
@@ -289,7 +288,7 @@ alignCursor False b@(Buffer s h@(_, x:xs, _) crs sel) =
     Buffer s h newCrs newSel
   where
     newCrs = case x of
-        (Edit (n, _) s' ix sel _ _) -> ixToCursor (ix - n + U.length s' + sel) s
+        (Edit (n, _) s' ix sel _ _) -> ixToCursor (ix - n + T.length s' + sel) s
         (IndentLine _ n ' ' ix _)   -> ixToCursor (ix + n) s
     newSel = case x of
         (Edit _ _ _ _ _ _)          -> newCrs
@@ -300,8 +299,8 @@ alignCursor _ b = b
 endOfLine :: Bool -> Buffer -> Buffer
 endOfLine moveSel (Buffer s h (r, _) sel) = Buffer s h newCrs newSel
   where
-    newCrs = case drop r $ U.lines s of (x:xs) -> (r, tabbedLength tabWidth x)
-                                        _      -> ixToCursor (U.length s - 1) s
+    newCrs = case drop r $ T.lines s of (x:xs) -> (r, tabbedLength tabWidth x)
+                                        _      -> ixToCursor (T.length s - 1) s
     newSel = case moveSel of True  -> newCrs
                              False -> sel
 
@@ -314,7 +313,7 @@ startOfLine moveSel (Buffer s h (r, _) sel) = Buffer s h (r, 0) newSel
 endOfFile :: Bool -> Buffer -> Buffer
 endOfFile moveSel (Buffer s h _ sel) = Buffer s h newCrs newSel
   where
-    newCrs = ixToCursor (U.length s) s
+    newCrs = ixToCursor (T.length s) s
     newSel = case moveSel of True  -> newCrs
                              False -> sel
 
@@ -325,7 +324,7 @@ startOfFile moveSel (Buffer s h _ sel) = Buffer s h (0, 0) newSel
                              False -> sel
 
 selectAll :: Buffer -> Buffer
-selectAll (Buffer s h _ _) = Buffer s h (0, 0) $ ixToCursor (U.length s) s
+selectAll (Buffer s h _ _) = Buffer s h (0, 0) $ ixToCursor (T.length s) s
 
 deselect :: Buffer -> Buffer
 deselect (Buffer s h crs _) = Buffer s h crs crs
@@ -358,13 +357,13 @@ genericMoveCursor moveSel n d (Buffer s h crs sel)
         False -> sel
     (minCrs, maxCrs) = orderTwo crs sel
 
-bufferFind :: Bool -> Bool -> ByteString -> Buffer -> Buffer
+bufferFind :: Bool -> Bool -> T.Text -> Buffer -> Buffer
 bufferFind next doStep findString b@(Buffer s h crs sel) =
     Buffer s h foundCrs foundSel
   where
     foundIx = findIx k next findString s
     foundCrs = ixToCursor foundIx s
-    foundSel = ixToCursor (foundIx + U.length findString) s
+    foundSel = ixToCursor (foundIx + T.length findString) s
     k = (cursorToIx crs s) + ixStep
     ixStep = if (selection b == findString) && (xnor next doStep) then 1 else 0
 
@@ -385,14 +384,15 @@ ebSelection ((Buffer s h crs sel), _) =
   where
     (selectionStart, selectionEnd) = orderTwo crs sel
 
-ebNew :: FilePath -> ByteString -> Language -> ExtendedBuffer
+ebNew :: FilePath -> T.Text -> Language -> ExtendedBuffer
 ebNew path'' fileContents language'' =
     ( newBuffer fileContents
     , BufferMetaData path'' language'' tokenLines' False tabToSpaces'')
   where
     tokenLines' = tokenLines $ tokenize language'' fileContents
-    tabToSpaces'' = if (B.elem '\t' fileContents) then False
-                                              else tabToSpacesDefault
+    tabToSpaces'' = if (T.isInfixOf (T.singleton '\t') fileContents)
+                        then False
+                        else tabToSpacesDefault
 
 -- TODO: convert to Buffer -> (Cursor, Cursor)
 ebCursors :: ExtendedBuffer -> (Cursor, Cursor)

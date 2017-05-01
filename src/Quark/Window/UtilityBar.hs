@@ -20,9 +20,8 @@ module Quark.Window.UtilityBar ( promptString
                                , promptChoice
                                , debug ) where
 
-import Data.ByteString.UTF8 (ByteString)
-import qualified Data.ByteString.UTF8 as U
-import qualified Data.ByteString.Char8 as B
+import qualified Data.Text as T
+
 import Data.Char ( isPrint
                  , toUpper )
 
@@ -56,16 +55,16 @@ import Quark.Colors
 import Quark.IOHelpers ( autoComplete )
 
 
-prompt :: Int -> Window -> ByteString -> IO ()
+prompt :: Int -> Window -> T.Text -> IO ()
 prompt r w@(UtilityBar _ (_, c)) text = do
     setTextColor w (red, defaultBg)
-    mvAddString w r 0 $ U.toString $ padToLen (c - 1) text
+    mvAddString w r 0 $ T.unpack $ padToLen (c - 1) text
     refresh w
 
-debug :: Window -> ByteString -> IO ()
+debug :: Window -> T.Text -> IO ()
 debug = prompt 0
 
-promptString :: Window -> ByteString -> ByteString -> IO (ByteString)
+promptString :: Window -> T.Text -> T.Text -> IO (T.Text)
 promptString u s def = do
     prompt 0 u s
     let b = endOfLine True $ Buffer def emptyEditHistory (0, 0) (0, 0)
@@ -73,14 +72,14 @@ promptString u s def = do
     clear u
     return s'
 
-promptChoice :: (Show a) => Window -> ByteString -> [Option a] -> IO (a)
+promptChoice :: (Show a) => Window -> T.Text -> [Option a] -> IO (a)
 promptChoice u s options = do
     prompt 0 u s
     x <- cGetOption u options
     clear u
     return x
 
-cGetLine :: Window -> Buffer -> IO (ByteString)
+cGetLine :: Window -> Buffer -> IO (T.Text)
 cGetLine w buffer@(Buffer s h cursor _) = do
     prompt 1 w s
     updateCursor w (1, 0) cursor
@@ -98,7 +97,7 @@ cGetOption w options = do
     case checkOption k options of Nothing -> cGetOption w options
                                   Just x  -> return x
   where
-    optionLength = \(c, s, _) -> length (translateChar c) + U.length s + 1
+    optionLength = \(c, s, _) -> length (translateChar c) + T.length s + 1
 
 checkOption :: Key -> [Option a] -> Maybe a
 checkOption _ [] = Nothing
@@ -115,7 +114,7 @@ printOption w n (c, s, _) = do
     setTextColor w (defaultColor, defaultBg)
     addString w sc
     setTextColor w (red, defaultBg)
-    addString w $ U.toString (padToLen' (n - length sc) s) ++ " "
+    addString w $ T.unpack (padToLen' (n - length sc) s) ++ " "
   where
     sc = translateChar c
 
@@ -124,21 +123,21 @@ translateChar :: Char -> String
 translateChar '\ESC' = "ESC"
 translateChar c = [toUpper c]
 
-promptAutoComplete :: Window -> Buffer -> Int -> IO (ByteString)
+promptAutoComplete :: Window -> Buffer -> Int -> IO (T.Text)
 promptAutoComplete w buffer@(Buffer s' h cursor _) n = do
-    s <- autoComplete n $ U.toString $ s'
-    prompt 1 w $ s' ~~ (U.fromString s)
+    s <- autoComplete n $ T.unpack $ s'
+    prompt 1 w $ s' ~~ (T.pack s)
     updateCursor w (1, length s) cursor
     refresh w
     k <- getKey
     if k == SpecialKey "Tab"
         then promptAutoComplete w buffer (n + 1)
-        else handleKey k w (paste (U.fromString s) buffer)
+        else handleKey k w (paste (T.pack s) buffer)
 
-handleKey :: Key -> Window -> Buffer -> IO (ByteString)
+handleKey :: Key -> Window -> Buffer -> IO (T.Text)
 handleKey (CharKey c) w buffer = cGetLine w $ input c False buffer
 handleKey (WideCharKey s) w buffer =
-    cGetLine w $ insert (B.pack s) False True buffer
+    cGetLine w $ insert (T.pack s) False True buffer
 handleKey k w buffer@(Buffer s h _ _)
     | k == SpecialKey "Esc"        = return "\ESC"
     | k == SpecialKey "Return"     = return s

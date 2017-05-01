@@ -36,13 +36,9 @@ module Quark.Lexer.Core ( RegexString
 import Data.List ( intersperse
                  , intercalate
                  , sortBy )
-
-import Data.ByteString.UTF8 (ByteString)
-import qualified Data.ByteString.UTF8 as U
-import qualified Data.ByteString.Char8 as B
-
+import qualified Data.Text as T
 import Text.Regex.PCRE
-import Text.Regex.PCRE.ByteString
+-- import Data.Text.ICU.Regex
 
 import Quark.Types
 import Quark.Helpers ( (~~)
@@ -51,14 +47,14 @@ import Quark.Helpers ( (~~)
 import Quark.Colors ( defaultColor )
 import Quark.Settings ( tabWidth )
 
-type RegexString = ByteString
+type RegexString = T.Text
 
 {- A grammar is a list of (Token data constructor, regex) tuples in order of
    precedence, see for example Quark.Lexer.Haskell -}
-type Grammar = [(ByteString -> Token, RegexString)]
-type CompiledGrammar = [(ByteString -> Token, ByteString -> ByteString)]
+type Grammar = [(T.Text -> Token, RegexString)]
+type CompiledGrammar = [(T.Text -> Token, T.Text -> T.Text)]
 
-mapT :: (ByteString -> a) -> Token -> a
+mapT :: (T.Text -> a) -> Token -> a
 mapT f (Comment s)       = f s
 mapT f (DocComment s)    = f s
 mapT f (Pragma s)        = f s
@@ -81,7 +77,7 @@ mapT f (Decorator s)     = f s
 mapT f (Symbol s)        = f s
 mapT f (Unclassified s)  = f s
 
-liftT :: (ByteString -> ByteString) -> Token -> Token
+liftT :: (T.Text -> T.Text) -> Token -> Token
 liftT f (Comment s)       = Comment $ f s
 liftT f (DocComment s)    = DocComment $ f s
 liftT f (Pragma s)        = Pragma $ f s
@@ -104,11 +100,11 @@ liftT f (Decorator s)     = Decorator $ f s
 liftT f (Symbol s)        = Symbol $ f s
 liftT f (Unclassified s)  = Unclassified $ f s
 
-tokenString :: Token -> ByteString
+tokenString :: Token -> T.Text
 tokenString = mapT id
 
 tokenLength :: Token -> Int
-tokenLength = mapT U.length
+tokenLength = mapT T.length
 
 tokenLines :: [Token] -> [[Token]]
 tokenLines [] = []
@@ -124,13 +120,13 @@ hintTabs xs = loop 0 xs
   where
     loop _ [] = []
     loop k (y:ys) =
-        case y of (Tabs s)    -> (Tabs s'):(loop (k + (U.length s')) ys)
+        case y of (Tabs s)    -> (Tabs s'):(loop (k + (T.length s')) ys)
                                    where
-                                     s' = tabHint k $ U.length s
+                                     s' = tabHint k $ T.length s
                   (Newline s) -> y:(loop 0 ys)
-                  _           -> y:(loop (k + (U.length $ tokenString y)) ys)
+                  _           -> y:(loop (k + (T.length $ tokenString y)) ys)
 
-tabHint :: Int -> Int -> ByteString
+tabHint :: Int -> Int -> T.Text
 tabHint _ 0 = ""
 tabHint k n = (padToLen kk "\226\135\165") ~~ (tabHint 0 (n-1))
   where
@@ -140,14 +136,14 @@ splitT :: Token -> [Int] -> [Token]
 splitT t []     = [t]
 splitT t (s:ss) = t0:(splitT t1 $ map (\x -> x - s) ss)
   where
-    t0 = liftT (U.take s) t
-    t1 = liftT (U.drop s) t
+    t0 = liftT (T.take s) t
+    t1 = liftT (T.drop s) t
 
 takeTL :: Int -> [Token] -> [Token]
 takeTL _ []     = []
 takeTL n (t:ts) = case n > k of
     True  -> t:(takeTL (n-k) ts)
-    False -> [liftT (U.take n) t]
+    False -> [liftT (T.take n) t]
   where
     k = tokenLength t
 
@@ -155,65 +151,67 @@ dropTL :: Int -> [Token] -> [Token]
 dropTL _ [] = []
 dropTL n (t:ts) = case n >= k of
     True  -> dropTL (n-k) ts
-    False -> (liftT (U.drop n) t):ts
+    False -> (liftT (T.drop n) t):ts
   where
     k = tokenLength t
 
 compileGrammar :: Grammar -> CompiledGrammar
 compileGrammar = map $ \(t, re) -> (t, matchCompiledRe re)
 
-matchCompiledRe :: ByteString -> ByteString -> ByteString
-matchCompiledRe re = match (makeRegex re :: Regex)
+matchCompiledRe :: T.Text -> T.Text -> T.Text
+matchCompiledRe re s =
+    T.pack $ match (makeRegex (T.unpack re) :: Regex) (T.unpack s)
 
 -- append word boundary check, suitable for reserved keywords
 listToRe :: [String] -> RegexString
-listToRe l = U.fromString $ "\\A(" ++ intercalate "|" wbL ++ ")"
+listToRe l = T.pack $ "\\A(" ++ intercalate "|" wbL ++ ")"
   where
     wbL = map (\s -> s ++ "\\b") sortedL
     sortedL = sortBy (\x y -> compare (length y) (length x)) l
 
 -- do not append word boundary check, suitable for operators
 listToRe' :: [String] -> RegexString
-listToRe' l = U.fromString $ "\\A(" ++ intercalate "|" sortedL ++ ")"
+listToRe' l = T.pack $ "\\A(" ++ intercalate "|" sortedL ++ ")"
   where
     sortedL = sortBy (\x y -> compare (length y) (length x)) l
 
-lexer :: CompiledGrammar -> ByteString -> [Token]
+lexer :: CompiledGrammar -> T.Text -> [Token]
 lexer g s = (fuseUnclassified . concat) $ lexer' g s
 
-lexer' :: CompiledGrammar -> ByteString -> [[Token]]
+lexer' :: CompiledGrammar -> T.Text -> [[Token]]
 lexer' _ ""   = []
 lexer' _ "\n" = [[Newline "\n", Unclassified ""]]
 lexer' g s    = t:(lexer' g s')
   where
     t = nextTokens g s
-    s' = U.drop (sum (map tokenLength t)) s
+    s' = T.drop (sum (map tokenLength t)) s
 
-nextTokens :: CompiledGrammar -> ByteString -> [Token]
+nextTokens :: CompiledGrammar -> T.Text -> [Token]
 nextTokens _ "" = []
-nextTokens [] (U.uncons -> Just (x, _)) = [Unclassified $ U.fromString [x]]
+nextTokens [] (T.uncons -> Just (x, _)) = [Unclassified $ T.pack [x]]
 nextTokens (g@(t, matchRe):gs) s = case matchRe s of
     "" -> nextTokens gs s
     s' -> case s' of
               "\n" -> [t s']
               _    -> tabSplit t $ intersperse (Newline "\n") $ map'' t sLines
                         where
-                          sLines = U.lines s'
+                          sLines = T.lines s'
 
-tabSplit :: (ByteString -> Token) -> [Token] -> [Token]
+tabSplit :: (T.Text -> Token) -> [Token] -> [Token]
 tabSplit _ []     = []
-tabSplit t (x:xs) = case B.split '\t' (tokenString x) of
+tabSplit t (x:xs) = case T.split (== '\t') (tokenString x) of
     ss@(_:_:_)  -> (intersperse (Tabs "\t") $ map'' t ss) ++ (tabSplit t xs)
     _           -> x:(tabSplit t xs)
 
-map'' :: (ByteString -> Token) -> [ByteString] -> [Token]
+map'' :: (T.Text -> Token) -> [T.Text] -> [Token]
 map'' t xs = case xs of
     []      -> []
     (y:ys)  -> (t y):(map'' t ys)
 
 hatify :: RegexString -> RegexString
 hatify "" = ""
-hatify re = case re =~ (U.fromString "\\\\A") :: Bool of
+-- hatify re = case re =~ (T.pack "\\\\A") :: Bool of
+hatify re = case T.isPrefixOf "\\\\A" re of
     True  -> re
     False -> "\\A" ~~ re
 
@@ -227,9 +225,9 @@ fuseFold (Unclassified s0) ((Unclassified s1):ts) =
     (Unclassified $ s0 ~~ s1):ts
 fuseFold t ts = t:ts
 
-tokenizeNothing :: ByteString -> [Token]
+tokenizeNothing :: T.Text -> [Token]
 tokenizeNothing s = tabSplit Unclassified $ intersperse (Newline "\n") $
-    [Unclassified s' | s' <- U.lines s ++ if nlTail s then [""] else []]
+    [Unclassified s' | s' <- T.lines s ++ if nlTail s then [""] else []]
 
 nothingColors :: Token -> Int
 nothingColors _ = defaultColor -- 0

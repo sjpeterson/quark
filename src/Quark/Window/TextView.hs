@@ -19,8 +19,7 @@
 module Quark.Window.TextView ( printText
                              , updateOffset ) where
 
-import Data.ByteString.UTF8 (ByteString)
-import qualified Data.ByteString.UTF8 as U
+import qualified Data.Text as T
 
 import Quark.Frontend.HSCurses ( Window ( TextView )
                                , setTextColor
@@ -54,7 +53,7 @@ printText language w@(TextView _ (r, c) (rr, cc)) (crs, sel) m tokenLines' = do
     n = length tokenLines'
     lnc = (length $ show n) + 1
     lineNumbers =
-        map (padToLen lnc) (map (U.fromString . show) $
+        map (padToLen lnc) (map (T.pack . show) $
             [rr + 1..n]) ++ repeat ""
     tokens = map hintTabs $ drop rr tokenLines'
     selections = map (selOnLine (crs, sel')) [rr + 0..n]
@@ -86,7 +85,7 @@ changeOffset d (TextView w size (rr, cc))
 
 printTokenLine :: Language
                -> Int
-               -> ByteString
+               -> T.Text
                -> [Token]
                -> (Col, Col)
                -> Window
@@ -94,9 +93,9 @@ printTokenLine :: Language
 printTokenLine language k lNo tokens (cIn, cOut) w' = do
     move w' k 0
     setTextColor w' lineNumberPair
-    addString w' $ U.toString lNo
+    addString w' $ T.unpack lNo
     mapM_ printToken $ selOnTokenLine adjustedSel $
-        takeTL (c - U.length lNo) $ dropTL c0 tokens
+        takeTL (c - T.length lNo) $ dropTL c0 tokens
   where
     (TextView w (_, c) (_, c0)) = w'
     adjustedSel = ( if cIn == (-1) then (-1) else max 0 (cIn - c0)
@@ -135,7 +134,7 @@ selOnTokenLine (cIn, cOut) (t:ts)
 selOnTokenLine _ ts = zip ts $ repeat False
 
 printToken' :: Token -> Window -> IO ()
-printToken' t w = addString w $ U.toString $ tokenString t
+printToken' t w = addString w $ T.unpack $ tokenString t
 
 setTokenColor :: Language -> Token -> Bool -> Window -> IO ()
 setTokenColor _ (Tabs _) selected w =

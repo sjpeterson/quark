@@ -3,7 +3,7 @@
 import Test.Tasty
 import Test.Tasty.HUnit
 
-import Data.ByteString (ByteString)
+import qualified Data.Text as T
 
 import Quark.Lexer.Core
 import Quark.Lexer.Language

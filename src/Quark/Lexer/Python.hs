@@ -18,7 +18,7 @@
 
 module Quark.Lexer.Python ( tokenizePython, pythonColors ) where
 
-import Data.ByteString.UTF8 (ByteString)
+import qualified Data.Text as T
 
 import Quark.Types
 import Quark.Colors
@@ -107,5 +107,5 @@ pythonColors _                 = defaultColor
 compiledPythonGrammar :: CompiledGrammar
 compiledPythonGrammar = compileGrammar pythonGrammar
 
-tokenizePython :: ByteString -> [Token]
+tokenizePython :: T.Text -> [Token]
 tokenizePython = lexer $ compiledPythonGrammar

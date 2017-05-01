@@ -21,8 +21,8 @@ module Quark.Lexer.Language ( assumeLanguage
                             , colorize ) where
 
 import System.FilePath ( takeExtension )
-import Data.ByteString.UTF8 (ByteString)
--- import qualified Data.ByteString.Char8 as B
+
+import qualified Data.Text as T
 
 import Quark.Lexer.Core ( tokenizeNothing
                         , nothingColors )
@@ -47,7 +47,7 @@ assumeLanguage path
   where
     extension = takeExtension path
 
-tokenize :: Language -> ByteString -> [Token]
+tokenize :: Language -> T.Text -> [Token]
 tokenize language
     | language == "Haskell" = tokenizeHaskell
     | language == "Python"  = tokenizePython

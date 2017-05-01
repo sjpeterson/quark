@@ -22,9 +22,7 @@
 
 module Quark.History where
 
-import Data.ByteString.UTF8 (ByteString)
-import qualified Data.ByteString.UTF8 as U
-import qualified Data.ByteString.Char8 as B
+import qualified Data.Text as T
 
 import Quark.Types
 import Quark.Helpers ( lineSplitIx
@@ -32,7 +30,7 @@ import Quark.Helpers ( lineSplitIx
 
 -- (Edit n s ix) means to delete n characters at index ix, replacing them with
 -- string s.
-data Edit = Edit Deletion ByteString Index Selection Bool ByteString
+data Edit = Edit Deletion T.Text Index Selection Bool T.Text
           | IndentLine Row Int Char Index Selection
           | EditGroup [Edit] Index Selection deriving (Show, Eq)
 
@@ -55,27 +53,27 @@ emptyEditHistory :: EditHistory
 emptyEditHistory = (0, [], [])
 
 -- Apply an edit to a string
-doEdit :: Edit -> ByteString -> ByteString
-doEdit (Edit (n, m) sx ix sel _ _) s = (U.take p s0) ~~ sx ~~ (U.drop q s1)
+doEdit :: Edit -> T.Text -> T.Text
+doEdit (Edit (n, m) sx ix sel _ _) s = (T.take p s0) ~~ sx ~~ (T.drop q s1)
   where
-    p = (U.length s0) - n + (min 0 sel)
+    p = (T.length s0) - n + (min 0 sel)
     q = m + (max 0 sel)
-    (s0, s1)  = U.splitAt ix s
+    (s0, s1)  = T.splitAt ix s
 doEdit (IndentLine r n c _ _) s =
-    s0 ~~ (B.replicate (max 0 n) c) ~~ (U.drop n' s1)
+    s0 ~~ (T.replicate (max 0 n) $ T.singleton c) ~~ (T.drop n' s1)
   where
-    n' = min (U.length $ B.takeWhile (\c' -> c' == c) s1) $ max 0 (-n)
-    (s0, s1) = U.splitAt (lineSplitIx r s) s
+    n' = min (T.length $ T.takeWhile (\c' -> c' == c) s1) $ max 0 (-n)
+    (s0, s1) = T.splitAt (lineSplitIx r s) s
 doEdit (EditGroup edits _ _) s = case edits of
     []     -> s
     (x:xs) -> doEdit (EditGroup xs 0 0) $ doEdit x s
 
 -- Undo an edit to a string
-undoEdit' :: Edit -> ByteString -> ByteString
+undoEdit' :: Edit -> T.Text -> T.Text
 undoEdit' (Edit (n, m) sx ix sel _ deletedS) s =
-    s0 ~~ deletedS ~~ (U.drop (U.length sx) s1)
+    s0 ~~ deletedS ~~ (T.drop (T.length sx) s1)
   where
-    (s0, s1) = U.splitAt (ix - n + (min 0 sel)) s
+    (s0, s1) = T.splitAt (ix - n + (min 0 sel)) s
 undoEdit' (IndentLine r n c ix sel) s = doEdit (IndentLine r (-n) c ix sel) s
 undoEdit' (EditGroup edits _ _) s = case edits of
     [] -> s
@@ -104,11 +102,11 @@ addEditToHistory
   where
     (n, m) = (n1 + n0, m1 + m0)
     deletedS = s0' ~~ deletedS1 ~~ s1'
-    (s0', s1') = U.splitAt n0 deletedS0
+    (s0', s1') = T.splitAt n0 deletedS0
     (Edit (n0, m0) s0 ix0 sel0 f0 deletedS0) = x0
     (Edit (n1, m1) s1 ix1 sel1 f1 deletedS1) = x1
-    p0 = k /= 0 && sel0 == 0 && ix0 == ix1 - n1 + (min 0 sel1) + (U.length s1)
-    p1 = f0 && f1 && (n0 == 0 || U.length s1 == 0)
+    p0 = k /= 0 && sel0 == 0 && ix0 == ix1 - n1 + (min 0 sel1) + (T.length s1)
+    p1 = f0 && f1 && (n0 == 0 || T.length s1 == 0)
 addEditToHistory x0 (k, x1@(IndentLine r1 n1 c1 ix sel):xs , _)
     | r0 == r1 && signum n0 == signum n1 && c0 == c1 =
         (k, (IndentLine r0 (n0 + n1) c0 ix sel):xs, [])

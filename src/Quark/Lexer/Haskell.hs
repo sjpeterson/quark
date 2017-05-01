@@ -18,7 +18,7 @@
 
 module Quark.Lexer.Haskell ( tokenizeHaskell, haskellColors ) where
 
-import Data.ByteString.UTF8 (ByteString)
+import qualified Data.Text as T
 
 import Quark.Types
 import Quark.Colors
@@ -100,5 +100,5 @@ haskellColors _                 = defaultColor
 compiledHaskellGrammar :: CompiledGrammar
 compiledHaskellGrammar = compileGrammar haskellGrammar
 
-tokenizeHaskell :: ByteString -> [Token]
+tokenizeHaskell :: T.Text -> [Token]
 tokenizeHaskell = lexer $ compiledHaskellGrammar

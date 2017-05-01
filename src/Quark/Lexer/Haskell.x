@@ -20,7 +20,7 @@
 module Quark.Lexer.Haskell ( tokenizeHaskell
                            , haskellColors ) where
 
-import Data.ByteString.UTF8 (ByteString)
+import qualified Data.Text as T
 
 import Quark.Types (Token)
 import Quark.Colors

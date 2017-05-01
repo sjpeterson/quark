@@ -56,8 +56,7 @@ import Data.Bifunctor ( second )
 import Data.List ( sort
                  , isPrefixOf )
 
-import Data.ByteString.UTF8 ( ByteString )
-import qualified Data.ByteString.UTF8 as U
+import qualified Data.Text as T
 
 import Quark.Buffer ( ExtendedBuffer )
 import Quark.Flipper ( Flipper
@@ -78,8 +77,8 @@ import Quark.Types ( ProjectTree
 
 data ProjectMeta = ProjectMeta { root' :: FilePath
                                , projectTree' :: ProjectTree
-                               , findDefault' :: ByteString
-                               , replaceDefault' :: ByteString
+                               , findDefault' :: T.Text
+                               , replaceDefault' :: T.Text
                                , insertMode' :: Bool } deriving Eq
 
 type Project = (Flipper ExtendedBuffer, ProjectMeta)
@@ -97,10 +96,10 @@ projectRoot (_, projectMeta) = root' projectMeta
 projectTree :: Project -> ProjectTree
 projectTree (_, projectMeta) = projectTree' projectMeta
 
-findDefault :: Project -> ByteString
+findDefault :: Project -> T.Text
 findDefault (_, projectMeta) = findDefault' projectMeta
 
-replaceDefault :: Project -> ByteString
+replaceDefault :: Project -> T.Text
 replaceDefault (_, projectMeta) = replaceDefault' projectMeta
 
 insertMode :: Project -> Bool
@@ -115,16 +114,16 @@ setRoot s project = second (setRoot' s) project
 setRoot' :: FilePath -> ProjectMeta -> ProjectMeta
 setRoot' s (ProjectMeta _ a b c d) = ProjectMeta s a b c d
 
-setFindDefault :: ByteString -> Project -> Project
+setFindDefault :: T.Text -> Project -> Project
 setFindDefault s project = second (setFindDefault' s) project
 
-setFindDefault' :: ByteString -> ProjectMeta -> ProjectMeta
+setFindDefault' :: T.Text -> ProjectMeta -> ProjectMeta
 setFindDefault' s (ProjectMeta a b _ c d) = ProjectMeta a b s c d
 
-setReplaceDefault :: ByteString -> Project -> Project
+setReplaceDefault :: T.Text -> Project -> Project
 setReplaceDefault s project = second (setReplaceDefault' s) project
 
-setReplaceDefault' :: ByteString -> ProjectMeta -> ProjectMeta
+setReplaceDefault' :: T.Text -> ProjectMeta -> ProjectMeta
 setReplaceDefault' s (ProjectMeta a b c _ d) = ProjectMeta a b c s d
 
 setProjectTree :: ProjectTree -> Project -> Project
@@ -274,16 +273,16 @@ contract' (DirectoryElement t) = DirectoryElement (r, [], [])
     (r, _, _) = flipTo 0 t
 contract' x                    = x
 
-toLines :: ProjectTree -> [ByteString]
+toLines :: ProjectTree -> [T.Text]
 toLines t = concat $ map (toLines' 0) (take k treeList) ++
                 map (toLines' 1) (drop k treeList)
   where
     (treeList, k) = treeListAndSplit t
 
-toLines' :: Int -> ProjectTreeElement -> [ByteString]
+toLines' :: Int -> ProjectTreeElement -> [T.Text]
 toLines' headStyle x =  case x of
-    (RootElement path)   -> [U.fromString (takeFileName path) ~~ "/"]
-    (FileElement path)   -> [ownHead ~~ U.fromString path]
+    (RootElement path)   -> [T.pack (takeFileName path) ~~ "/"]
+    (FileElement path)   -> [ownHead ~~ T.pack path]
     (DirectoryElement t) -> zipWith (~~) dirHead $ concat $
                                 map (toLines' 2) (take k treeList) ++
                                     map (toLines' 3) (drop k treeList)
@@ -306,7 +305,7 @@ treeListAndSplit t = (treeList, length treeList - 1)
   where
     treeList = toList t
 
-branch :: Int -> ByteString -> ByteString -> [ByteString]
+branch :: Int -> T.Text -> T.Text -> [T.Text]
 branch k own last'
     | k < 1     = []
     | k == 1    = [""]
