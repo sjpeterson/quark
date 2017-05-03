@@ -33,11 +33,11 @@ lexerCoreUnitTests = testGroup "Unit tests for Lexer/Core.hs"
                      , Unclassified "ring" ] $
         splitT (Unclassified "test string") [3, 7]
   , testCase "hintTabs, simple case" $
-      assertEqual "" [ Tabs "\226\135\165   " ] $
+      assertEqual "" [ Tabs "\8677   " ] $
         hintTabs [ Tabs "\t" ]
   , testCase "hintTabs, complex case" $
       assertEqual "" [ Unclassified "te"
-                     , Tabs "\226\135\165 \226\135\165   "
+                     , Tabs "\8677 \8677   "
                      , Unclassified "st string" ] $
         hintTabs [ Unclassified "te"
                  , Tabs "\t\t"
@@ -85,10 +85,10 @@ hsLexerUnitTests = testGroup "Unit tests for Lexer/Haskell.hs"
       assertEqual "" [StringLiteral "\"Try -- Me\""] $
         tokenizeHaskell "\"Try -- Me\""
   , testCase "StringLiteral with newline" $
-      assertEqual "" [ StringLiteral "\"Try"
+      assertEqual "" [ StringLiteral "\"Try\\"
                      , Newline "\n"
-                     , StringLiteral "Me\"" ] $
-        tokenizeHaskell "\"Try\nMe\""
+                     , StringLiteral "\\Me\"" ] $
+        tokenizeHaskell "\"Try\\\n\\Me\""
   , testCase "Simple Block comment" $
       assertEqual "" [Comment "{- Block comment -}"] $
         tokenizeHaskell "{- Block comment -}"

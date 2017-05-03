@@ -16,7 +16,7 @@
 --
 ---------------------------------------------------------------
 
-module Quark.Lexer.Haskell ( tokenizeHaskell, haskellColors ) where
+module Quark.Lexer.RetiredHaskell ( tokenizeHaskell, haskellColors ) where
 
 import qualified Data.Text as T
 

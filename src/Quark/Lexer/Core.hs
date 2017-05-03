@@ -128,7 +128,7 @@ hintTabs xs = loop 0 xs
 
 tabHint :: Int -> Int -> T.Text
 tabHint _ 0 = ""
-tabHint k n = (padToLen kk "\226\135\165") ~~ (tabHint 0 (n-1))
+tabHint k n = (padToLen kk "\8677") ~~ (tabHint 0 (n-1))
   where
     kk = tabWidth - (mod k tabWidth)
 
