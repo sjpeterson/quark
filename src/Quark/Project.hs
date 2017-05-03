@@ -291,13 +291,13 @@ toLines' headStyle x =  case x of
   where
     dirHead = ownHead:(repeat childHead)
     ownHead
-        | headStyle == 0 = "\226\149\159\226\148\128"
-        | headStyle == 1 = "\226\149\153\226\148\128"
-        | headStyle == 2 = "\226\148\156\226\148\128"
-        | otherwise      = "\226\148\148\226\148\128"
+        | headStyle == 0 = "\9567\9472"
+        | headStyle == 1 = "\9561\9472"
+        | headStyle == 2 = "\9564\9472"
+        | otherwise      = "\9566\9472"
     childHead
-        | headStyle == 0 = "\226\149\145 "
-        | headStyle == 2 = "\226\148\130 "
+        | headStyle == 0 = "\9553 "
+        | headStyle == 2 = "\9474 "
         | otherwise      = "  "
 
 treeListAndSplit :: ProjectTree -> ([ProjectTreeElement], Int)
