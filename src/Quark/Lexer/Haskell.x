@@ -47,7 +47,7 @@ $lower                = [a-z]
 $upper                = [A-Z]
 $upperOrDigit         = [$upper $digit]
 $alpha                = [$lower $upper]
-$idchar               = [$alpha $digit \']
+$idchar               = [$alpha $digit \' _]
 
 
 -- Macros
@@ -60,6 +60,12 @@ $idchar               = [$alpha $digit \']
 @varid              = $lower $idchar*
 @conid              = $upper $idchar*
 @qid                = @conid .
+@integer            = \-? $digit+
+@fractionalPart     = \. $digit+
+@exponent           = (e | E) (\+ | \-)? $digit+
+@float              = ((\-? @integer?) @fractionalPart) | @integer \.
+@expFloat           = (@integer | @float) @exponent
+@number             = @integer | @float | @expFloat
 
 haskellTokens :-
 
@@ -86,7 +92,7 @@ haskellTokens :-
 
     -- Number literals
     <0> {
-        $digit+                         { \s -> NumLiteral s }
+        @number+                        { \s -> NumLiteral s }
     }
 
     -- Identifiers, reserved and otherwise
@@ -145,7 +151,7 @@ haskellTokens :-
        ","                              { \_ -> Separator "," }
     }
 
-    -- catchall
+    -- anything else
     .                                   { \s -> Unclassified s}
 
 {
