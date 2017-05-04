@@ -19,8 +19,7 @@
 module Quark.Window.ProjectView ( printTree
                                 , updateOffsetP ) where
 
-import Data.ByteString.UTF8 (ByteString)
-import qualified Data.ByteString.UTF8 as U
+import qualified Data.Text as T
 
 import Quark.Frontend.HSCurses ( Window ( ProjectView )
                                , setTextColor
@@ -42,7 +41,7 @@ printTree indicateActive w@(ProjectView _ (r, c) rr) t = do
     refresh w
   where
     treeList = zip3 [0..] isActive (drop rr $
-                   map (fixTo c. U.toString . (U.take c)) $ toLines t)
+                   map (fixTo c. T.unpack . (T.take c)) $ toLines t)
     isActive = take (r - 1) $ drop rr [(\x -> if x == n
                                                   then True && indicateActive
                                                   else False) x | x <- [0..]]

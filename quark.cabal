@@ -28,15 +28,15 @@ library
                  , Quark.Buffer
                  , Quark.Flipper
                  , Quark.Colors
-                 , Quark.Window.UtilityBar
-                 , Quark.Window.TextView
-                 , Quark.Window.TitleBar
-                 , Quark.Window.ProjectView
+                 , Quark.Project
                  , Quark.Lexer.Core
+                 , Quark.Lexer.Alex
                  , Quark.Lexer.Language
                  , Quark.Lexer.Haskell
                  , Quark.Lexer.Python
                  , Quark.Lexer.Rust
+                 , Quark.Layout
+                 , Quark.Frontend.HSCurses
   other-modules: Paths_quark
   build-depends: base >= 4.9 && < 4.10
                , hscurses >=1.4 && < 1.5
@@ -46,8 +46,10 @@ library
                , filepath >= 1.4
                , directory
                , unix
+               , text
+               , array
+  build-tools: alex
   ghc-options: -O2
-               -- -fprof-auto
 
 executable quark
   main-is:             Main.hs
@@ -62,22 +64,43 @@ executable quark
                      , bytestring >= 0.10.8
                      , filepath >= 1.4
                      , unix
+                     , text
+                     , array
+  build-tools: alex
+  other-modules: Quark.Buffer
+               , Quark.Colors
+               , Quark.Cursor
+               , Quark.Flipper
+               , Quark.Frontend.HSCurses
+               , Quark.Helpers
+               , Quark.History
+               , Quark.IOHelpers
+               , Quark.Layout
+               , Quark.Lexer.Alex
+               , Quark.Lexer.Core
+               , Quark.Lexer.Language
+               , Quark.Lexer.Haskell
+               , Quark.Lexer.Python
+               , Quark.Lexer.Rust
+               , Quark.Project
+               , Quark.Settings
+               , Quark.Types
+               , Quark.Window.ProjectView
+               , Quark.Window.TextView
+               , Quark.Window.TitleBar
+               , Quark.Window.UtilityBar
+               , Quark.Frontend.HSCurses
+
   hs-source-dirs:      src
   default-language:    Haskell2010
   ghc-options: -O2
                -threaded
-               -- -fprof-auto
-               -- "-with-rtsopts=-N -p -s -h -i0.1"
 
 -- -- profiling steps
--- cabal configure --enable-profiling
--- cabal sandbox init
--- cabal install X11 --enable-profiling --force-reinstalls
--- cabal install --only-dependencies --enable-profiling
--- cabal build
--- quark <path> +RTS -p
--- hp2ps -e8in -c quark.hp
--- cabal sandbox delete
+-- stack clean (may be redundant)
+-- stack build --profile
+-- stack exec -- quark src/Main.hs +RTS -p
+--     (-h for memory profiling)
 
 test-suite test
     default-language: Haskell2010
@@ -89,7 +112,7 @@ test-suite test
                     , tasty-hunit
                     , tasty-quickcheck
                     , quark
-                    , bytestring >= 0.10.8
+                    , text
 
 test-suite lexerTests
     default-language: Haskell2010
@@ -100,4 +123,4 @@ test-suite lexerTests
                     , tasty
                     , tasty-hunit
                     , quark
-                    , bytestring >= 0.10.8
+                    , text

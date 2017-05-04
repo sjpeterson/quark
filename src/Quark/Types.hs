@@ -16,7 +16,7 @@
 
 module Quark.Types where
 
-import qualified Data.ByteString.Char8 as B
+import qualified Data.Text as T
 
 import Quark.Flipper ( Flipper
                      , active
@@ -29,9 +29,9 @@ type Index = Int
 type Selection = Int
 type ColorId = Int
 
-type Language = B.ByteString
-type Clipboard = B.ByteString
-type Name = B.ByteString
+type Language = T.Text
+type Clipboard = T.Text
+type Name = T.Text
 
 -- Type aliases for tuples
 type Deletion = (Int, Int)              -- (backspaces, deletes)
@@ -39,7 +39,7 @@ type Cursor = (Row, Col)
 type Size = (Row, Col)
 type Offset = (Row, Col)
 type PrintRange = (Size, Offset)
-type Option a = (Char, B.ByteString, a)
+type Option a = (Char, T.Text, a)
 type ColorPair = (ColorId, ColorId)     -- (foreground, background)
 
 -- Algebraic data types
@@ -53,27 +53,27 @@ data Key = CharKey Char
          | ResizeKey
          | InvalidKey String deriving (Show, Eq)
 
-data Token = Comment B.ByteString
-           | DocComment B.ByteString
-           | Pragma B.ByteString
-           | TypeIdent B.ByteString
-           | VarIdent B.ByteString
-           | ReservedIdent B.ByteString
-           | Operator B.ByteString
-           | Bracket B.ByteString
-           | Separator B.ByteString
-           | IntLiteral B.ByteString
-           | FloatLiteral B.ByteString
-           | NumLiteral B.ByteString
-           | StringLiteral B.ByteString
-           | CharLiteral B.ByteString
-           | BoolLiteral B.ByteString
-           | Whitespace B.ByteString
-           | Tabs B.ByteString
-           | Newline B.ByteString
-           | Decorator B.ByteString
-           | Symbol B.ByteString
-           | Unclassified B.ByteString deriving (Show, Eq)
+data Token = Comment T.Text
+           | DocComment T.Text
+           | Pragma T.Text
+           | TypeIdent T.Text
+           | VarIdent T.Text
+           | ReservedIdent T.Text
+           | Operator T.Text
+           | Bracket T.Text
+           | Separator T.Text
+           | IntLiteral T.Text
+           | FloatLiteral T.Text
+           | NumLiteral T.Text
+           | StringLiteral T.Text
+           | CharLiteral T.Text
+           | BoolLiteral T.Text
+           | Whitespace T.Text
+           | Tabs T.Text
+           | Newline T.Text
+           | Decorator T.Text
+           | Symbol T.Text
+           | Unclassified T.Text deriving (Show, Eq)
 
 -- Types and synonyms for projects
 
