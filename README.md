@@ -19,8 +19,7 @@ To build and install quark from source:
 
     git clone https://github.com/sjpet/quark.git
     cd quark
-    cabal update
-    cabal install
+    stack build
 
 After this, you may wish to copy the man page to some suitable location, for example:
 
