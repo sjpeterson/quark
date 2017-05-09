@@ -48,8 +48,11 @@ lnIndent c r s = case drop r (T.lines s) of
 
 lnIndent' :: Int -> T.Text -> T.Text
 lnIndent' r s = case drop r (T.lines s) of
-    (x:_) -> T.takeWhile (\c -> c == ' ' || c == '\t') x
+    (x:_) -> T.takeWhile isWhite x
     _     -> ""
+
+isWhite :: Char -> Bool
+isWhite c = if elem c [' ', '\t'] then True else False
 
 lineSplitIx :: Int -> T.Text -> Int
 lineSplitIx r s = min (T.length s) $ T.length $ T.unlines $ take r $ T.lines s

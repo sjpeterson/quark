@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# OPTIONS -Wall #-}
 
 ---------------------------------------------------------------
 --
@@ -316,9 +315,11 @@ endOfLine moveSel (Buffer s h (r, _) sel) = Buffer s h newCrs newSel
 endOfLine _ b = b
 
 startOfLine :: Bool -> Buffer -> Buffer
-startOfLine moveSel (Buffer s h (r, _) sel) = Buffer s h (r, 0) newSel
+startOfLine moveSel (Buffer s h (r, c) sel) = Buffer s h (r, newC) newSel
   where
-    newSel = case moveSel of True  -> (r, 0)
+    newC = if c == c' then 0 else c'
+    c' = T.length $ lnIndent' r s
+    newSel = case moveSel of True  -> (r, newC)
                              False -> sel
 startOfLine _ b = b
 
