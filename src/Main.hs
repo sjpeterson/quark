@@ -359,6 +359,8 @@ refreshText layout project = do
     printText (language activeBuffer) w cursors
         (insertMode project) (tokens activeBuffer)
     QFE.updateCursor w (rr, cc - lnOffset) crs
+    QFE.showCursor
+    QFE.refresh w
   where
     w@(QFE.TextView _ _ (rr, cc)) = QFE.primaryPane layout
     activeBuffer = activeP project

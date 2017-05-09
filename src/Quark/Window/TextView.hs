@@ -47,8 +47,6 @@ printText language w@(TextView _ (r, c) (rr, cc)) (crs, sel) m tokenLines' = do
     clear' w lnc
     mapM_ (\(k, l, t, s) -> printTokenLine language k l t s w) $
         zip4 [0..(r - 2)] lineNumbers tokens selections
-    showCursor
-    refresh w
   where
     n = length tokenLines'
     lnc = (length $ show n) + 1

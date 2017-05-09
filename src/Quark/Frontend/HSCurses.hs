@@ -229,9 +229,9 @@ defineColor n f b =
 
 updateCursor :: Window -> Offset -> Cursor -> IO ()
 updateCursor (TextView w _ _) (x0, y0) (x, y) =
-    Curses.wMove w (x - x0) (y - y0) >> Curses.wRefresh w
+    Curses.wMove w (x - x0) (y - y0)
 updateCursor (UtilityBar w (rr, cc)) (r, c) (_, y) =
-    Curses.wMove w (min r rr) (min (y + c) cc) >> Curses.wRefresh w
+    Curses.wMove w (min r rr) (min (y + c) cc)
 
 showCursor :: IO Curses.CursorVisibility
 showCursor = Curses.cursSet Curses.CursorVisible
