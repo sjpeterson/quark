@@ -376,10 +376,14 @@ resizeLayout :: (QFE.Layout -> Project -> IO ())
              -> QFE.Layout -> Project -> IO ()
 resizeLayout continueFunction layout' project = do
     QFE.onResize
-    layout <- QFE.defaultLayout
+    let lnOffset = lnWidth $ ebContents activeBuffer
+    let ((Buffer _ _ crs _), _) = activeBuffer
+    layout <- fmap (firstL (updateOffset crs lnOffset)) QFE.defaultLayout
     refreshText layout project
     refreshTree layout project
     continueFunction layout project
+  where
+    activeBuffer = activeP project
 
 ------------------
 -- Key handlers --
