@@ -4,8 +4,6 @@
 
 - Arrow keys (and other escaped keys) are not handled correctly immediately 
   following a terminal resize in xterm-256color
-- Rust's '=>' operator is tokenized correctly but printed incorrectly
-  ('=' has default color)
 
 ## Missing functionality
 
@@ -19,7 +17,6 @@
 
 ### UI improvements
 
-- Optimize refreshes to eliminate cursor flickering and such
 - Intelligent expansion of root (in setRoot' of Main.hs)
   - expand to include open files (assuming they exist under root)
   - expand previously expanded directories
@@ -41,8 +38,6 @@
 ## Other things
 
 - Code cleanup
-- Partial lexing
-- Partial EditHistory to String
 - Improved documentation
 
 ## Further down the road (possibly)

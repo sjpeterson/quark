@@ -47,7 +47,8 @@ import Quark.Window.TextView ( printText
 import Quark.Window.ProjectView ( printTree
                                 , updateOffsetP)
 import Quark.Layout ( firstL
-                    , thirdL )
+                    , thirdL
+                    , primary )
 import Quark.Lexer.Language ( assumeLanguage )
 import Quark.Buffer ( Buffer ( Buffer )
                     , ExtendedBuffer
@@ -62,6 +63,8 @@ import Quark.Buffer ( Buffer ( Buffer )
                     , tokens
                     , writeProtected
                     , setPath
+                    , offset
+                    , setOffset
                     , moveCursor
                     , moveCursorN
                     , selectMoveCursor
@@ -464,7 +467,12 @@ handleKey layout project k
     (QFE.TextView _ (r, _) _) = QFE.primaryPane layout
     action a = mainLoop layout $ first (firstF (ebFirst a)) project
     action' a = mainLoop layout $ first (firstF a) project
-    actionF a = mainLoop layout $ first a project
+    actionF a = let offset' = QFE.wOffset $ primary layout in do
+        let newProject = first (a . firstF (setOffset offset')) project
+        let newLayout = firstL (QFE.wSetOffset (offset $ activeP newProject)) layout
+        mainLoop newLayout newProject
+
+    -- actionF a = mainLoop layout $ first a project
     continue = mainLoop layout project
     u = QFE.utilityBar layout
 

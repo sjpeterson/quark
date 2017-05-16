@@ -17,7 +17,9 @@
 module Quark.Layout ( firstL
                     , secondL
                     , thirdL
-                    , bimapL ) where
+                    , bimapL
+                    , primary
+                    , ) where
 
 import Quark.Frontend.HSCurses ( Window
                                , Layout ( MinimalLayout
@@ -26,8 +28,8 @@ import Quark.Frontend.HSCurses ( Window
                                         , HSplitLayout ))
 
 firstL :: (Window -> Window) -> Layout -> Layout
-firstL f (MinimalLayout t u p) = MinimalLayout t u (f p)
-firstL f (BasicLayout t u d p) = BasicLayout t u d (f p)
+firstL f (MinimalLayout t u p)    = MinimalLayout t u (f p)
+firstL f (BasicLayout t u d p)    = BasicLayout t u d (f p)
 firstL f (VSplitLayout t u d p s) = VSplitLayout t u d (f p) s
 firstL f (HSplitLayout t u d p s) = HSplitLayout t u d (f p) s
 
@@ -43,3 +45,9 @@ thirdL f (HSplitLayout t u d p s) = HSplitLayout t u (f d) p s
 bimapL :: (Window -> Window) -> (Window -> Window) -> Layout -> Layout
 bimapL f0 f1 (VSplitLayout t u d p s) = VSplitLayout t u d (f0 p) (f1 s)
 bimapL f0 f1 (HSplitLayout t u d p s) = HSplitLayout t u d (f0 p) (f1 s)
+
+primary :: Layout -> Window
+primary (MinimalLayout _ _ p)    = p
+primary (BasicLayout _ _ _ p)    = p
+primary (VSplitLayout _ _ _ p _) = p
+primary (HSplitLayout _ _ _ p _) = p

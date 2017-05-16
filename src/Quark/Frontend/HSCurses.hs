@@ -25,6 +25,8 @@ module Quark.Frontend.HSCurses ( Window ( TitleBar
                                , clear
                                , clear'
                                , refresh
+                               , wOffset
+                               , wSetOffset
                                , Layout ( MinimalLayout
                                         , BasicLayout
                                         , HSplitLayout
@@ -286,6 +288,14 @@ clear' t@(TextView w (r, c) (_, cc)) k
   where
     rulerCol = length rulerLine
     rulerLine = drop cc (replicate (lineWidthHint + k) ' ') ++ "|"
+
+wOffset :: Window -> Offset
+wOffset (TextView _ _ offset') = offset'
+wOffset _                      = (0, 0)
+
+wSetOffset :: Offset -> Window -> Window
+wSetOffset offset' (TextView w s _) = TextView w s offset'
+wSetOffset offset' w                = w
 
 -------------------------------
 -- Layout type and functions --

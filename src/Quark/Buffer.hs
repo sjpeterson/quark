@@ -27,6 +27,8 @@ module Quark.Buffer ( Buffer ( Buffer
                     , ebFirst
                     , setPath
                     , path
+                    , offset
+                    , setOffset
                     , language
                     , tabToSpaces
                     , tokens
@@ -68,7 +70,8 @@ import Quark.Types ( Cursor
                    , Index
                    , Selection
                    , Language
-                   , Token )
+                   , Token
+                   , Offset )
 import Quark.Settings ( tabWidth
                       , tabToSpacesDefault )
 import Quark.History ( Edit ( Edit
@@ -106,6 +109,7 @@ data Buffer = LockedBuffer String
 data BufferMetaData = BufferMetaData { path' :: FilePath
                                      , language' :: Language
                                      , tokenLines' :: [[Token]]
+                                     , offset' :: Offset
                                      , writeProtected' :: Bool
                                      , tabToSpaces' :: Bool } deriving Eq
 type ExtendedBuffer = (Buffer, BufferMetaData)
@@ -125,14 +129,19 @@ tabToSpaces :: ExtendedBuffer -> Bool
 tabToSpaces (_, bufferMetaData) = tabToSpaces' bufferMetaData
 
 setPath :: FilePath -> ExtendedBuffer -> ExtendedBuffer
-setPath path'' b = second (setPath' path'') b
-
-setPath' :: FilePath -> BufferMetaData -> BufferMetaData
-setPath' path'' (BufferMetaData _ a b c d) = BufferMetaData path'' a b c d
+setPath path'' b =
+    second (\bufferMetaData -> bufferMetaData {path' = path''}) b
 
 setTokenLines' :: [[Token]] -> BufferMetaData -> BufferMetaData
-setTokenLines' tokenLines'' (BufferMetaData a b _ c d) =
-    BufferMetaData a b tokenLines'' c d
+setTokenLines' tokenLines'' bufferMetaData =
+    bufferMetaData {tokenLines' = tokenLines''}
+
+offset :: ExtendedBuffer -> Offset
+offset (_, bufferMetaData) = offset' bufferMetaData
+
+setOffset :: Offset -> ExtendedBuffer -> ExtendedBuffer
+setOffset offset'' b =
+    second (\bufferMetaData -> bufferMetaData {offset' = offset''}) b
 
 tokens :: ExtendedBuffer -> [[Token]]
 tokens (_, bufferMetaData) = tokenLines' bufferMetaData
@@ -391,7 +400,12 @@ bufferFind _ _ _ b = b
 ebEmpty :: FilePath -> Language -> ExtendedBuffer
 ebEmpty p l =
     ( emptyBuffer
-    , BufferMetaData p' l' [] False tabToSpacesDefault)
+    , BufferMetaData { path' = p'
+                     , language' = l'
+                     , tokenLines' = []
+                     , offset' = (0, 0)
+                     , writeProtected' = False
+                     , tabToSpaces' = tabToSpacesDefault } )
   where
     p' = if p == "" then "Untitled" else p
     l' = if l == "" then "Unknown" else l
@@ -407,7 +421,12 @@ ebSelection _                         = (0, 0)
 ebNew :: FilePath -> T.Text -> Language -> ExtendedBuffer
 ebNew path'' fileContents language'' =
     ( newBuffer fileContents
-    , BufferMetaData path'' language'' tokenLines'' False tabToSpaces'')
+    , BufferMetaData { path' = path''
+                     , language' = language''
+                     , tokenLines' = tokenLines''
+                     , offset' = (0, 0)
+                     , writeProtected' = False
+                     , tabToSpaces' = tabToSpaces'' })
   where
     tokenLines'' = tokenLines $ tokenize language'' fileContents
     tabToSpaces'' = if (T.isInfixOf (T.singleton '\t') fileContents)
