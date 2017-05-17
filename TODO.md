@@ -17,9 +17,6 @@
 
 ### UI improvements
 
-- Intelligent expansion of root (in setRoot' of Main.hs)
-  - expand to include open files (assuming they exist under root)
-  - expand previously expanded directories
 - Support additional terminal environments/emulators and color modes
 - Layout switching
 - Layout resizing
@@ -29,8 +26,6 @@
 
 ### Editor functionality
 
-- Improved Home key behaviour
-  - Jump to first non-whitespace on line if not already there
 - Improved find and replace functionality
   - Replace all
   - Regex support

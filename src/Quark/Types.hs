@@ -44,6 +44,7 @@ type ColorPair = (ColorId, ColorId)     -- (foreground, background)
 
 -- Algebraic data types
 data Direction = Backward | Forward | Up | Down deriving (Show, Eq)
+data Match = Exact | Prefix | Suffix | Infix | Negative deriving (Show, Eq)
 
 data Key = CharKey Char
          | WideCharKey String

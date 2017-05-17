@@ -32,7 +32,8 @@ import System.Clipboard ( setClipboardString
                         , getClipboardString )
 import Data.List ( findIndices
                  , findIndex
-                 , sort )
+                 , sort
+                 , isPrefixOf )
 import Data.Bifunctor ( first )
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
@@ -111,19 +112,27 @@ import Quark.Project ( Project
                      , toggleInsertMode
                      , activeP
                      , active'
+                     , replaceActive'
+                     , activeTree
                      , idxOfActive'
                      , activePath
                      , firstF'
+                     , firstTree
                      , flipNext'
+                     , flipNext''
                      , flipPrevious'
                      , flipTo'
+                     , flipTo''
                      , flipToParent'
                      , expand
-                     , contract )
+                     , contract
+                     , isSubtree
+                     , rootPath )
 import Quark.History ( emptyEditHistory )
 import Quark.Helpers ( (~~)
                      , lnWidth
-                     , nlTail )
+                     , nlTail
+                     , match )
 import Quark.IOHelpers ( listDirectory' )
 import Quark.Types (Key ( CharKey
                         , WideCharKey
@@ -135,9 +144,12 @@ import Quark.Types (Key ( CharKey
                                , Backward
                                , Up
                                , Down )
+                   , ProjectTree
                    , ProjectTreeElement ( RootElement
                                         , FileElement
-                                        , DirectoryElement ) )
+                                        , DirectoryElement )
+                   , Match ( Exact
+                           , Prefix ) )
 
 -------------------------------
 -- New, open, save and close --
@@ -334,24 +346,51 @@ expandIfDir :: QFE.Layout -> Project -> IO ()
 expandIfDir layout project = case active' $ projectTree project of
     (RootElement root) -> do
         contents <- listDirectory' root
-        projectLoop layout $ expand (sort contents) project
+        projectLoop layout $ firstTree (expand (sort contents)) project
     _                  -> projectLoop layout project
 
 setNewRoot :: Bool -> QFE.Layout -> Project -> IO ()
-setNewRoot parent layout project = case active' $ projectTree project of
-    (RootElement root) -> (projectLoop layout) =<< (setRoot' root' project)
-                            where
-                              root' = if parent then parentDir
-                                                else root
-                              parentDir = joinPath $ init $
-                                            splitDirectories root
+setNewRoot parent layout project = case active' tree of
+    (RootElement root) ->
+        if parent then (projectLoop layout) =<< (setRoot' parentDir project)
+                  else projectLoop layout $
+                           setProjectTree (activeTree tree) $
+                           setRoot root project
+          where
+            parentDir = joinPath $ init $
+                        splitDirectories root
     _                  -> projectLoop layout project
+  where
+    tree = projectTree project
 
 setRoot' :: FilePath -> Project -> IO Project
 setRoot' root project = do
     rootContents <- listDirectory' root
-    let projectTree' = (RootElement root, [], sort rootContents)
-    return $ setProjectTree projectTree' $ setRoot root project
+    newTree <- expandTree tree (RootElement root, [], sort rootContents)
+    return $ setProjectTree newTree $ setRoot root project
+  where
+    tree = activeTree $ projectTree project
+
+expandTree :: ProjectTree -> ProjectTree -> IO ProjectTree
+expandTree originalTree newTree = case isSubtree originalTree newTree of
+    True  -> (flipTo'' 0) <$>
+                 (replaceActive' $ DirectoryElement originalTree) <$>
+                 expandFlipTo (rootPath originalTree) newTree
+    False -> pure newTree
+
+expandFlipTo :: FilePath -> ProjectTree -> IO ProjectTree
+expandFlipTo path tree = if isPrefixOf (rootPath tree) path
+    then case match path' path of
+             Exact  -> pure tree
+             Prefix -> case active' tree of
+                           (RootElement _) -> do c <- listDirectory' path'
+                                                 next $ expand c tree
+                           _               -> next tree
+             _      -> next tree
+    else pure tree
+  where
+    path' = activePath tree
+    next t = expandFlipTo path $ flipNext'' t
 
 -----------------------------
 -- Window update functions --
@@ -554,7 +593,9 @@ quarkStart (root, path') = do
     absPath <- makeAbsolute path'
     absRoot <- makeAbsolute root
     layout <- initLayout
-    project <- initProject absRoot absPath
+    project' <- initProject absRoot absPath
+    tree <- expandFlipTo absPath $ projectTree project'
+    let project = setProjectTree tree project'
     refreshTree layout project
     mainLoop layout project
 

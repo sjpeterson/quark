@@ -34,20 +34,26 @@ module Quark.Project ( Project
                      , setProjectTree
                      , toggleInsertMode
                      , flipNext'
+                     , flipNext''
                      , flipPrevious'
                      , flipTo'
+                     , flipTo''
                      , flipToParent'
                      , toLines
                      , assumeRoot
                      , activeP
                      , active'
+                     , replaceActive'
+                     , activeTree
                      , activePath
                      , projectTreeIndex
                      , firstF'
                      , firstTree
                      , idxOfActive'
                      , expand
-                     , contract ) where
+                     , contract
+                     , isSubtree
+                     , rootPath ) where
 
 import System.FilePath ( takeDirectory
                        , takeFileName
@@ -157,6 +163,19 @@ active' t = case active t of
     DirectoryElement t' -> active' t'
     x                   -> x
 
+replaceActive' :: ProjectTreeElement -> ProjectTree -> ProjectTree
+replaceActive' d (a, p, n) = case a of
+    DirectoryElement t -> case active t of
+                              RootElement _ -> (d, p, n)
+                              _             ->
+                                  (DirectoryElement (replaceActive' d t), p, n)
+    _                   -> (d, p, n)
+
+activeTree :: ProjectTree -> ProjectTree
+activeTree t = case active t of
+    DirectoryElement t' -> activeTree t'
+    _                   -> t
+
 projectTreeIndex :: Project -> Int
 projectTreeIndex project = length prev
   where
@@ -251,10 +270,10 @@ flipToLast''' x = case x of
     DirectoryElement t          -> flipToLast''' (DirectoryElement $ flipToLast t)
     _                           -> x
 
-expand :: [ProjectTreeElement] -> Project -> Project
-expand p project = case active' $ projectTree project of
-    RootElement _ -> firstTree (firstF'' (expand' p)) project
-    _             -> project
+expand :: [ProjectTreeElement] -> ProjectTree -> ProjectTree
+expand p tree = case active' tree of
+    RootElement _ -> firstF'' (expand' p) tree
+    _             -> tree
 
 expand' :: [ProjectTreeElement] -> ProjectTreeElement -> ProjectTreeElement
 expand' p (DirectoryElement t) = DirectoryElement $ flipNext (r, [], sort p)
@@ -272,6 +291,14 @@ contract' (DirectoryElement t) = DirectoryElement (r, [], [])
   where
     (r, _, _) = flipTo 0 t
 contract' x                    = x
+
+isSubtree :: ProjectTree -> ProjectTree -> Bool
+isSubtree x y = isPrefixOf (rootPath y) (rootPath x)
+
+rootPath :: ProjectTree -> FilePath
+rootPath t = case active (flipTo'' 0 t) of
+    RootElement p -> p
+    _             -> "No root"
 
 toLines :: ProjectTree -> [T.Text]
 toLines t = concat $ map (toLines' 0) (take k treeList) ++

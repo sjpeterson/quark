@@ -6,9 +6,17 @@ import qualified Data.Text as T
 
 import System.FilePath ( splitPath
                        , joinPath )
+import Data.List ( isPrefixOf
+                 , isSuffixOf
+                 , isInfixOf )
 
 import Quark.Types ( Size
-                   , Index )
+                   , Index
+                   , Match ( Exact
+                           , Prefix
+                           , Suffix
+                           , Infix
+                           , Negative ) )
 
 -- T.Text version of (++)
 (~~) :: T.Text -> T.Text -> T.Text
@@ -179,3 +187,11 @@ findIx k False findString s = if s0b == ""
     lastIx s' = case T.breakOn findString s' of
         (s'', "")  -> (-1)
         (s0', s1') -> T.length s0' + 1 + (lastIx $ T.drop 1 s1')
+
+match :: (Eq a) => [a] -> [a] -> Match
+match x y
+    | x == y                 = Exact
+    | isPrefixOf x y == True = Prefix
+    | isSuffixOf x y == True = Suffix
+    | isInfixOf x y == True  = Infix
+    | otherwise              = Negative
