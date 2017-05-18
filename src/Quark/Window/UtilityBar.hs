@@ -27,6 +27,8 @@ import Data.Char ( isPrint
 
 import Quark.Frontend.HSCurses ( Window ( UtilityBar )
                                , updateCursor
+                               , hideCursor
+                               , showCursor
                                , setTextColor
                                , move
                                , addString
@@ -36,7 +38,7 @@ import Quark.Frontend.HSCurses ( Window ( UtilityBar )
                                , clear )
 
 import Quark.Helpers ( padToLen
-                     , padToLen'
+                     , fixToLen'
                      , (~~))
 import Quark.Buffer ( Buffer ( Buffer )
                     , endOfLine
@@ -72,11 +74,14 @@ promptString u s def = do
     clear u
     return s'
 
-promptChoice :: (Show a) => Window -> T.Text -> [Option a] -> IO (a)
+promptChoice :: Window -> T.Text -> [Option a] -> IO (a)
 promptChoice u s options = do
+    hideCursor
     prompt 0 u s
     x <- cGetOption u options
     clear u
+    refresh u
+    showCursor
     return x
 
 cGetLine :: Window -> Buffer -> IO (T.Text)
@@ -87,9 +92,9 @@ cGetLine w buffer@(Buffer s h cursor _) = do
     k <- getKey
     handleKey k w buffer
 
-cGetOption :: (Show a) => Window -> [Option a] -> IO (a)
-cGetOption w options = do
-    let n = maximum $ map optionLength options
+cGetOption :: Window -> [Option a] -> IO (a)
+cGetOption w@(UtilityBar _ (_, c)) options = do
+    let n = min nMax $ maximum $ map optionLength options
     move w 1 0
     mapM (printOption w n) options
     refresh w
@@ -97,6 +102,7 @@ cGetOption w options = do
     case checkOption k options of Nothing -> cGetOption w options
                                   Just x  -> return x
   where
+    nMax = (div c $ length options) - 1
     optionLength = \(c, s, _) -> length (translateChar c) + T.length s + 1
 
 checkOption :: Key -> [Option a] -> Maybe a
@@ -109,12 +115,12 @@ checkOption k@(CharKey c) ((c', _, x):xs)
     | otherwise               = checkOption k xs
 checkOption _ _ = Nothing
 
-printOption :: (Show a) => Window -> Int -> Option a -> IO ()
+printOption :: Window -> Int -> Option a -> IO ()
 printOption w n (c, s, _) = do
     setTextColor w (defaultColor, defaultBg)
     addString w sc
     setTextColor w (red, defaultBg)
-    addString w $ T.unpack (padToLen' (n - length sc) s) ++ " "
+    addString w $ T.unpack (fixToLen' (n - length sc) s) ++ " "
   where
     sc = translateChar c
 

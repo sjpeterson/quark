@@ -19,7 +19,8 @@
 module Main where
 
 import Control.Exception ( bracket_ )
-import Control.Monad ( liftM )
+import Control.Monad ( liftM
+                     , join )
 import System.Environment ( getArgs )
 import System.Directory ( doesFileExist
                         , doesDirectoryExist
@@ -335,7 +336,7 @@ replace' next doPrompt layout project = do
     find False next False layout project'
   where
     replaceDefault' = replaceDefault project
-    s = T.pack "Replace by: "
+    s = "Replace by: "
     u = (QFE.utilityBar layout)
 
 -------------------------------------
@@ -427,6 +428,35 @@ resizeLayout continueFunction layout' project = do
   where
     activeBuffer = activeP project
 
+{-
+switchLayout :: QFE.Layout -> Project -> IO ()
+switchLayout layout' project = do
+    layout <- join $ promptChoice u "Choose layout:" options
+    mapM QFE.clear $ QFE.windowList layout'
+    mapM QFE.refresh $ QFE.windowList layout'
+    refreshText layout project
+    refreshTree layout project
+    mainLoop layout project
+  where
+    u = QFE.utilityBar layout'
+    options = [ ('1', "Basic", QFE.basicLayout)
+              , ('2', "Minimal", QFE.minimalLayout)
+              , ('3', "Vertical Split", QFE.vSplitLayout)
+              , ('4', "Horizontal Split", QFE.hSplitLayout)
+              , ('\ESC', "Cancel", pure layout') ]
+-}
+
+toggleLayout :: QFE.Layout -> Project -> IO ()
+toggleLayout layout' project = do
+    layout <- case layout' of
+                  QFE.MinimalLayout _ _ _ -> QFE.basicLayout
+                  QFE.BasicLayout _ _ _ _ -> QFE.minimalLayout
+    mapM QFE.clear $ QFE.windowList layout'
+    mapM QFE.refresh $ QFE.windowList layout'
+    refreshText layout project
+    refreshTree layout project
+    mainLoop layout project
+
 ------------------
 -- Key handlers --
 ------------------
@@ -463,6 +493,7 @@ handleKey layout project k
     | k == CtrlKey 'o' = mainLoop layout =<< (promptOpen layout project)
     | k == CtrlKey 'p' = continue -- prompt
     | k == CtrlKey 't' = QFE.hideCursor >> projectLoop layout project
+    | k == CtrlKey 'l' = toggleLayout layout project -- switchLayout
     | k == CtrlKey 'f' = find False True True layout project
     | k == CtrlKey 'r' = find True True True layout project
     | k == FnKey 3     = find False True False layout project

@@ -18,7 +18,6 @@
 ### UI improvements
 
 - Support additional terminal environments/emulators and color modes
-- Layout switching
 - Layout resizing
 - Improve handling of permissions, write protected files and such
 - Coloring in project view

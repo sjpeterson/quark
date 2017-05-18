@@ -31,6 +31,7 @@ module Quark.Frontend.HSCurses ( Window ( TitleBar
                                         , BasicLayout
                                         , HSplitLayout
                                         , VSplitLayout )
+                               , windowList
                                , titleBar
                                , utilityBar
                                , primaryPane
@@ -45,7 +46,9 @@ module Quark.Frontend.HSCurses ( Window ( TitleBar
                                , hideCursor
                                , defaultLayout
                                , basicLayout
-                               , minimalLayout ) where
+                               , minimalLayout
+                               , vSplitLayout
+                               , hSplitLayout ) where
 
 import qualified UI.HSCurses.Curses as Curses
 
@@ -287,7 +290,7 @@ clear' t@(TextView w (r, c) (_, cc)) k
           Curses.wMove w 0 0
   where
     rulerCol = length rulerLine
-    rulerLine = drop cc (replicate (lineWidthHint + k) ' ') ++ "|"
+    rulerLine = drop cc (replicate (lineWidthHint + k) ' ') ++ "\9474"
 
 wOffset :: Window -> Offset
 wOffset (TextView _ _ offset') = offset'
@@ -319,15 +322,22 @@ data Layout = MinimalLayout { titleBar :: Window
                            , primaryPane :: Window
                            , secondaryPane :: Window } deriving Show
 
+windowList :: Layout -> [Window]
+windowList (MinimalLayout a b c)    = [a, b, c]
+windowList (BasicLayout a b c d)    = [a, b, c, d]
+windowList (VSplitLayout a b c d e) = [a, b, c, d, e]
+windowList (HSplitLayout a b c d e) = [a, b, c, d, e]
+
 defaultLayout :: IO Layout
 defaultLayout = do
     (r, c) <- Curses.scrSize
-    layout <- if c > 85 + 16 then (basicLayout r c)
-                             else (minimalLayout r c)
+    layout <- if c > 85 + 16 then basicLayout
+                             else minimalLayout
     return layout
 
-basicLayout :: Int -> Int -> IO Layout
-basicLayout r c = do
+basicLayout :: IO Layout
+basicLayout = do
+    (r, c) <- Curses.scrSize
     let dpWidth = min 24 (c - 32)
     let dpWidth' = dpWidth - 1
     let mainHeight = r - 4
@@ -339,11 +349,12 @@ basicLayout r c = do
     let qTitleBar = TitleBar cTitleBar (1, c)
     let qUtilityBar = UtilityBar cUtilityBar (1, c)
     let qDirectoryPane = ProjectView cDirectoryPane (mainHeight, dpWidth') 0
-    let qPrimaryPane = TextView cMainView (mainHeight, (c - dpWidth)) (0, 0)
+    let qPrimaryPane = TextView cMainView (mainHeight, mainWidth) (0, 0)
     return $ BasicLayout qTitleBar qUtilityBar qDirectoryPane qPrimaryPane
 
-minimalLayout :: Int -> Int -> IO Layout
-minimalLayout r c = do
+minimalLayout :: IO Layout
+minimalLayout = do
+    (r, c) <- Curses.scrSize
     let mainHeight = r - 4
     cTitleBar <- Curses.newWin 2 c 0 0
     cUtilityBar <- Curses.newWin 2 c (r - 2) 0
@@ -352,3 +363,44 @@ minimalLayout r c = do
     let qUtilityBar = UtilityBar cUtilityBar (1, c)
     let qPrimaryPane = TextView cMainView (mainHeight, c) (0, 0)
     return $ MinimalLayout qTitleBar qUtilityBar qPrimaryPane
+
+vSplitLayout :: IO Layout
+vSplitLayout = do
+    (r, c) <- Curses.scrSize
+    let dpWidth = min 24 (c - 32)
+    let dpWidth' = dpWidth - 1
+    let mainHeight = r - 4
+    let secondaryWidth = div (c - dpWidth) 2
+    let primaryWidth = c - dpWidth - secondaryWidth
+    cTitleBar <- Curses.newWin 2 c 0 0
+    cUtilityBar <- Curses.newWin 2 c (r - 2) 0
+    cDirectoryPane <- Curses.newWin mainHeight dpWidth' 2 0
+    cPrimaryPane <- Curses.newWin mainHeight primaryWidth 2 dpWidth
+    cSecondaryPane <- Curses.newWin mainHeight secondaryWidth 2 (dpWidth + primaryWidth)
+    let qTitleBar = TitleBar cTitleBar (1, c)
+    let qUtilityBar = UtilityBar cUtilityBar (1, c)
+    let qDirectoryPane = ProjectView cDirectoryPane (mainHeight, dpWidth') 0
+    let qPrimaryPane = TextView cPrimaryPane (mainHeight, primaryWidth) (0, 0)
+    let qSecondaryPane = TextView cSecondaryPane (mainHeight, secondaryWidth) (0, 0)
+    return $ VSplitLayout qTitleBar qUtilityBar qDirectoryPane qPrimaryPane qSecondaryPane
+
+hSplitLayout :: IO Layout
+hSplitLayout = do
+    (r, c) <- Curses.scrSize
+    let dpWidth = min 24 (c - 32)
+    let dpWidth' = dpWidth - 1
+    let mainHeight = r - 4
+    let secondaryHeight = div mainHeight 2
+    let primaryHeight = mainHeight - secondaryHeight
+    let mainWidth = c - dpWidth
+    cTitleBar <- Curses.newWin 2 c 0 0
+    cUtilityBar <- Curses.newWin 2 c (r - 2) 0
+    cDirectoryPane <- Curses.newWin mainHeight dpWidth' 2 0
+    cPrimaryPane <- Curses.newWin primaryHeight mainWidth 2 dpWidth
+    cSecondaryPane <- Curses.newWin secondaryHeight mainWidth (2 + primaryHeight) dpWidth
+    let qTitleBar = TitleBar cTitleBar (1, c)
+    let qUtilityBar = UtilityBar cUtilityBar (1, c)
+    let qDirectoryPane = ProjectView cDirectoryPane (mainHeight, dpWidth') 0
+    let qPrimaryPane = TextView cPrimaryPane (primaryHeight, mainWidth) (0, 0)
+    let qSecondaryPane = TextView cSecondaryPane (secondaryHeight, mainWidth) (0, 0)
+    return $ HSplitLayout qTitleBar qUtilityBar qDirectoryPane qPrimaryPane qSecondaryPane

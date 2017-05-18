@@ -78,8 +78,16 @@ padToLen k a
 
 padToLen' :: Int -> T.Text -> T.Text
 padToLen' k a
-    | k <= T.length a = a
-    | otherwise       = padToLen k (T.cons ' ' a)
+    | k <= T.length a - 1 = T.cons ' ' a
+    | otherwise           = padToLen k (T.cons ' ' a)
+
+fixToLen' :: Int -> T.Text -> T.Text
+fixToLen' k a
+    | k == aLen = T.cons ' ' a
+    | k > aLen  = padToLen k (T.cons ' ' a)
+    | k < aLen  = T.take (k - 1) (T.cons ' ' a) ~~ "."
+  where
+    aLen = T.length a - 1
 
 -- Concatenate two strings, padding with spaces in the middle
 padMidToLen :: Int -> String -> String -> String
