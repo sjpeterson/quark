@@ -208,32 +208,22 @@ translateKey k = case k of
 
 cursesPair :: ColorPair -> Int
 cursesPair (x, y)
-    | (x, y) == lineNumberPair = 34
-    | (x, y) == titleBarPair   = 35
-    | y == (-1)                = x
-    | y == selectionColor      = x + 17
-    | otherwise                = x
+    | (x, y) == ((-1), (-1))    = 0
+    | (x, y) == lineNumberPair  = 34
+    | (x, y) == titleBarPair    = 35
+    | (x, y) == treeDefaultPair = 36
+    | (x, y) == treeActivePair  = 37
+    | y == (-1)                 = x
+    | y == selectionColor       = x + 17
+    | otherwise                 = x
 
 defineColors :: IO ()
 defineColors = do
     nColors <- Curses.colors
     mapM_ (\(n, f, b) -> defineColor n f b) $ colorTriples nColors
-    defineColor 17 (-1) selectionColor
-    mapM_ (\n -> if n == selectionColor
-                     then defineColor (n + 17) backupColor selectionColor
-                     else defineColor (n + 17) n selectionColor) [1..16]
-    defineColorPair 34 lineNumberPair
-    defineColorPair 35 titleBarPair
   where
-    defineColorPair n = (\(x, y) -> defineColor n x y)
-
-defineColor' :: Int -> Int -> Int -> IO ()
-defineColor' n f b =
-  Curses.initPair (Curses.Pair n) (Curses.Color f) (Curses.Color b)
-
-defineColor :: Int -> Int -> Int -> IO ()
-defineColor n f b =
-  Curses.initPair (Curses.Pair n) (Curses.Color $ mod f 8) (Curses.Color $ min b $ mod b 8)
+    defineColor n f b =
+      Curses.initPair (Curses.Pair n) (Curses.Color f) (Curses.Color b)
 
 ----------------------
 -- Cursor functions --

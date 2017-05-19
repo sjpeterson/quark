@@ -4,7 +4,8 @@ import Quark.Types
 
 -- Color IDs
 defaultBg    = (-1) :: Int
-defaultColor = 0 :: Int
+defaultColor = (-1) :: Int
+black        = 0 :: Int
 red          = 1 :: Int
 green        = 2 :: Int
 orange       = 3 :: Int
@@ -20,7 +21,6 @@ lightBlue    = 12 :: Int
 lightPurple  = 13 :: Int
 cyan         = 14 :: Int
 white        = 15 :: Int
-black        = 16 :: Int
 
 selectionColor = darkGray
 hintColor      = darkGray
@@ -34,20 +34,21 @@ treeDefaultPair = (defaultColor, defaultBg)
 treeActivePair  = (defaultColor, selectionColor)
 
 -- Variations for 8-color terminals
-selectionColor' = lightGray
-backupColor'    = defaultColor
-treeActivePair' = (defaultColor, selectionColor')
-lineNumberPair' = (lightGray, defaultBg)
-titleBarPair'   = ((-1), lightGray)
+selectionColor'  = lightGray
+backupColor'     = defaultColor
+treeDefaultPair' = (defaultColor, defaultBg)
+treeActivePair'  = (black, selectionColor')
+lineNumberPair'  = (lightGray, defaultBg)
+titleBarPair'    = (black, lightGray)
 
 colorTriples :: Int -> [(Int, Int, Int)]
-colorTriples k = baseColors ++ selectedColors
+colorTriples k = baseColors ++ selectedColors ++ extraColors
   where
     baseColors
         | k >= 17   = map (\n -> (n, n, (-1))) [1..16]
         | k >= 16   = (16, 15, (-1)):(map (\n -> (n, n, (-1))) [1..15])
         | k >= 8    = (16, 0, (-1)):(map (\n -> (n, mod n 8, (-1))) [1..15])
-        | otherwise = map (\n -> (n, 0, (-1))) [1..16]
+        | otherwise = map (\n -> (n, (-1), (-1))) [1..16]
     selectedColors
         | k >= 17   = let p0 = (17, (-1), selectionColor)
                           f = \n -> if n == selectionColor
@@ -68,23 +69,29 @@ colorTriples k = baseColors ++ selectedColors
                                              , n
                                              , selectionColor)
                       in p0:p1:(map f [1..16])
-        | k >= 8    = let p0' = (17, (-1), selectionColor')
-                          p1 = (33, 0, selectionColor')
+        | k >= 8    = let p0 = (17, (-1), selectionColor')
+                          p1 = (33, (-1), selectionColor')
                           f = \n -> if n == selectionColor'
                                         then ( n + 17
                                              , backupColor'
                                              , selectionColor' )
                                         else ( n + 17
                                              , n
-                                             , selectionColor )
-                      in p0':p1:(map (f . (\n -> mod n 8)) [1..16])
+                                             , selectionColor' )
+                      in p0:p1:(map (f . (\n -> mod n 8)) [1..16])
         | otherwise = map (\n -> (n, (-1), 0)) [17..33]
     extraColors
         | k >= 16   = [ cons 34 lineNumberPair
-                      , cons 35 titleBarPair ]
+                      , cons 35 titleBarPair
+                      , cons 36 treeDefaultPair
+                      , cons 37 treeActivePair ]
         | k >= 8    = [ cons 34 lineNumberPair'
-                      , cons 35 titleBarPair' ]
+                      , cons 35 titleBarPair'
+                      , cons 36 treeDefaultPair'
+                      , cons 37 treeActivePair' ]
         | otherwise = [ (34, 0, (-1))
-                      , (35, (-1), 0) ]
+                      , (35, (-1), 0)
+                      , (36, 0, (-1))
+                      , (37, (-1), 0) ]
       where
         cons x (y, z) = (x, y, z)

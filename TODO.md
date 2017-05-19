@@ -17,7 +17,7 @@
 
 ### UI improvements
 
-- Support additional terminal environments/emulators and color modes
+- Improved support for non 256-color terminals and tty
 - Improve handling of permissions, write protected files and such
 - Coloring in project view
 - Some (presumably tab-like) UI element that shows open buffers
