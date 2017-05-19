@@ -216,7 +216,8 @@ cursesPair (x, y)
 
 defineColors :: IO ()
 defineColors = do
-    mapM_ (\n -> defineColor n n (-1)) [1..16]
+    nColors <- Curses.colors
+    mapM_ (\(n, f, b) -> defineColor n f b) $ colorTriples nColors
     defineColor 17 (-1) selectionColor
     mapM_ (\n -> if n == selectionColor
                      then defineColor (n + 17) backupColor selectionColor
@@ -226,9 +227,13 @@ defineColors = do
   where
     defineColorPair n = (\(x, y) -> defineColor n x y)
 
+defineColor' :: Int -> Int -> Int -> IO ()
+defineColor' n f b =
+  Curses.initPair (Curses.Pair n) (Curses.Color f) (Curses.Color b)
+
 defineColor :: Int -> Int -> Int -> IO ()
 defineColor n f b =
-  Curses.initPair (Curses.Pair n) (Curses.Color f) (Curses.Color b)
+  Curses.initPair (Curses.Pair n) (Curses.Color $ mod f 8) (Curses.Color $ min b $ mod b 8)
 
 ----------------------
 -- Cursor functions --

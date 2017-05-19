@@ -153,7 +153,7 @@ import Quark.Types (Key ( CharKey
                    , Match ( Exact
                            , Prefix ) )
 
-import Quark.Debug ( dbg )
+-- import Quark.Debug ( dbg )
 
 -------------------------------
 -- New, open, save and close --
