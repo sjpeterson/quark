@@ -20,7 +20,8 @@ module Main where
 
 import Control.Exception ( bracket_ )
 import Control.Monad ( liftM
-                     , join )
+                     , liftM2 )
+                     -- , join )
 import System.Environment ( getArgs )
 import System.Directory ( doesFileExist
                         , doesDirectoryExist
@@ -151,6 +152,8 @@ import Quark.Types (Key ( CharKey
                                         , DirectoryElement )
                    , Match ( Exact
                            , Prefix ) )
+
+import Quark.Debug ( dbg )
 
 -------------------------------
 -- New, open, save and close --
@@ -380,15 +383,17 @@ expandTree originalTree newTree = case isSubtree originalTree newTree of
     False -> pure newTree
 
 expandFlipTo :: FilePath -> ProjectTree -> IO ProjectTree
-expandFlipTo path tree = if isPrefixOf (rootPath tree) path
-    then case match path' path of
-             Exact  -> pure tree
-             Prefix -> case active' tree of
-                           (RootElement _) -> do c <- listDirectory' path'
-                                                 next $ expand c tree
-                           _               -> next tree
-             _      -> next tree
-    else pure tree
+expandFlipTo path tree = do
+    validPath <- liftM2 (||) (doesFileExist path) (doesDirectoryExist path)
+    if validPath && isPrefixOf (rootPath tree) path
+        then case match path' path of
+                 Exact  -> pure tree
+                 Prefix -> case active' tree of
+                               (RootElement _) -> do c <- listDirectory' path'
+                                                     next $ expand c tree
+                               _               -> next tree
+                 _      -> next tree
+        else pure tree
   where
     path' = activePath tree
     next t = expandFlipTo path $ flipNext'' t
