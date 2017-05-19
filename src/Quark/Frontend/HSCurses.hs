@@ -48,7 +48,9 @@ module Quark.Frontend.HSCurses ( Window ( TitleBar
                                , basicLayout
                                , minimalLayout
                                , vSplitLayout
-                               , hSplitLayout ) where
+                               , hSplitLayout
+                               , layoutWidth
+                               , projectPaneWidth ) where
 
 import qualified UI.HSCurses.Curses as Curses
 
@@ -259,6 +261,12 @@ cursesWindow (UtilityBar w _)      = w
 cursesWindow (TextView w _ _)      = w
 cursesWindow (ProjectView w _ _) = w
 
+windowSize :: Window -> Size
+windowSize (TitleBar _ s)      = s
+windowSize (UtilityBar _ s)    = s
+windowSize (TextView _ s _)    = s
+windowSize (ProjectView _ s _) = s
+
 setTextColor :: Window -> ColorPair -> IO ()
 setTextColor w pair =
     Curses.wAttrSet (cursesWindow w) ( Curses.attr0
@@ -306,7 +314,8 @@ wSetOffset offset' w                = w
 
 data Layout = MinimalLayout { titleBar :: Window
                             , utilityBar :: Window
-                            , primaryPane :: Window }
+                            , primaryPane :: Window
+                            , projectPaneWidth' :: Int }
             | BasicLayout { titleBar :: Window
                           , utilityBar :: Window
                           , projectPane :: Window
@@ -323,23 +332,31 @@ data Layout = MinimalLayout { titleBar :: Window
                            , secondaryPane :: Window } deriving Show
 
 windowList :: Layout -> [Window]
-windowList (MinimalLayout a b c)    = [a, b, c]
+windowList (MinimalLayout a b c _)    = [a, b, c]
 windowList (BasicLayout a b c d)    = [a, b, c, d]
 windowList (VSplitLayout a b c d e) = [a, b, c, d, e]
 windowList (HSplitLayout a b c d e) = [a, b, c, d, e]
 
-defaultLayout :: IO Layout
-defaultLayout = do
+layoutWidth :: Layout -> Int
+layoutWidth = snd . windowSize . titleBar
+
+projectPaneWidth :: Layout -> Int
+projectPaneWidth (MinimalLayout _ _ _ c) = c
+projectPaneWidth layout = ((1 +) . snd . windowSize . projectPane) layout
+
+defaultLayout :: Int -> IO Layout
+defaultLayout k = do
     (r, c) <- Curses.scrSize
-    layout <- if c > 85 + 16 then basicLayout
-                             else minimalLayout
+    let dpWidth = if k < 0 then min 24 (c -32)
+                               else k
+    layout <- if c > 85 + 16 then basicLayout dpWidth
+                             else minimalLayout dpWidth
     return layout
 
-basicLayout :: IO Layout
-basicLayout = do
+basicLayout :: Int -> IO Layout
+basicLayout dpWidth = do
     (r, c) <- Curses.scrSize
-    let dpWidth = min 24 (c - 32)
-    let dpWidth' = dpWidth - 1
+    let dpWidth' = min dpWidth (div c 2) - 1
     let mainHeight = r - 4
     let mainWidth = c - dpWidth
     cTitleBar <- Curses.newWin 2 c 0 0
@@ -352,8 +369,8 @@ basicLayout = do
     let qPrimaryPane = TextView cMainView (mainHeight, mainWidth) (0, 0)
     return $ BasicLayout qTitleBar qUtilityBar qDirectoryPane qPrimaryPane
 
-minimalLayout :: IO Layout
-minimalLayout = do
+minimalLayout :: Int -> IO Layout
+minimalLayout dpWidth = do
     (r, c) <- Curses.scrSize
     let mainHeight = r - 4
     cTitleBar <- Curses.newWin 2 c 0 0
@@ -362,7 +379,8 @@ minimalLayout = do
     let qTitleBar = TitleBar cTitleBar (1, c)
     let qUtilityBar = UtilityBar cUtilityBar (1, c)
     let qPrimaryPane = TextView cMainView (mainHeight, c) (0, 0)
-    return $ MinimalLayout qTitleBar qUtilityBar qPrimaryPane
+    return $ MinimalLayout qTitleBar qUtilityBar qPrimaryPane $
+                 min dpWidth (div c 2) - 1
 
 vSplitLayout :: IO Layout
 vSplitLayout = do

@@ -411,7 +411,7 @@ refreshText layout project = do
     lnOffset = lnWidth $ ebContents activeBuffer
 
 refreshTree :: QFE.Layout -> Project -> IO ()
-refreshTree (QFE.MinimalLayout _ _ _) project = return ()
+refreshTree (QFE.MinimalLayout _ _ _ _) project = return ()
 refreshTree layout project =
    printTree False (QFE.projectPane layout) (projectTree project)
 
@@ -421,12 +421,13 @@ resizeLayout continueFunction layout' project = do
     QFE.onResize
     let lnOffset = lnWidth $ ebContents activeBuffer
     let ((Buffer _ _ crs _), _) = activeBuffer
-    layout <- fmap (firstL (updateOffset crs lnOffset)) QFE.defaultLayout
+    layout <- fmap (firstL (updateOffset crs lnOffset)) $ QFE.defaultLayout w
     refreshText layout project
     refreshTree layout project
     continueFunction layout project
   where
     activeBuffer = activeP project
+    w = QFE.projectPaneWidth layout'
 
 {-
 switchLayout :: QFE.Layout -> Project -> IO ()
@@ -449,10 +450,25 @@ switchLayout layout' project = do
 toggleLayout :: QFE.Layout -> Project -> IO ()
 toggleLayout layout' project = do
     layout <- case layout' of
-                  QFE.MinimalLayout _ _ _ -> QFE.basicLayout
-                  QFE.BasicLayout _ _ _ _ -> QFE.minimalLayout
-    mapM QFE.clear $ QFE.windowList layout'
-    mapM QFE.refresh $ QFE.windowList layout'
+                  QFE.MinimalLayout _ _ _ _ -> QFE.basicLayout width
+                  QFE.BasicLayout _ _ _ _   -> QFE.minimalLayout width
+    onNewLayout layout' layout project
+  where
+    width = QFE.projectPaneWidth layout'
+
+widenProjectPane :: Int -> QFE.Layout -> Project -> IO ()
+widenProjectPane k layout' project = do
+    layout <- case layout' of
+                  QFE.MinimalLayout _ _ _ _ -> QFE.minimalLayout width
+                  QFE.BasicLayout _ _ _ _   -> QFE.basicLayout width
+    onNewLayout layout' layout project
+  where
+    width = min maxWidth $ max (QFE.projectPaneWidth layout' + k) 10
+    maxWidth = div (QFE.layoutWidth layout') 2
+onNewLayout :: QFE.Layout -> QFE.Layout -> Project -> IO ()
+onNewLayout oldLayout layout project = do
+    mapM QFE.clear $ QFE.windowList oldLayout
+    mapM QFE.refresh $ QFE.windowList oldLayout
     refreshText layout project
     refreshTree layout project
     mainLoop layout project
@@ -494,6 +510,8 @@ handleKey layout project k
     | k == CtrlKey 'p' = continue -- prompt
     | k == CtrlKey 't' = QFE.hideCursor >> projectLoop layout project
     | k == CtrlKey 'l' = toggleLayout layout project -- switchLayout
+    | k == CtrlKey 'j' = widenProjectPane (-1) layout project
+    | k == CtrlKey 'k' = widenProjectPane 1 layout project
     | k == CtrlKey 'f' = find False True True layout project
     | k == CtrlKey 'r' = find True True True layout project
     | k == FnKey 3     = find False True False layout project
@@ -606,8 +624,8 @@ mainLoop layout project = do
 
 projectLoop :: QFE.Layout -> Project -> IO ()
 projectLoop layout' project = case layout' of
-    (QFE.MinimalLayout _ _ _) -> QFE.showCursor >> mainLoop layout' project
-    _                         -> do
+    (QFE.MinimalLayout _ _ _ _) -> QFE.showCursor >> mainLoop layout' project
+    _                           -> do
         let layout = thirdL f layout'
         printTree True (QFE.projectPane layout) (projectTree project)
         k <- QFE.getKey
@@ -643,7 +661,7 @@ rootAndPath (root':path':_) = do
 
 initLayout :: IO QFE.Layout
 initLayout = do
-    layout <- QFE.defaultLayout
+    layout <- QFE.defaultLayout (-1)
     return layout
 
 initBuffer :: FilePath -> IO ExtendedBuffer
