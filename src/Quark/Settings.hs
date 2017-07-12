@@ -24,3 +24,6 @@ tabToSpacesDefault = True
 
 lineWidthHint :: Int
 lineWidthHint = 80
+
+autoCloseBrackets :: Bool
+autoCloseBrackets = True

@@ -26,6 +26,7 @@ import Data.Char ( isPrint
                  , toUpper )
 
 import Quark.Frontend.HSCurses ( Window ( UtilityBar )
+                               , windowSize
                                , updateCursor
                                , hideCursor
                                , showCursor
@@ -85,12 +86,18 @@ promptChoice u s options = do
     return x
 
 cGetLine :: Window -> Buffer -> IO (T.Text)
-cGetLine w buffer@(Buffer s h cursor _) = do
-    prompt 1 w s
-    updateCursor w (1, 0) cursor
+cGetLine w buffer@(Buffer s h cursor@(_, c) _) = do
+    prompt 1 w $ (T.take (n - 1) . T.drop m) s
+    updateCursor w (1, -m) cursor
     refresh w
     k <- getKey
     handleKey k w buffer
+  where
+    (_, n) = windowSize w
+    n_s = T.length s
+    m = if n_s < n
+            then 0
+            else min (n_s - n + 1) (max 0 $ c - (div (2*n) 3))
 
 cGetOption :: Window -> [Option a] -> IO (a)
 cGetOption w@(UtilityBar _ (_, c)) options = do

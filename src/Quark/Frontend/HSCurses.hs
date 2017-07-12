@@ -18,6 +18,7 @@ module Quark.Frontend.HSCurses ( Window ( TitleBar
                                         , UtilityBar
                                         , TextView
                                         , ProjectView )
+                               , windowSize
                                , setTextColor
                                , addString
                                , mvAddString
