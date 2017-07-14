@@ -175,6 +175,11 @@ zip4 :: [a] -> [b] -> [c] -> [d] -> [(a, b, c, d)]
 zip4 (a:as') (b:bs) (c:cs) (d:ds) = (a, b, c, d):(zip4 as' bs cs ds)
 zip4 _       _      _      _      = []
 
+zip5 :: [a] -> [b] -> [c] -> [d] -> [e] -> [(a, b, c, d, e)]
+zip5 (a:as') (b:bs) (c:cs) (d:ds) (e:es) =
+    (a, b, c, d, e):(zip5 as' bs cs ds es)
+zip5 _       _      _      _      _      = []
+
 findIx :: Index -> Bool -> T.Text -> T.Text -> Index
 findIx _ _ findString s
     | T.isInfixOf findString s == False = (-1)

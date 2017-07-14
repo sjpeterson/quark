@@ -45,7 +45,8 @@ type ColorPair = (ColorId, ColorId)     -- (foreground, background)
 -- Algebraic data types
 data Direction = Backward | Forward | Up | Down deriving (Show, Eq)
 data Match = Exact | Prefix | Suffix | Infix | Negative deriving (Show, Eq)
-data TokenState = DefaultState | Selected | Highlighted
+data TokenState = DefaultState | Selected | Highlighted deriving (Show, Eq)
+data BracketType = OpeningBracket Char | ClosingBracket Char
 
 data Key = CharKey Char
          | WideCharKey String

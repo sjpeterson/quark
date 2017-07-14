@@ -64,6 +64,7 @@ import Quark.Buffer ( Buffer ( Buffer )
                     , path
                     , language
                     , tokens
+                    , bracketPair
                     , writeProtected
                     , setPath
                     , offset
@@ -166,7 +167,6 @@ saveAndQuit (x:xs) layout project' = do
     let project = first (flipTo x) project'
     let activeBuffer = activeP project
     let cursors = ebCursors $ activeBuffer
-    -- printText (language activeBuffer) w cursors (tokens activeBuffer)
     refreshText layout project
     (newProject, cancel) <- chooseSave layout project
     if cancel then mainLoop layout newProject
@@ -404,7 +404,7 @@ expandFlipTo path tree = do
 
 refreshText :: QFE.Layout -> Project -> IO ()
 refreshText layout project = do
-    printText (language activeBuffer) w cursors
+    printText (language activeBuffer) w cursors (bracketPair activeBuffer)
         (insertMode project) (tokens activeBuffer)
     QFE.updateCursor w (rr, cc - lnOffset) crs
     QFE.showCursor

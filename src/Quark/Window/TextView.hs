@@ -41,13 +41,19 @@ import Quark.Helpers
 import Quark.Colors
 import Quark.Types
 
-printText :: Language -> Window -> (Cursor, Cursor) -> Bool -> [[Token]]
+printText :: Language
+          -> Window
+          -> (Cursor, Cursor)
+          -> [Cursor]
+          -> Bool
+          -> [[Token]]
           -> IO ()
-printText language w@(TextView _ (r, c) (rr, cc)) (crs, sel) m tokenLines' = do
+printText language w (crs, sel) hs m tokenLines' = do
     clear' w lnc
-    mapM_ (\(k, l, t, s) -> printTokenLine language k l t s w) $
-        zip4 [0..(r - 2)] lineNumbers tokens selections
+    mapM_ (\(k, l, t, s, h) -> printTokenLine language k l t s h w) $
+        zip5 [0..(r - 2)] lineNumbers tokens selections highlights
   where
+    (TextView _ (r, c) (rr, cc)) = w
     n = length tokenLines'
     lnc = (length $ show n) + 1
     lineNumbers =
@@ -55,6 +61,7 @@ printText language w@(TextView _ (r, c) (rr, cc)) (crs, sel) m tokenLines' = do
             [rr + 1..n]) ++ repeat ""
     tokens = map hintTabs $ drop rr tokenLines'
     selections = map (selOnLine (crs, sel')) [rr + 0..n]
+    highlights = map (hlOnLine hs) [rr + 0..n]
     sel' = if m && crs == sel then (rSel, cSel + 1) else sel
     (rSel, cSel) = sel
 
@@ -86,13 +93,14 @@ printTokenLine :: Language
                -> T.Text
                -> [Token]
                -> (Col, Col)
+               -> [Col]
                -> Window
                -> IO ()
-printTokenLine language k lNo tokens (cIn, cOut) w' = do
+printTokenLine language k lNo tokens (cIn, cOut) hlCols w' = do
     move w' k 0
     setTextColor w' lineNumberPair
     addString w' $ T.unpack lNo
-    mapM_ printToken $ selOnTokenLine adjustedSel $
+    mapM_ printToken $ hlOnTokenLine hlCols $ selOnTokenLine adjustedSel $
         takeTL (c - T.length lNo) $ dropTL c0 tokens
   where
     (TextView w (_, c) (_, c0)) = w'
@@ -102,7 +110,7 @@ printTokenLine language k lNo tokens (cIn, cOut) w' = do
         setTokenColor language t tokenState w'
         printToken' t w'
 
-selOnLine :: (Cursor, Cursor) -> Row -> (Int, Int)
+selOnLine :: (Cursor, Cursor) -> Row -> (Col, Col)
 selOnLine (crs, sel) r
     | r < rIn || r > rOut = (-1, -1)
     | otherwise           = (cIn', cOut')
@@ -117,19 +125,38 @@ selOnTokenLine (0, -1) ts  = zip ts $ repeat Selected
 selOnTokenLine (cIn, cOut) (t:ts)
     | cIn >= n              = (t, DefaultState):selOnTokenLine nextSel ts
     | cIn == 0 && cOut >= n = (t, Selected):selOnTokenLine nextSel ts
-    | cIn == 0              = (++) (zip (splitT t [cOut]) [Selected, DefaultState]) $
-                                  selOnTokenLine nextSel ts
-    | cOut >= n || cOut < 0 = (++) (zip (splitT t [cIn]) [DefaultState, Selected]) $
-                                  selOnTokenLine nextSel ts
-    | otherwise             = (++) (zip (splitT t [cIn, cOut]) [ DefaultState
-                                                               , Selected
-                                                               , DefaultState]) $
-                                  selOnTokenLine nextSel ts
+    | cIn == 0              =
+        (++) (zip (splitT t [cOut]) [Selected, DefaultState]) $
+            selOnTokenLine nextSel ts
+    | cOut >= n || cOut < 0 =
+        (++) (zip (splitT t [cIn]) [DefaultState, Selected]) $
+            selOnTokenLine nextSel ts
+    | otherwise             =
+        (++) (zip (splitT t [cIn, cOut]) [ DefaultState
+                                         , Selected
+                                         , DefaultState]) $
+            selOnTokenLine nextSel ts
   where
     n = tokenLength t
     nextSel = ( max (cIn - n) 0
               , if cOut == (-1) then cOut else max (cOut - n) 0)
 selOnTokenLine _ ts = zip ts $ repeat DefaultState
+
+hlOnLine :: [Cursor] -> Row -> [Col]
+hlOnLine highlights r = [c' | (r', c') <- highlights, r' == r]
+
+hlOnTokenLine :: [Col] -> [(Token, TokenState)] -> [(Token, TokenState)]
+hlOnTokenLine _ [] = []
+hlOnTokenLine [] ts = ts
+hlOnTokenLine hlCols (t@(t', state):ts) =
+    newT:(hlOnTokenLine (map (\x -> x - n) hlCols) ts)
+  where
+    newT = case t' of
+        Unclassified _ -> t
+        _              -> if state == DefaultState && (elem 0 hlCols)
+                              then (t', Highlighted)
+                              else t
+    n = tokenLength t'
 
 printToken' :: Token -> Window -> IO ()
 printToken' t w = addString w $ T.unpack $ tokenString t

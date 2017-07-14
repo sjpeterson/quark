@@ -32,6 +32,7 @@ module Quark.Buffer ( Buffer ( Buffer
                     , language
                     , tabToSpaces
                     , tokens
+                    , bracketPair
                     , writeProtected
                     , condense
                     , editHistory
@@ -67,6 +68,8 @@ import qualified Data.Text as T
 import Quark.Types ( Cursor
                    , Direction ( Backward
                                , Forward )
+                   , BracketType ( OpeningBracket
+                                 , ClosingBracket )
                    , Index
                    , Selection
                    , Language
@@ -145,6 +148,9 @@ setOffset offset'' b =
 
 tokens :: ExtendedBuffer -> [[Token]]
 tokens (_, bufferMetaData) = tokenLines' bufferMetaData
+
+bracketPair :: ExtendedBuffer -> [Cursor]
+bracketPair (b, _) = bracketPair' b
 
 ebContents :: ExtendedBuffer -> T.Text
 ebContents (b, _) = contents b
@@ -394,6 +400,52 @@ bufferFind next doStep findString b@(Buffer s h crs _) =
     k = (cursorToIx crs s) + ixStep
     ixStep = if (selection b == findString) && (xnor next doStep) then 1 else 0
 bufferFind _ _ _ b = b
+
+bracketPair' :: Buffer -> [Cursor]
+bracketPair' buffer@(Buffer s _ crs _) = case bracketAtCursor buffer of
+    Just (OpeningBracket b) -> case closingBracket b of
+                                   Just crs' -> [crs, crs']
+                                   Nothing   -> []
+    Just (ClosingBracket b) -> case openingBracket b of
+                                   Just crs' -> [crs', crs]
+                                   Nothing -> []
+    _                       -> []
+  where
+    closingBracket b =
+        (\x -> ixToCursor (k + x) s) <$> (otherBracket s' b (antiB b) 1 1)
+    openingBracket b =
+        (\x -> ixToCursor (k - x) s) <$> (otherBracket s'' b (antiB b) 1 1)
+    antiB b = case b of
+        '(' -> ')'
+        '[' -> ']'
+        '{' -> '}'
+        ')' -> '('
+        ']' -> '['
+        '}' -> '{'
+    k = cursorToIx crs s
+    s' = T.drop (k + 1) s
+    s'' = T.reverse $ T.take k s
+
+otherBracket :: T.Text -> Char -> Char -> Int -> Int -> Maybe Int
+otherBracket _ _ _ 0 k     = Just (k - 1)
+otherBracket s b antiB count k = case T.uncons s of
+    Just (c, s') -> otherBracket s' b antiB (newCount c) (k + 1)
+    Nothing      -> Nothing
+  where
+    newCount c'
+        | c' == b     = count + 1
+        | c' == antiB = count - 1
+        | otherwise   = count
+
+bracketAtCursor :: Buffer -> Maybe BracketType
+bracketAtCursor (Buffer s _ crs _)
+    | k >= T.length s      = Nothing
+    | elem c ['(', '{', '['] = Just (OpeningBracket c)
+    | elem c [')', '}', ']'] = Just (ClosingBracket c)
+    | otherwise              = Nothing
+  where
+    k = cursorToIx crs s
+    c = T.head $ T.drop k s
 
 -- Basic functions for extended buffers
 

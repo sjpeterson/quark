@@ -345,4 +345,36 @@ historyUnitTests = testGroup "Unit tests for History.hs"
 
 {- Unit tests for Buffer.hs -}
 bufferUnitTests = testGroup "Unit tests for Buffer.hs"
-  []
+  [ testCase "Buffer bracket pair, nothing" $
+      assertEqual "" Nothing $ bracketPair $
+          Buffer "Test (buffer) string" emptyEditHistory (0, 0) (0, 0)
+  , testCase "Buffer bracket pair, cursor at opening parenthesis" $
+      assertEqual "" (Just ((0, 5), (0, 12))) $ bracketPair $
+          Buffer "Test (buffer) string" emptyEditHistory (0, 5) (0, 5)
+  , testCase "Buffer bracket pair, cursor at closing parenthesis" $
+      assertEqual "" (Just ((0, 5), (0, 12))) $ bracketPair $
+          Buffer "Test (buffer) string" emptyEditHistory (0, 12) (0, 12)
+  , testCase "Buffer bracket pair, cursor at opening square bracket" $
+        assertEqual "" (Just ((0, 5), (0, 12))) $ bracketPair $
+            Buffer "Test [buffer] string" emptyEditHistory (0, 5) (0, 5)
+  , testCase "Buffer bracket pair, cursor at closing square bracket" $
+        assertEqual "" (Just ((0, 5), (0, 12))) $ bracketPair $
+            Buffer "Test [buffer] string" emptyEditHistory (0, 12) (0, 12)
+  , testCase "Buffer bracket pair, cursor at opening curly bracket" $
+        assertEqual "" (Just ((0, 5), (0, 12))) $ bracketPair $
+            Buffer "Test {buffer} string" emptyEditHistory (0, 5) (0, 5)
+  , testCase "Buffer bracket pair, cursor at closing curly bracket" $
+        assertEqual "" (Just ((0, 5), (0, 12))) $ bracketPair $
+            Buffer "Test {buffer} string" emptyEditHistory (0, 12) (0, 12)
+  , testCase "Buffer bracket pair, nested" $
+        assertEqual "" (Just ((0, 5), (0, 14))) $ bracketPair $
+            Buffer "Test (bu(ff)er) string" emptyEditHistory (0, 5) (0, 5)
+  , testCase "Buffer bracket pair, malformed" $
+        assertEqual "" (Just ((0, 5), (0, 13))) $ bracketPair $
+            Buffer "Test (bu{ffer)} string" emptyEditHistory (0, 5) (0, 5)
+  , testCase "Buffer bracket pair, except other bracket type" $
+          assertEqual "" Nothing $ bracketPair $
+              Buffer "Test (buffer string" emptyEditHistory (0, 5) (0, 5)
+  , testCase "Buffer bracket pair, no opening" $
+          assertEqual "" Nothing $ bracketPair $
+              Buffer "Test buffer) string" emptyEditHistory (0, 11) (0, 11) ]
