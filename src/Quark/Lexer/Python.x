@@ -50,6 +50,7 @@ $alpha                = [$lower $upper]
 $idchar               = [$alpha $digit \. _]
 $anyShortStringChar   = [.] # [' \"]
 $anyLongStringChar    = [. \n] # [' \"]
+$bracket              = [\[ \] \( \) \{ \}]
 
 -- Macros
 @newline                    = $lineFeed | $carriageReturn $lineFeed
@@ -153,6 +154,11 @@ haskellTokens :-
        "<"                              { \_ -> Operator "<" }
        "@"                              { \_ -> Operator "@" }
        ","                              { \_ -> Separator "," }
+    }
+
+    -- Brackets
+    <0> {
+        $bracket                        { \s -> Bracket s }
     }
 
     -- anything else

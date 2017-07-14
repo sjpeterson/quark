@@ -48,6 +48,7 @@ $upper                = [A-Z]
 $upperOrDigit         = [$upper $digit]
 $alpha                = [$lower $upper]
 $idchar               = [$alpha $digit \' _]
+$bracket              = [\[ \] \( \) \{ \}]
 
 
 -- Macros
@@ -149,6 +150,11 @@ haskellTokens :-
        ">"                              { \_ -> Operator ">" }
        "<"                              { \_ -> Operator "<" }
        ","                              { \_ -> Separator "," }
+    }
+
+    -- Brackets
+    <0> {
+        $bracket                        { \s -> Bracket s }
     }
 
     -- anything else

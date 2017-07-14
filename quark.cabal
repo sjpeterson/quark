@@ -35,6 +35,7 @@ library
                  , Quark.Lexer.Haskell
                  , Quark.Lexer.Python
                  , Quark.Lexer.Rust
+                 , Quark.Lexer.Clojure
                  , Quark.Layout
                  , Quark.Frontend.HSCurses
   other-modules: Paths_quark
@@ -82,6 +83,7 @@ executable quark
                , Quark.Lexer.Haskell
                , Quark.Lexer.Python
                , Quark.Lexer.Rust
+               , Quark.Lexer.Clojure
                , Quark.Project
                , Quark.Settings
                , Quark.Types
