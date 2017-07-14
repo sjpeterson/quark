@@ -346,35 +346,45 @@ historyUnitTests = testGroup "Unit tests for History.hs"
 {- Unit tests for Buffer.hs -}
 bufferUnitTests = testGroup "Unit tests for Buffer.hs"
   [ testCase "Buffer bracket pair, nothing" $
-      assertEqual "" Nothing $ bracketPair $
-          Buffer "Test (buffer) string" emptyEditHistory (0, 0) (0, 0)
+      assertEqual "" [] $ bracketPair $
+          (ebNew "" "Test (buffer) string" "")
   , testCase "Buffer bracket pair, cursor at opening parenthesis" $
-      assertEqual "" (Just ((0, 5), (0, 12))) $ bracketPair $
-          Buffer "Test (buffer) string" emptyEditHistory (0, 5) (0, 5)
+      assertEqual "" [(0, 5), (0, 12)] $ bracketPair $
+          (ebFirst (moveCursorN 5 Forward) $
+               ebNew "" "Test (buffer) string" "")
   , testCase "Buffer bracket pair, cursor at closing parenthesis" $
-      assertEqual "" (Just ((0, 5), (0, 12))) $ bracketPair $
-          Buffer "Test (buffer) string" emptyEditHistory (0, 12) (0, 12)
+      assertEqual "" [(0, 5), (0, 12)] $ bracketPair $
+          (ebFirst (moveCursorN 12 Forward) $
+               ebNew "" "Test (buffer) string" "")
   , testCase "Buffer bracket pair, cursor at opening square bracket" $
-        assertEqual "" (Just ((0, 5), (0, 12))) $ bracketPair $
-            Buffer "Test [buffer] string" emptyEditHistory (0, 5) (0, 5)
+      assertEqual "" [(0, 5), (0, 12)] $ bracketPair $
+          (ebFirst (moveCursorN 5 Forward) $
+               ebNew "" "Test [buffer] string" "")
   , testCase "Buffer bracket pair, cursor at closing square bracket" $
-        assertEqual "" (Just ((0, 5), (0, 12))) $ bracketPair $
-            Buffer "Test [buffer] string" emptyEditHistory (0, 12) (0, 12)
+      assertEqual "" [(0, 5), (0, 12)] $ bracketPair $
+          (ebFirst (moveCursorN 12 Forward) $
+               ebNew "" "Test [buffer] string" "")
   , testCase "Buffer bracket pair, cursor at opening curly bracket" $
-        assertEqual "" (Just ((0, 5), (0, 12))) $ bracketPair $
-            Buffer "Test {buffer} string" emptyEditHistory (0, 5) (0, 5)
+      assertEqual "" [(0, 5), (0, 12)] $ bracketPair $
+          (ebFirst (moveCursorN 5 Forward) $
+               ebNew "" "Test {buffer} string" "")
   , testCase "Buffer bracket pair, cursor at closing curly bracket" $
-        assertEqual "" (Just ((0, 5), (0, 12))) $ bracketPair $
-            Buffer "Test {buffer} string" emptyEditHistory (0, 12) (0, 12)
+      assertEqual "" [(0, 5), (0, 12)] $ bracketPair $
+          (ebFirst (moveCursorN 12 Forward) $
+               ebNew "" "Test {buffer} string" "")
   , testCase "Buffer bracket pair, nested" $
-        assertEqual "" (Just ((0, 5), (0, 14))) $ bracketPair $
-            Buffer "Test (bu(ff)er) string" emptyEditHistory (0, 5) (0, 5)
-  , testCase "Buffer bracket pair, malformed" $
-        assertEqual "" (Just ((0, 5), (0, 13))) $ bracketPair $
-            Buffer "Test (bu{ffer)} string" emptyEditHistory (0, 5) (0, 5)
+      assertEqual "" [(0, 5), (0, 14)] $ bracketPair $
+          (ebFirst (moveCursorN 5 Forward) $
+               ebNew "" "Test (bu(ff)er) string" "")
   , testCase "Buffer bracket pair, except other bracket type" $
-          assertEqual "" Nothing $ bracketPair $
-              Buffer "Test (buffer string" emptyEditHistory (0, 5) (0, 5)
+      assertEqual "" [(0, 5), (0, 13)] $ bracketPair $
+          (ebFirst (moveCursorN 5 Forward) $
+               ebNew "" "Test (bu{ffer)} string" "")
+  , testCase "Buffer bracket pair, no closing" $
+      assertEqual "" [] $ bracketPair $
+          (ebFirst (moveCursorN 5 Forward) $
+              ebNew "" "Test (buffer string" "")
   , testCase "Buffer bracket pair, no opening" $
-          assertEqual "" Nothing $ bracketPair $
-              Buffer "Test buffer) string" emptyEditHistory (0, 11) (0, 11) ]
+      assertEqual "" [] $ bracketPair $
+          (ebFirst (moveCursorN 11 Forward) $
+               ebNew "" "Test buffer) string" "") ]
