@@ -152,10 +152,10 @@ hlOnTokenLine hlCols (t@(t', state):ts) =
     newT:(hlOnTokenLine (map (\x -> x - n) hlCols) ts)
   where
     newT = case t' of
-        Unclassified _ -> t
-        _              -> if state == DefaultState && (elem 0 hlCols)
-                              then (t', Highlighted)
-                              else t
+        Bracket _ -> if state == DefaultState && (elem 0 hlCols)
+                         then (t', Highlighted)
+                         else t
+        _              -> t
     n = tokenLength t'
 
 printToken' :: Token -> Window -> IO ()
