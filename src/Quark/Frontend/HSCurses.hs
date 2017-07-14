@@ -210,12 +210,14 @@ translateKey k = case k of
 cursesPair :: ColorPair -> Int
 cursesPair (x, y)
     | (x, y) == ((-1), (-1))    = 0
-    | (x, y) == lineNumberPair  = 34
-    | (x, y) == titleBarPair    = 35
-    | (x, y) == treeDefaultPair = 36
-    | (x, y) == treeActivePair  = 37
+    | (x, y) == lineNumberPair  = lineNumberInt
+    | (x, y) == titleBarPair    = titleBarInt
+    | (x, y) == treeDefaultPair = treeDefaultInt
+    | (x, y) == treeActivePair  = treeActiveInt
     | y == (-1)                 = x
-    | y == selectionColor       = x + 17
+    | y == selectionColor       = x + if x == (-1) then 18 else 17
+    | y == highlightColor       = x + if x == (-1) then 35 else 34
+    | x == y                    = errorColorInt
     | otherwise                 = x
 
 defineColors :: IO ()

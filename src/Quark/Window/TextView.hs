@@ -98,8 +98,8 @@ printTokenLine language k lNo tokens (cIn, cOut) w' = do
     (TextView w (_, c) (_, c0)) = w'
     adjustedSel = ( if cIn == (-1) then (-1) else max 0 (cIn - c0)
                   , if cOut == (-1) then (-1) else cOut - c0 )
-    printToken (t, selected) = do
-        setTokenColor language t selected w'
+    printToken (t, tokenState) = do
+        setTokenColor language t tokenState w'
         printToken' t w'
 
 selOnLine :: (Cursor, Cursor) -> Row -> (Int, Int)
@@ -111,35 +111,36 @@ selOnLine (crs, sel) r
     cOut' = if r == rOut then cOut else (-1)
     ((rIn, cIn), (rOut, cOut)) = orderTwo crs sel
 
-selOnTokenLine :: (Col, Col) -> [Token] -> [(Token, Bool)]
-selOnTokenLine (-1, -1) ts = zip ts $ repeat False
-selOnTokenLine (0, -1) ts  = zip ts $ repeat True
+selOnTokenLine :: (Col, Col) -> [Token] -> [(Token, TokenState)]
+selOnTokenLine (-1, -1) ts = zip ts $ repeat DefaultState
+selOnTokenLine (0, -1) ts  = zip ts $ repeat Selected
 selOnTokenLine (cIn, cOut) (t:ts)
-    | cIn >= n              = (t, False):selOnTokenLine nextSel ts
-    | cIn == 0 && cOut >= n = (t, True):selOnTokenLine nextSel ts
-    | cIn == 0              = (++) (zip (splitT t [cOut]) [True, False]) $
+    | cIn >= n              = (t, DefaultState):selOnTokenLine nextSel ts
+    | cIn == 0 && cOut >= n = (t, Selected):selOnTokenLine nextSel ts
+    | cIn == 0              = (++) (zip (splitT t [cOut]) [Selected, DefaultState]) $
                                   selOnTokenLine nextSel ts
-    | cOut >= n || cOut < 0 = (++) (zip (splitT t [cIn]) [False, True]) $
+    | cOut >= n || cOut < 0 = (++) (zip (splitT t [cIn]) [DefaultState, Selected]) $
                                   selOnTokenLine nextSel ts
-    | otherwise             = (++) (zip (splitT t [cIn, cOut]) [ False
-                                                               , True
-                                                               , False]) $
+    | otherwise             = (++) (zip (splitT t [cIn, cOut]) [ DefaultState
+                                                               , Selected
+                                                               , DefaultState]) $
                                   selOnTokenLine nextSel ts
   where
     n = tokenLength t
     nextSel = ( max (cIn - n) 0
               , if cOut == (-1) then cOut else max (cOut - n) 0)
-selOnTokenLine _ ts = zip ts $ repeat False
+selOnTokenLine _ ts = zip ts $ repeat DefaultState
 
 printToken' :: Token -> Window -> IO ()
 printToken' t w = addString w $ T.unpack $ tokenString t
 
-setTokenColor :: Language -> Token -> Bool -> Window -> IO ()
-setTokenColor _ (Tabs _) selected w =
-    setTextColor w (hintColor, tokenBg selected)
-setTokenColor language t selected w =
-    setTextColor w (colorize language t, tokenBg selected)
+setTokenColor :: Language -> Token -> TokenState -> Window -> IO ()
+setTokenColor _ (Tabs _) tokenState w =
+    setTextColor w (hintColor, tokenBg tokenState)
+setTokenColor language t tokenState w =
+    setTextColor w (colorize language t, tokenBg tokenState)
 
-tokenBg :: Bool -> Int
-tokenBg selected = case selected of False -> defaultBg
-                                    True  -> selectionColor
+tokenBg :: TokenState -> Int
+tokenBg DefaultState = defaultBg
+tokenBg Selected     = selectionColor
+tokenBg Highlighted  = highlightColor
