@@ -36,6 +36,7 @@ module Quark.Project ( Project
                      , flipNext'
                      , flipNext''
                      , flipPrevious'
+                     , flipPrevious''
                      , flipTo'
                      , flipTo''
                      , flipToParent'

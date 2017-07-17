@@ -13,6 +13,7 @@ import Quark.Helpers
 import Quark.Cursor
 import Quark.History
 import Quark.Buffer
+import Quark.Project
 
 main = defaultMain tests
 
@@ -21,7 +22,8 @@ tests = testGroup "Tests" [ properties
                           , helpersUnitTests
                           , cursorUnitTests
                           , historyUnitTests
-                          , bufferUnitTests ]
+                          , bufferUnitTests
+                          , projectUnitTests ]
 
 properties :: TestTree
 properties = testGroup "Properties" [qcProps]
@@ -388,3 +390,73 @@ bufferUnitTests = testGroup "Unit tests for Buffer.hs"
       assertEqual "" [] $ bracketPair $
           (ebFirst (moveCursorN 11 Forward) $
                ebNew "" "Test buffer) string" "") ]
+
+{- Unit tests for Project.hs -}
+
+testTree1 = (RootElement "root", [], [ FileElement "file1"
+                                     , FileElement "file2"
+                                     , FileElement "file3" ])
+
+testTree2 = ( FileElement "file1"
+            , [ RootElement "root" ]
+            , [ FileElement "file2"
+              , FileElement "file3" ])
+
+testTree3 = ( FileElement "file2"
+            , [ FileElement "file1"
+              , RootElement "root" ]
+            , [ FileElement "file3" ])
+
+testTree4 = (  FileElement "file3"
+            , [ FileElement "file2"
+              , FileElement "file1"
+              , RootElement "root" ]
+            , [])
+
+testTree5 = ( RootElement "root"
+            , []
+            , [ DirectoryElement ( RootElement "childRoot"
+                                 , []
+                                 , [ FileElement "childFile" ] )
+              , FileElement "file1" ])
+
+testTree6 = ( DirectoryElement ( RootElement "childRoot"
+                               , []
+                               , [ FileElement "childFile" ] )
+            , [ RootElement "root" ]
+            , [ FileElement "file1" ])
+
+testTree7 = ( DirectoryElement ( FileElement "childFile"
+                               , [ RootElement "childRoot" ]
+                               , [] )
+            , [ RootElement "root" ]
+            , [ FileElement "file1" ])
+
+testTree8 = ( FileElement "file1"
+            , [ DirectoryElement ( FileElement "childFile"
+                                 , [ RootElement "childRoot" ]
+                                 , [] )
+              , RootElement "root" ]
+            , [])
+
+projectUnitTests = testGroup "Unit tests for Project.hs"
+  [ testCase "flipNext'', simple tree" $
+      assertEqual "" testTree3 $ flipNext'' testTree2
+  , testCase "flipNext'', end of simple tree" $
+      assertEqual "" testTree4 $ flipNext'' testTree4
+  , testCase "flipPrevious'' simple tree" $
+      assertEqual "" testTree2 $ flipPrevious'' testTree3
+  , testCase "flipPrevious'', beginning of simple tree" $
+      assertEqual "" testTree1 $ flipPrevious'' testTree1
+  , testCase "flipNext'', nested tree, step in" $
+      assertEqual "" testTree6 $ flipNext'' testTree5
+  , testCase "flipNext'', nested tree, step inside" $
+      assertEqual "" testTree7 $ flipNext'' testTree6
+  , testCase "flipNext'', nested tree, step out" $
+      assertEqual "" testTree8 $ flipNext'' testTree7
+  , testCase "flipPrevious'', nested tree, step in" $
+      assertEqual "" testTree7 $ flipPrevious'' testTree8
+  , testCase "flipPrevious'', nested tree, step inside" $
+      assertEqual "" testTree6 $ flipPrevious'' testTree7
+  , testCase "flipPrevious'', nested tree, step out" $
+      assertEqual "" testTree5 $ flipPrevious'' testTree6 ]
