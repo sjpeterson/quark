@@ -398,6 +398,16 @@ expandFlipTo path tree = do
     path' = activePath tree
     next t = expandFlipTo path $ flipNext'' t
 
+---------------------
+-- Other functions --
+---------------------
+
+prompt :: QFE.Layout -> Project -> IO ()
+prompt layout project = do
+    s <- promptString (QFE.utilityBar layout) "" ""
+    debug (QFE.utilityBar layout) $ "You typed: " ~~ s
+    mainLoop layout project
+
 -----------------------------
 -- Window update functions --
 -----------------------------
@@ -512,7 +522,7 @@ handleKey layout project k
     | k == CtrlKey 'a' = action selectAll
     | k == CtrlKey 'n' = newBuffer layout project
     | k == CtrlKey 'o' = mainLoop layout =<< (promptOpen layout project)
-    | k == CtrlKey 'p' = continue -- prompt
+    | k == CtrlKey 'p' = prompt layout project
     | k == CtrlKey 't' = QFE.hideCursor >> projectLoop layout project
     | k == CtrlKey 'l' = toggleLayout layout project -- switchLayout
     | k == CtrlKey 'j' = widenProjectPane (-1) layout project
