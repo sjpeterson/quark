@@ -389,7 +389,22 @@ bufferUnitTests = testGroup "Unit tests for Buffer.hs"
   , testCase "Buffer bracket pair, no opening" $
       assertEqual "" [] $ bracketPair $
           (ebFirst (moveCursorN 11 Forward) $
-               ebNew "" "Test buffer) string" "") ]
+               ebNew "" "Test buffer) string" "")
+  , testCase "Buffer tab selection mid-line" $
+      assertEqual "" "    Test buffer string" $
+          ebContents $ tab $ ebFirst
+               ((selectMoveCursor Forward) . (moveCursorN 2 Forward)) $
+                   ebNew "" "Test buffer string" ""
+  , testCase "Buffer tab two line selection" $
+          assertEqual "" "    Test buffer\n    string" $
+              ebContents $ tab $ ebFirst
+                   ((selectMoveCursor Down) . (moveCursorN 2 Forward)) $
+                       ebNew "" "Test buffer\nstring" ""
+  , testCase "Buffer tab two line selection, preserve indentation" $
+            assertEqual "" "    Test buffer\n      string" $
+                ebContents $ tab $ ebFirst
+                     ((selectMoveCursor Down) . (moveCursorN 2 Forward)) $
+                         ebNew "" "Test buffer\n  string" ""]
 
 {- Unit tests for Project.hs -}
 

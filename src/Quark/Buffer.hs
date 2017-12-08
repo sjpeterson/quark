@@ -181,19 +181,15 @@ tab' tabToSpaces'' b@(Buffer s h crs@(r, c) sel@(rr, cc))
           if tabToSpaces''
               then (insert (T.replicate n $ T.singleton ' ') False True) b
               else (insert "\t" False True) b
-    | otherwise  = Buffer newS newH (r, c + n0) (rr, cc + n1)
+    | otherwise  = Buffer newS newH (r, c + n0) (rr, cc + n0)
   where
     n = tabWidth - (mod c tabWidth)
     newH = addEditToHistory tabEdit h
-    tabEdit = EditGroup [ IndentLine r' (tabWidth' r') c' 0 0
+    tabEdit = EditGroup [ IndentLine r' n0 c' 0 0
                         | r' <- [r0..r1] ] ix sel'
     (ix, sel') = ixAndSel b
-    tabWidth' r'' = if tabToSpaces''
-                        then tabWidth - mod (lnIndent ' ' r'' newS) tabWidth
-                        else 1
     c' = if tabToSpaces'' then ' ' else '\t'
-    n0 = tabWidth - mod (lnIndent ' ' r newS) tabWidth
-    n1 = tabWidth - mod (lnIndent ' ' rr newS) tabWidth
+    n0 = tabWidth - mod (lnIndent ' ' r0 s) tabWidth
     r0 = min r rr
     r1 = max r rr
     newS = doEdit tabEdit s
