@@ -287,7 +287,7 @@ clear = Curses.werase . cursesWindow
 
 clear' :: Window -> Int -> IO ()
 clear' t@(TextView w (r, c) (_, cc)) k
-    | rulerCol >= c + cc || rulerCol < cc = Curses.werase w
+    | rulerCol >= c || rulerCol < cc = Curses.werase w
     | otherwise                = do
           Curses.werase w
           setTextColor t rulerPair

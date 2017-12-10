@@ -1,7 +1,6 @@
 # Quark to do list
 
 ## Bugs and the like
-- "quark: user error (Curses[-1]:waddnstr)" moving cursor right sometimes
 - Arrow keys (and other escaped keys) are not handled correctly immediately 
   following a terminal resize in xterm-256color
 
