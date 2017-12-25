@@ -54,8 +54,8 @@ printText language w (crs, sel) hs m tokenLines' = do
         zip5 [0..(r - 2)] lineNumbers tokens selections highlights
   where
     (TextView _ (r, c) (rr, cc)) = w
-    n = length tokenLines'
-    lnc = (length $ show n) + 1
+    n = length tokenLines' + 1
+    lnc = (length $ show $ n - 1) + 1
     lineNumbers =
         map (padToLen lnc) (map (T.pack . show) $
             [rr + 1..n]) ++ repeat ""

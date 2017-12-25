@@ -107,7 +107,7 @@ tokenLength :: Token -> Int
 tokenLength = mapT T.length
 
 tokenLines :: [Token] -> [[Token]]
-tokenLines [] = []
+tokenLines [] = [[]]
 tokenLines t = cons (case break (== (Newline "\n")) t of
                          (l, t') -> (l, case t' of
                                             [] -> []
